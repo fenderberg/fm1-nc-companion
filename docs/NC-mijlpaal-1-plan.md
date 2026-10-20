@@ -141,6 +141,10 @@ Getest op de Mac (hosttests):
 - `ui_test`, `fm6_test`, `midi_control_test` zonder vlag: groen. Met de vlag faalt `midi_control_test` op 14 checks
   die Felucca's eigen CC-betekenissen (CC 1/5/11/71/74 op track 1/2, MIDI Learn met CC74) testen: dat is precies wat
   NCC bewust vervangt. Die test draait in `run_tests.sh` daarom alleen zonder vlag (zoals upstream).
+- Zoveel mogelijk van de volledige `tests/run_tests.sh` lokaal (98 testgroepen, zonder de stappen die een firmwarebuild
+  vragen): groen op drie na, die alle drie ook in **ongewijzigd** Felucca op deze Mac falen: M-UPGRADE (vraagt
+  `build/felucca.fwsc` en de SDK), de letterafstand (fonts gegenereerd met de Mac-Pillow) en de PERFORM-kosten van
+  FLANGER/PHASER (Apple-compiler; upstream-fx.c geeft hetzelfde getal).
 - Syntax-check van de hele firmware (`felucca.c`) met en zonder vlag: in orde. **Nog geen echte build** (geen Docker
   op de Mac; cloudbuild nodig) en dus nog geen size-report.
 
