@@ -1,0 +1,50 @@
+# CLAUDE.md: NC-Companion (Felucca fork for the M-VAVE FM-1)
+
+## Who and how
+- Owner: Remco (GitHub: Fenderberg). He speaks and dictates **Dutch**: always answer in Dutch. Dictation errors are common ("ferm" = FM, "M1/F1/MWave" = FM-1, "formeer" = firmware, "NC" = Novation Circuit Tracks).
+- He is a musician, new to firmware development. Explain changes in plain words, keep steps small, and show a plan before writing larger changes.
+- Code, comments and commit messages: **English**, in the style of the upstream code (dense, explanatory comments, C99, fixed point).
+
+## What we are building
+Firmware that makes the FM-1 a live companion to a **Novation Circuit Tracks (NC)**:
+- The NC plays the notes (its two MIDI tracks) and sends the MIDI clock; its **8 macro knobs** shape the sound via CCs.
+- The FM-1 has **two parts**: L = FM6 (DX7-style, 6-op), R = ANALOG (to become Juno-style). Each on its own MIDI channel.
+- The FM-1's panel is for **live jamming**: choosing sounds, the arp (always locked to the clock, with Arp-hold), Drone-hold, and effects (incl. throws). **No sequencer.**
+- **Live tweaking without glitches is the most important requirement.** Engines must stay swappable.
+
+Read before starting work:
+- `docs/NC-companion-ontwerp.md`: the design (in Dutch): controls, pages, macros, arp, holds, FX, architecture.
+- `docs/NC-companion-verkenning.md`: the exploration of Felucca (in Dutch): what exists, what is missing, constraints.
+
+## Architecture rules
+1. **Layers**: platform (upstream, untouched) → engines (+ a small adapter / macro table) → performance layer (macros with slew, clock and arp, holds, FX sends and throws) → UI. The UI talks only to the performance layer and the adapters.
+2. **Stay mergeable with upstream** (hugelton/Felucca): put new things in **new files** (e.g. `firmware/src/live_ui.c`, `firmware/src/perf_layer.c`) behind a build flag (`FELUCCA_LIVEUI=1`). Keep edits to upstream files small and marked with `/* NC: ... */`.
+3. Don't remove the old Felucca UI or sequencer at first; compile them out with the flag only when needed (RAM).
+4. The engine interface is `firmware/engines/src/felucca_engine.h` (MIT). Don't change it unless really needed; the submodule is upstream's.
+
+## Chip rules (the FM-1: JieLi AC791N, pi32v2): violating these breaks or bricks things
+- **Integers only**: no FPU, no float. Fixed point (Q15, 32-bit phases). **No 64-bit division** (64-bit multiply is OK). No C library (`printf`, `malloc`, `sin`).
+- **Division by zero does not trap** on the device; it gives a wrong value. Guard every divisor. (Example found in this exploration: `fx.c` `beat_samples()` divides by `song.g[G_BPM]`, and UBSan caught a zero there in the drumfuzz SONG run.)
+- **Audio ISR**: a block is 32 samples (CTL), a half buffer 128 frames (2.9 ms). Nothing slow in it: no screen, no flash, no waiting. Main loop ↔ ISR via `volatile`, one writer per variable.
+- **Main loop** must return within a few ms (USB, updater, watchdog).
+- **Screen**: draw only what changed (a full screen is ~80 ms).
+- **Flash**: a sector erase silences audio ~50 ms: only save when it is quiet, never while playing, never in a loop.
+- **Memory is tight**: RAM .data+.bss 60,984 of 73,728 B; pool 328,896 of 368,640 B (v1.6.1 build). The delay line alone is 128 KB. Check the size report of every build.
+- No register access outside `firmware/hal/`, no calls into chip ROM: the build refuses both.
+
+## Build and test
+- Set up once: `sh tools/setup_env.sh` (toolchain, the 3 SDK files, Pillow, first build). On Linux x86-64 no Docker is needed; on macOS Docker Desktop must run.
+- Build: `./build.sh` → `build/felucca.fwsc` (+ size report: watch RAM and pool).
+- Tests: `sh tests/run_tests.sh` (after a build). On Linux the drumfuzz test needs `-include stdint.h` (an upstream portability issue): add it to its compile line in `tests/run_tests.sh` in our fork.
+- The regression suite (`tests/regress.c`) checks golden renders, CPU per preset (`tests/cpu_baseline.txt`, +25 %) and target loop cost (`tests/target_budget.txt`, +10 %). A sound change fails it: update goldens only on purpose (`GOLDEN_UPDATE=1`, `BUDGET_UPDATE=1`) and say so in the commit.
+- Add host tests for new behaviour (macro slew, arp grid lock, holds) in the style of `tests/*_test.c`.
+- Browser emulator: `web/emu/build.sh` needs Emscripten (`brew install emscripten` on a Mac). It accepts Web MIDI (notes; CC 20–27 as panel knobs), so the NC can be tested against it.
+
+## Flashing (only Remco does this, on his Mac, after he agrees)
+- Never flash without asking. Before the first own build: test the rescue path (hold **OCT−** while switching on = updater) and keep the official V15 and a released Felucca at hand.
+- Install: Chrome/Edge web installer, or `python3 tools/fm1_install.py build/felucca.fwsc` (`--info` shows what runs now).
+- Give the fork its **own package identity** in `tools/build.py` (`PRODUCT`), not Felucca's `FM-1_9xx`. Check first how installers and the Firmware Hub match identities.
+- After a flash: run the test list in the design doc and update the FM-1 log (Remco keeps it in his claude.ai project).
+
+## Licence
+GPL-3.0-only (Felucca); engines MIT; FM6 core Apache-2.0. New files get the SPDX header `GPL-3.0-only`. Sharing a build means sharing the source.
