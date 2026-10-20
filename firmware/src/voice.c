@@ -420,6 +420,13 @@ static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
         t->nmono = 0;                                   /* no stale mono stack after a mode change */
         t->mono_note = 0;
         v->fine = 0;
+#if FELUCCA_LIVEUI
+        if ((uint32_t)(t - trk) < 2u && t->p[P_ED_FX] >= 4) {   /* NC: NCC's Juno drift on its parts (juno_chorus.c): */
+            static uint32_t drift_seed = 0x2545F491u;            /* each note a few cents off, as a Juno's voices */
+            drift_seed = drift_seed * 1664525u + 1013904223u;
+            v->fine = ((int32_t)(drift_seed >> 22) - 512) * ((t->p[P_ED_FX] >> 2) & 15) / 433;   /* 15: +-7.5 ct */
+        }
+#endif
         voice_start(t, v, note, vel, t->p[P_GLIDE] != 0 && !ENGINES[t->engine]->oneshot);
         return;
     }

@@ -809,6 +809,10 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
     t->ins_run = s->w != 0;                             /* (mix_part calls again while it fades) */
 }
 
+#if FELUCCA_LIVEUI
+#include "juno_chorus.c"                             /* NC: NCC's Juno chorus and SPLIT (mix_part: ncc_mix) */
+#endif
+
 /* one block of the whole mix (shared with hostsim.c): events -> each part (with its modulation matrix)
  * -> dist -> INSERT -> SLICER -> level / pan / sends -> buses -> master; out: stereo Q15 */
 static void events_block(uint32_t n);                    /* seq.c */
@@ -889,6 +893,10 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
 #endif
     mod_begin(t);                                       /* the matrix's per-block values into t->p (mod.c) */
     T_SPREAD(t) = t->p[P_SPRD] > 0 && (trk_vmode(t) == V_POLY || trk_vmode(t) == V_UNISON);   /* (SPREAD, mix_spread) */
+#if FELUCCA_LIVEUI
+    if (ncc_custom(t))
+        T_SPREAD(t) = 0;                                /* NC: the Juno chorus / SPLIT has the stereo (juno_chorus.c) */
+#endif
 #if FELUCCA_CPU2
     nr = track_render(t, b, n);
     part_cost[(uint32_t)(t - trk) % NTRK] = (uint16_t)(nr * ENG_VCOST[t->engine % NENGINES] + (nr || t->tail ? 60u : 0u));
@@ -916,6 +924,11 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         if ((pf.mute >> (t - trk)) & 1u)
             perf_mute((uint32_t)(t - trk), b, n);       /* perform.c: a black key in the FX layer */
     }
+#if FELUCCA_LIVEUI
+    if (!T_SPREAD(t) && ncc_custom(t))
+        ncc_mix(t, b, n SM_ARG(sm));                    /* NC: NCC's level / pan / sends (juno_chorus.c) */
+    else
+#endif
     if (!T_SPREAD(t)) {                                /* (the mix's values read after the calls: none is held over
                                                          * them, no spill in the loop: the ISR's cost as before 1.5) */
         int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];

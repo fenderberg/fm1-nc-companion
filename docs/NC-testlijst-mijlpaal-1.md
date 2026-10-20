@@ -39,3 +39,13 @@ Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-M
 ## Na afloop
 - [ ] Uit- en aanzetten: de laatste sounds staan er weer.
 - [ ] Terug naar Felucca of V15 als dat nodig is (rescue of de web-installer).
+
+## Mijlpaal 2 (Juno en split)
+- [ ] OCT+ (focus R), ALGORITHM draaien: popup "R CHORUS I / II / I+II", de kolom toont de stand. Klinkt het als
+      een Juno-chorus (breed, zwevend), geen klik bij wisselen?
+- [ ] PRESETS op R: eerst de Juno-sounds (JUNO STRINGS … JUNO SWEEP), dan ANALOG's eigen sounds. Per sound luisteren.
+- [ ] Drift: akkoorden op een Juno-sound klinken iets "levend" (niet vals).
+- [ ] GLO vasthouden + SEQ: kop "SPLIT", popup "SPLIT: L LEFT, R RIGHT". Met een koptelefoon: L alleen links,
+      R alleen rechts, geen galm/delay. Nog eens: "STEREO".
+- [ ] Uit/aan: SPLIT en de chorus-stand staan er weer (de naam toont dan "JUNO").
+- [ ] Y-kabel naar de twee ingangen van de Circuit Tracks: L en R los te mixen?

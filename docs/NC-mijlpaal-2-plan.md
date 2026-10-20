@@ -1,7 +1,7 @@
 # NCC mijlpaal 2: plan (nog geen code)
 
 Datum: 20 oktober 2026. Hoort bij `NC-companion-ontwerp.md` (v0.7), bouwplan stap 2: **Juno-smaak op ANALOG** en de
-**stereo/split-uitgang**. Status: **voorstel, wacht op akkoord van Remco.**
+**stereo/split-uitgang**. Status: **akkoord (20-10-2026, met de voorgestelde antwoorden); gebouwd en getest, nog niet geflasht.** Zie "Stand van zaken" onderaan.
 
 Uitgangspunt na mijlpaal 1 (echte build): RAM 58.696 van 73.728 B (±15 KB vrij), pool 325.632 van 368.640 B (±42 KB
 vrij), image 387 KB. Er is dus ruimte.
@@ -94,3 +94,40 @@ Niet aangeraakt: de engines-submodule, de opslagformaten (tenzij de split-instel
 2. De lijst met Juno-sounds: goed zo, of wil je bepaalde klanken (bijv. een bekende Juno-preset als voorbeeld)?
 3. Split-toggle met GLO + SEQ: goed?
 4. Naam van Juno-sounds na uit/aan: eerst "JUNO" en later netjes (mijlpaal 5), akkoord?
+
+## Besloten (Remco, 20-10-2026): de voorgestelde antwoorden
+1. ALGORITHM op R = chorus-stand. (De chorus werkt technisch ook op L; daar is nog geen knop voor.)
+2. De voorgestelde lijst met Juno-sounds.
+3. Split-toggle met GLO + SEQ.
+4. Na uit/aan toont de kolom "JUNO"; de nette naam later (mijlpaal 5).
+
+## Stand van zaken (20-10-2026)
+Gebouwd (branch `nc/setup`):
+- `firmware/src/juno_chorus.c`: stereo Juno-chorus per part (I / II / I+II, fade bij wisselen) en SPLIT, als eigen
+  mixfunctie `ncc_mix` (haakje in `fx.c` `mix_part`; staat beide uit, dan Felucca's eigen lus, bit voor bit).
+- Het Juno-karakter van een part zit in `P_ED_FX` (een opgeslagen parameter die Felucca niet gebruikt): bit 0–1 de
+  chorus, bit 2–5 de drift. Het hoort dus bij de sound en wordt bewaard in projecten en user presets.
+- Drift: haakje in `voice.c` (`poly_play`): elke POLY-noot een willekeurige fijnstemming, tot ±7,5 cent bij 15.
+- SPLIT in `G_ENGGO` (een opgeslagen globale waarde die Felucca niet gebruikt): bewaard met het project.
+- `firmware/src/ncc_presets.c`: 12 Juno-sounds (WAVE SUB = zaagtand + sub-blokgolf, of PWM met LFO op de breedte),
+  geladen als één sound-load; de macro's gaan terug naar het midden (`ncm_gen`).
+- `live_ui.c`: ALGORITHM op R = chorus (popup "R CHORUS II"), PRESETS op R eerst de Juno-lijst, GLO + SEQ =
+  ST/SPLIT (popup, "ST"/"SPLIT" in de kop), de kolom toont "CHORUS ..." en de Juno-naam.
+
+Getest:
+- `tests/ncc_test.c` (+ UBSan): chorus (uit = Felucca's lus; II stereo en de mono-som blijft; de LFO-snelheden;
+  geen klik bij wisselen, gemeten op een sinus), split (een noot op L: rechts en de bussen exact 0, en andersom),
+  Juno-sounds (waarden, chorus, drift, macro's terug), drift per noot (en geen drift onder 4), UI (ALGORITHM, de
+  Juno-lijst, GLO + SEQ, bewaard en teruggeladen met het project). Alles groen.
+- Regressie met en zonder vlag: 98 golden renders, 0 gewijzigd. Idle-CPU 336 i.p.v. 326 instructies/sample.
+- Kosten op de Mac: de chorus aan = +15 % op een blok met 4 ANALOG-noten (±150 ns per blok, ±7 % van het zwaarste
+  geval); SPLIT +2,6 %. Hoger dan de geschatte 2–3 %; versnellen kan (de vertraging per blok interpoleren) als het op
+  de chip krap wordt.
+- Echte build (Colima): image 390.092 B (+2,6 KB t.o.v. mijlpaal 1), RAM 58.808 B (+112), pool 326.696 B (+1.064, de
+  chorus-lijnen). Plain build nog steeds exact Felucca v1.6.1.
+- Emulator: chorus via ALGORITHM, SPLIT via GLO + SEQ (kop en popup) en de Juno-lijst bij PRESETS gecontroleerd.
+
+Nog open:
+- Luisteren: klinken de Juno-sounds en de chorus goed? (emulator of FM-1). De presetwaarden zijn een eerste gok.
+- De PERFORM-throws (REV/ECHO THROW) sturen in SPLIT nog naar de mono bussen (later, mijlpaal 4).
+- Of de Circuit Tracks zijn twee ingangen als losse kanalen mixt (Remco).

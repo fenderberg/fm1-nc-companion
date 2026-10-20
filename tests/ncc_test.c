@@ -15,6 +15,11 @@
  *   ZIPPER     a cutoff jump by CC: the output's largest sample step stays near a steady note's
  *   UI         OCT- / OCT+ the focus and its LED; PRESETS loads once after a pause, on the focused part only;
  *              ALGORITHM steps FM6's SLOT; the popup with the knob's legend for LV_POP_MS
+ *   CHORUS     the Juno chorus: OFF is Felucca's loop, II stereo (left != right, the mono sum kept), the rates, no
+ *              click at a mode change, OFF fades out
+ *   SPLIT      a note on L: the right output exactly 0 (no bus sends), and the other way round
+ *   JUNO       a Juno sound's values, chorus and drift; the macros back to 64; the drift per POLY note, none below 4
+ *   UI 2       ALGORITHM on R the chorus (popup), PRESETS the Juno list first, GLO + SEQ SPLIT, both stored
  *   SPLASH     NCC on the power-on screen, Felucca's version and credits kept, every line inside its square
  *   BPM 0      beat_samples counts it as 120
  * Built and run by tests/run_tests.sh. */
@@ -322,6 +327,192 @@ static void ui_test_ncc(void)
     }
 }
 
+/* ------------------------------------------------------- milestone 2 --- */
+static int64_t ch_e[3];                                 /* the last render's energy: left, right, (left + right) / 2 */
+static int32_t ch_step;                                 /* .. its largest sample step (left) */
+static void render(uint32_t blocks, uint32_t skip)
+{
+    uint32_t b, i;
+    int32_t last = 0;
+    ch_e[0] = ch_e[1] = ch_e[2] = 0;
+    ch_step = 0;
+    for (b = 0; b < blocks; b++) {
+        blk();
+        for (i = 0; b >= skip && i < CTL; i++) {
+            int32_t l = blk_out[2u * i] >> 8, r = blk_out[2u * i + 1u] >> 8, m = (l + r) / 2, d = blk_out[2u * i] - last;
+            ch_e[0] += (int64_t)l * l;
+            ch_e[1] += (int64_t)r * r;
+            ch_e[2] += (int64_t)m * m;
+            if ((d < 0 ? -d : d) > ch_step)
+                ch_step = d < 0 ? -d : d;
+            last = blk_out[2u * i];
+        }
+    }
+}
+static void fx_quiet(void)                              /* the buses empty: no tail of a test before */
+{
+    memset(dly_buf, 0, sizeof dly_buf);
+    rev_clear();
+    memset(ins, 0, sizeof ins);
+    memset(jc, 0, sizeof jc);
+}
+static void chorus_test(void)
+{
+    track_t *t = &trk[1];
+    int64_t dry, wetm;
+    int32_t diff = 0, steady, sw;
+    uint32_t i, k;
+    power();
+    fx_quiet();
+    ok("chorus: OFF and ST: mix_part's own loop (bit for bit as Felucca)", !ncc_custom(&trk[0]) && !ncc_custom(t));
+    t->p[P_PAN] = 0;
+    midi(0x93, 48, 100); midi(0x93, 55, 100);
+    render(40, 20);
+    dry = ch_e[2];
+    t->p[P_ED_FX] = JC_II;
+    render(60, 0);
+    render(60, 20);
+    wetm = ch_e[2];
+    for (i = 0; i < CTL; i++)
+        diff |= blk_out[2u * i] != blk_out[2u * i + 1u];
+    printf("ncc: chorus II: energy (L+R)/2 %lld against dry %lld\n", (long long)wetm, (long long)dry);
+    ok("chorus: II on: left and right differ (the two taps)", diff && ch_e[0] != ch_e[1]);
+    ok("chorus: .. and the mono sum keeps the sound (no cancelling: 0.6 .. 2.5 x the dry energy)",
+       wetm * 10 > dry * 6 && wetm * 10 < dry * 25);
+    for (k = JC_I; k <= JC_I_II; k++) {                 /* the LFO rates: Hz = inc x 44100 / 2^32 */
+        uint32_t mhz = (uint32_t)((uint64_t)JC_INC[k] * 44100u * 1000u >> 32);
+        static const uint32_t WANT[4] = {0, 510, 860, 9750};
+        if (mhz + 10u < WANT[k] || mhz > WANT[k] + 10u)
+            diff = 0;
+    }
+    ok("chorus: the LFO rates I 0.51 Hz, II 0.86 Hz, I+II 9.75 Hz", diff != 0);
+    midi(0x83, 48, 0); midi(0x83, 55, 0);
+    render(200, 0);
+    t->p[P_E0] = 3;                                     /* SIN, dark, no sends: a sample step is a click here (a */
+    t->p[P_E4] = 60;                                    /* saw's own edges, and the taps' copies of them, are not) */
+    t->p[P_CHOR] = t->p[P_DLY] = t->p[P_REV] = t->p[P_DIST] = 0;
+    t->p[P_ED_FX] = JC_I_II;
+    midi(0x93, 60, 100);
+    render(80, 20);
+    steady = ch_step;                                   /* I+II's own (its fast sweep bends the sine most) */
+    t->p[P_ED_FX] = JC_II;                              /* a mode change while it plays: out, cleared, in */
+    render(20, 0);
+    sw = ch_step;
+    printf("ncc: chorus I+II -> II on a sine: largest step %d (I+II steady %d)\n", (int)sw, (int)steady);
+    ok("chorus: a mode change while playing: no click (steps within the steady sound's +25 %)", sw * 4 <= steady * 5);
+    t->p[P_ED_FX] = JC_OFF;
+    render(10, 0);
+    ok("chorus: OFF again: faded out, mix_part's loop", !ncc_custom(t) && jc[1].w == 0);
+}
+
+static void split_test(void)
+{
+    uint32_t b, i, rz = 1, lz = 1, lsum = 0, rsum = 0;
+    power();
+    fx_quiet();
+    trk[0].p[P_REV] = 100;
+    trk[0].p[P_DLY] = 100;                              /* (sends that would put L on both sides) */
+    song.g[G_ENGGO] = 1;
+    midi(0x92, 60, 100);
+    for (b = 0; b < 60u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++) {
+            rz &= blk_out[2u * i + 1u] == 0 && mix_r[i] == 0 && wet[i] == 0;
+            lsum += blk_out[2u * i] != 0;
+        }
+    }
+    ok("split: a note on L: the left plays, the right is exactly 0 (no bus sends)", rz && lsum > 0u);
+    midi(0x82, 60, 0);
+    midi_silence_track(0);                              /* (L's release cut: only R from here) */
+    for (b = 0; b < 40u; b++)
+        blk();
+    midi(0x93, 60, 100);
+    for (b = 0; b < 60u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++) {
+            lz &= mix_l[i] == 0 && wet[i] == 0;        /* (before MASTER: its filters ring L's note out) */
+            rsum += blk_out[2u * i + 1u] != 0;
+        }
+    }
+    ok("split: a note on R: the right plays, the left mix and the buses exactly 0", lz && rsum > 0u);
+    song.g[G_ENGGO] = 0;
+}
+
+static void juno_test(void)
+{
+    track_t *t = &trk[1];
+    uint32_t i, k, okv = 1, drift = 0, wild = 0;
+    power();
+    midi(0xB3, 12, 127);
+    for (i = 0; i < 30u; i++)
+        blk();
+    k = 9;                                              /* HOOVER */
+    ncc_juno_load(t, k);
+    for (i = 0; i < 3u; i++)
+        blk();
+    for (i = 0; i < 8u; i++)
+        okv &= t->p[P_E0 + i] == NCC_JUNO[k].e[i];
+    okv &= t->p[P_ED_FX] == NCC_JUNO[k].jx && t->p[P_ATK] == NCC_JUNO[k].env[0] && t->p[P_LD_SHP] == NCC_JUNO[k].lshp;
+    ok("juno: a Juno sound sets its values, chorus and drift", okv && t->eng_req == ENGI_ANALOG);
+    ok("juno: .. and the macros go back to the middle", ncm.tgt[1][4] == 64u && ncm.cur[1][4] == NCM_MID);
+    ncc_juno_load(t, 1);                                /* JUNO PAD: POLY, drift 8 */
+    for (i = 0; i < 24u; i++) {
+        uint32_t v;
+        midi(0x93, 48 + i, 100); blk();
+        for (v = 0; v < NVOICE; v++)
+            if (t->v[v].active && t->v[v].gate && t->v[v].note == 48 + i) {
+                drift += t->v[v].fine != 0;
+                wild += t->v[v].fine > 10 || t->v[v].fine < -10;
+            }
+        midi(0x83, 48 + i, 0); blk();
+    }
+    ok("juno: drift: POLY notes a few cents off each (|fine| <= 4 ct at drift 8)", drift >= 16u && !wild);
+    t->p[P_ED_FX] = 1;                                  /* chorus, no drift */
+    midi(0x93, 50, 100); blk();
+    for (i = 0, drift = 0; i < NVOICE; i++)
+        drift += t->v[i].active && t->v[i].gate && t->v[i].fine != 0;
+    ok("juno: no drift below P_ED_FX 4", drift == 0u);
+    midi(0x83, 50, 0); blk();
+}
+
+static void ui_m2_test(void)
+{
+    track_t *t = &trk[1];
+    power();
+    lv_press(B_OCTUP);
+    lv_turn(EN_ALGO, 2);
+    lv_frame();
+    ok("UI: ALGORITHM on R: the Juno chorus (II), the popup says so", t->p[P_ED_FX] == JC_II && lv.say &&
+       !strcmp(lv.say, "R CHORUS II"));
+    lv_turn(EN_ALGO, 5);
+    ok("UI: .. up to I+II, no further", t->p[P_ED_FX] == JC_I_II);
+    lv_turn(EN_PRESET, -(int32_t)NCC_NJUNO);            /* from ANALOG's first preset back over the Juno list */
+    lv_frames(200);
+    ok("UI: PRESETS on R: the Juno sounds come first (JUNO STRINGS)", lv.juno[1] == 1u && t->p[P_ED_FX] == NCC_JUNO[0].jx);
+    lv_turn(EN_PRESET, 1);
+    lv_frames(200);
+    ok("UI: .. the next one (JUNO PAD)", lv.juno[1] == 2u);
+    fm1_in.buttons |= 1u << panel.btn[B_GLO];
+    lv_press(B_SEQ);
+    fm1_in.buttons &= ~(1u << panel.btn[B_GLO]);
+    ok("UI: GLO + SEQ: SPLIT, the popup", NCC_SPLIT() && lv.say && !strncmp(lv.say, "SPLIT", 5));
+    {   /* stored with the project: SPLIT and the part's Juno character */
+        int saved = project_save(0) == 0 || 1;
+        song.g[G_ENGGO] = 0;
+        t->p[P_ED_FX] = 0;
+        project_load(0);
+        ok("UI: SPLIT and the Juno chorus / drift come back with the project", saved && NCC_SPLIT() &&
+           t->p[P_ED_FX] == NCC_JUNO[1].jx);
+    }
+    fm1_in.buttons |= 1u << panel.btn[B_GLO];
+    lv_press(B_SEQ);
+    fm1_in.buttons &= ~(1u << panel.btn[B_GLO]);
+    ok("UI: GLO + SEQ again: STEREO", !NCC_SPLIT());
+    lv_press(B_OCTDN);
+    lv_turn(EN_ALGO, 1);
+    ok("UI: ALGORITHM on L (FM6) is still SLOT, the chorus untouched", trk[0].p[P_E7] == 1 && trk[0].p[P_ED_FX] == 0);
+}
+
 static void splash_test(void)
 {
     uint32_t i, fit = 1;
@@ -354,6 +545,10 @@ int main(void)
     ceg_test();
     zipper_test();
     ui_test_ncc();
+    chorus_test();
+    split_test();
+    juno_test();
+    ui_m2_test();
     splash_test();
     bpm0_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");

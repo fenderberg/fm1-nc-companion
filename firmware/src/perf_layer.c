@@ -70,10 +70,13 @@ static struct {
     int16_t base[NCM_PARTS][NCM_N][NCM_DST];    /* the parameter as the sound has it */
     int16_t put[NCM_PARTS][NCM_N][NCM_DST];     /* what ncm_block last wrote (NCM_UNSET: nothing yet) */
     uint32_t snd[NCM_PARTS];            /* the sound's signature (ncm_sig) */
+    uint8_t gen[NCM_PARTS];             /* the ncm_gen seen */
     uint32_t n;                         /* blocks */
     uint8_t ok;
 } ncm;
 static volatile uint32_t ncm_seen;      /* the last knob moved: part << 16 | knob << 8 | value, + 1 << 24 a turn */
+static volatile uint8_t ncm_gen[NCM_PARTS];     /* the main loop: + 1 = a new sound the signature cannot see (live_ui.c:
+                                                 * a Juno preset over ANALOG's preset 0) */
 
 static const ncm_map_t *ncm_map(const track_t *t)
 {
@@ -162,8 +165,9 @@ static void ncm_block(void)
         track_t *t = &trk[part];
         const ncm_map_t *mp = ncm_map(t);
         uint32_t sig = ncm_sig(t);
-        if (sig != ncm.snd[part]) {                         /* a new sound: the knobs back to the middle */
+        if (sig != ncm.snd[part] || ncm.gen[part] != ncm_gen[part]) {   /* a new sound: the knobs back to the middle */
             ncm.snd[part] = sig;
+            ncm.gen[part] = ncm_gen[part];
             ncm_reset(part);
         }
         if (!mp)
