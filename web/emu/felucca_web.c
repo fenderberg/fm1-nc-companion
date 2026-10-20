@@ -167,6 +167,9 @@ static void lcd_init(void) {}
 #include "../../firmware/src/ui_menu.c"
 #include "../../firmware/src/ui_input.c"
 #include "../../firmware/src/ui_layer.c"
+#if FELUCCA_LIVEUI
+#include "../../firmware/src/live_ui.c"      /* NC: NCC (EMU_CFLAGS=-DFELUCCA_LIVEUI=1): main.c maps ui_* to live_* */
+#endif
 
 /* ------------------------------------------------------------ the flash --- */
 static uint32_t web_flash_writes;
