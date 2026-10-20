@@ -1,125 +1,122 @@
-# Mijlpaal 1: plan (nog geen code)
+# NCC mijlpaal 1: plan (nog geen code)
 
 Datum: 20 oktober 2026. Basis: Felucca v1.6.1 (fork `Fenderberg/fm1-nc-companion`, branch `nc/setup`).
-Hoort bij `NC-companion-ontwerp.md` (v0.6). Status: **voorstel, wacht op akkoord van Remco.**
+Hoort bij `NC-companion-ontwerp.md`. Status: **v2, na bespreking met Remco; wacht op akkoord.**
+
+Besluiten van Remco (20-10-2026):
+- De firmware heet **NCC** (Novation Circuit Companion).
+- De arp komt later (niet in mijlpaal 1).
+- De 8 macro's volgen zoveel mogelijk de **paneellabels van de Circuit Tracks**.
+- De twee engines luisteren standaard op **kanaal 3 en 4** (de MIDI 1- en MIDI 2-track van de Circuit Tracks).
 
 ## Doel
 Build-vlag `FELUCCA_LIVEUI=1`. Zonder de vlag is de firmware bit-voor-bit Felucca (alle tests en goldens gelijk).
 Met de vlag:
 - een minimale live-UI (`firmware/src/live_ui.c`): twee parts, **L = track 1 (FM6)**, **R = track 2 (ANALOG)**;
-  focus met OCT− / OCT+; PRESETS bladert de sounds van het gefocuste part; hoofdscherm met twee kolommen.
-- MIDI IN standaard op **TRACK** (`ROUTE_TRACK`): L op kanaal 1, R op kanaal 2 (instelbaar via `song.mch`).
-- een macrolaag (`firmware/src/perf_layer.c`): CC 70–77 met slew naar de engine-parameters (tabel hieronder).
+  focus met OCT− / OCT+; PRESETS bladert de sounds van het gefocuste part; hoofdscherm met twee kolommen; "NCC" op het
+  opstartscherm.
+- MIDI IN standaard op **TRACK** (`ROUTE_TRACK`): **L op kanaal 3, R op kanaal 4** (instelbaar via `song.mch`).
+- een macrolaag (`firmware/src/perf_layer.c`): de 8 macro-CC's met slew naar de engine-parameters (tabel hieronder).
 
-## Hoe het in Felucca past (wat ik vond)
-- Alles is één compilatie-eenheid (`felucca.c` includet de rest in vaste volgorde). De UI komt als laatste.
-- De main loop (`main.c`) roept per frame `ui_input()`, `ui_leds()`, `ui_draw()` aan. Dat zijn de drie haakjes.
+## Package identity en naam
+- Identity **`FM-1_700`** (dev) en **`FM-1_7XY`** voor releases (v1.0 → `FM-1_710`). Al gezet in `tools/build.py`.
+  - "FM-1" vóór de `_` moet blijven: beide installers weigeren een pakket waarvan het model niet gelijk is aan dat
+    van het apparaat. Het nummer is vrij (officieel 0xx, Felucca 9xx). De Firmware Hub kijkt naar de SHA-256, niet
+    naar de identity. `web/make_site.py` accepteert nu ook 7xx.
+- Release-bestanden heten `ncc-X.Y.fwsc` en `ncc-X.Y-app.bin`. De dev-build blijft `build/felucca.fwsc` (de tests en
+  scripts zoeken die naam).
+
+## Wat de Circuit Tracks stuurt (uit de officiële handleiding, v3)
+- Kanalen af fabriek: Synth 1 = 1, Synth 2 = 2, **MIDI 1 = 3, MIDI 2 = 4**, Drums = 10.
+- Een MIDI-track stuurt met de 8 macroknoppen CC's volgens het gekozen **template** (8 per track, te bewerken in
+  Components). Af fabriek: **CC 1, 2, 5, 11, 12, 13, 71, 74** voor knop 1..8, op het kanaal van die track.
+- De paneellabels van de 8 knoppen: **1 Oscillator, 2 Oscillator Mod, 3 Amp Envelope, 4 Filter Envelope,
+  5 Filter Frequency, 6 Resonance, 7 Modulation, 8 FX**.
+
+Dus: met het fabriekstemplate werkt NCC meteen, zonder Components. In Felucca betekenen CC 1 (modwiel), 5 (glide),
+11 (expressie/volume), 71 en 74 iets anders; met de vlag vangt de macrolaag deze 8 CC's op kanaal 3/4 af **vóór**
+Felucca's eigen afhandeling. (Optioneel later: een eigen template met andere CC's, instelbaar in GLO.)
+
+## De 8 macro's (volgens de Circuit-labels)
+| Knop | Label NC | CC | L: FM6 | R: ANALOG |
+|---|---|---|---|---|
+| 1 | Oscillator | 1 | MRAT: ratio's van de modulators (stapt) | MIX: balans osc 1 / osc 2 |
+| 2 | Oscillator Mod | 2 | FB: feedback (stapt) | DTN: detune osc 2 |
+| 3 | Amp Envelope | 5 | **nieuw: CEG** (tijden van de carrier-envelopes), zie hieronder | ATK + REL samen langer |
+| 4 | Filter Envelope | 11 | MEG: tijden van de modulator-envelopes (= de "filter-envelope" van FM) | ENV→FLT (P_ED_FLT) |
+| 5 | Filter Frequency | 12 | MLVL: level van alle modulators (= helderheid; Felucca stuurt CC74 hier ook al heen) | CUT |
+| 6 | Resonance | 13 | geen echte tegenhanger; voorstel **DTUN** (carriers uit elkaar: zweving, "glans") | RES |
+| 7 | Modulation | 71 | LFO-diepte naar helderheid + vibrato (P_LD_FLT, P_LD_PIT) | LFO-diepte + snelheid (P_LD_FLT, P_LRATE) |
+| 8 | FX | 74 | Drive + chorus-send (P_DIST, P_CHOR) | Drive + chorus-send (P_DRV/P_DIST, P_CHOR) |
+
+Opmerkingen:
+- **Amp Envelope bij FM6**: bij FM6 doen de gewone ADSR-knoppen niets; de envelopes van de operators zijn de
+  amplitude. Er is wel een macro voor de modulators (MEG), niet voor de carriers. Voorstel: een kleine 9e
+  "macro" CEG in `eng_fm6.c` (zelfde rekenwijze als MEG, op de carriers). Is dat te veel voor M1, dan doet knop 3
+  bij FM6 in M1 nog niets.
+- **FB en MRAT** zijn hele stappen. Slew maakt ze niet vloeiend, maar voorkomt tien stappen in één blok. Of het
+  klikt, meet de test; zo nodig gaan die twee pas in bij een nieuwe noot.
+- **CPU**: FM6 rekent zijn effectieve patch opnieuw uit in de ISR als een macro verandert. Tijdens het glijden
+  gebeurt dat elk blok. Dat meet ik apart (worst case: alle macro's tegelijk draaien).
+- **Relatief t.o.v. de preset**: FM6's macro's zijn al offsets op de patch. Bij ANALOG onthoudt de laag de
+  presetwaarde en telt de macro erbij op. Bij laden van een sound springen alle macro's naar het midden.
+  Let op: de Circuit stuurt absolute waarden (0..127) en weet niet dat wij resetten; de eerste draai na een
+  presetwissel springt dus naar de knopstand. Opvangen met **"pick-up"** (pas volgen als de knop het midden
+  passeert) of gewoon laten springen (met slew): keuze voor na de eerste test.
+
+## Hoe het in Felucca past
+- Alles is één compilatie-eenheid (`felucca.c`). De main loop (`main.c`) roept per frame `ui_input()`, `ui_leds()`,
+  `ui_draw()` aan: dat zijn de haakjes voor de live-UI.
 - MIDI en CC's worden in de audio-ISR verwerkt (`events_block()` in `seq.c`, per blok van 32 samples).
-  CC's gaan via `midi_control()` → `midi_cc_map()` (`midi_control.c`) en zetten `t->p[id]` **direct**.
-- FM6's 8 macro's (ALG FB MLVL MRAT MEG VMOD DTUN SLOT) zijn al **offsets op de patch** (0 = de patch zelf).
-  "Relatief t.o.v. de preset" is daar dus gratis.
-- `apply_preset_to(track, n)` (`ui.c`) laadt een sound op een track, met de bestaande fades: die hergebruik ik.
-
-## Aanpak: oude UI blijft ingebouwd, live-UI neemt de haakjes over
-De Felucca-UI blijft gecompileerd (settings, presets, opslag en de MIDI-Learn-tabel hangen eraan), maar met
-`FELUCCA_LIVEUI=1` roept de main loop `live_input()` / `live_leds()` / `live_draw()` aan in plaats van de `ui_*`-versies.
-Zo is de ingreep klein en blijft de fork mergebaar. Pas als het RAM knelt, gaan delen van de oude UI eruit (later).
+- `apply_preset_to(track, n)` (`ui.c`) laadt een sound met de bestaande fades: die hergebruik ik.
+- De oude Felucca-UI blijft gecompileerd (settings, presets, opslag en MIDI Learn hangen eraan); met de vlag roept
+  de main loop `live_input()` / `live_leds()` / `live_draw()` aan.
 
 ## Nieuwe bestanden
 | Bestand | Inhoud |
 |---|---|
-| `firmware/src/perf_layer.c` | Macrotabel per engine, doelwaarde per (part, macro), slew per blok, "laatste waarde wint". Geen UI-code. |
-| `firmware/src/live_ui.c` | Focus, PRESETS/ALGORITHM-encoders, twee-kolommen-scherm (alleen gewijzigde stukjes tekenen, via `gfx.c`), LED's van OCT−/OCT+. |
-| `tests/perf_test.c` | Hosttest macrolaag (zie Testen). |
-| `tests/live_ui_test.c` | Hosttest live-UI met de stubs van `tests/ui_test.c` (knoppen, encoders, scherm). |
+| `firmware/src/perf_layer.c` | Macrotabel per engine, doel per (part, macro), slew per blok, laatste waarde wint. |
+| `firmware/src/live_ui.c` | Focus, encoders, twee-kolommen-scherm (alleen gewijzigde stukjes, via `gfx.c`), LED's. |
+| `tests/perf_test.c` | Hosttest macrolaag. |
+| `tests/live_ui_test.c` | Hosttest live-UI met de stubs van `tests/ui_test.c`. |
 
-Beide nieuwe bronbestanden krijgen `SPDX-License-Identifier: GPL-3.0-only`.
-
-## Upstream-bestanden die ik moet aanraken (klein, gemarkeerd met `/* NC: ... */`)
+## Upstream-bestanden die ik aanraak (klein, gemarkeerd met `/* NC: ... */`)
 | Bestand | Wijziging |
 |---|---|
-| `firmware/src/felucca.c` | `#ifndef FELUCCA_LIVEUI` → `0`; met de vlag `#include "perf_layer.c"` (na `seq.c`) en `#include "live_ui.c"` (na `ui_layer.c`). |
-| `firmware/src/main.c` | De drie UI-aanroepen (2 plekken) via `#if FELUCCA_LIVEUI` naar `live_*`. Bij opstart: tracks 1/2 op FM6/ANALOG en ROUTE_TRACK zetten als het project dat nog niet heeft. |
-| `firmware/src/midi_control.c` | In `midi_cc_map()`: met de vlag eerst `perf_cc(t, cc, value)`; geeft die 1 terug, dan is de CC van de macrolaag (CC 70–77). MIDI Learn blijft voorgaan. |
-| `firmware/src/fx.c` of `seq.c` | Eén aanroep `perf_block()` per audioblok, direct na `events_block(n)` (de slew). |
-| `tools/build.py` | `FELUCCA_LIVEUI` doorgeven zoals de andere `FELUCCA_*`-vlaggen (als dat niet al generiek gaat) + de eigen identity (apart voorstel). |
-| `tests/run_tests.sh` | De twee nieuwe tests + een compile van de regressie met `-DFELUCCA_LIVEUI=1`. |
-
-Niet aangeraakt: de engines-submodule (`felucca_engine.h`), `voice.c`, de opslagformaten.
-
-## De macrolaag
-- **CC-afhandeling (ISR, `events_block`)**: CC 70–77 schrijft alleen de doelwaarde `perf.tgt[part][m]` (0..127).
-  Veel CC's in één blok = alleen de laatste telt (gratis, want we zetten alleen het doel).
-- **Slew (ISR, `perf_block`, 1× per blok van 32 samples ≈ 0,73 ms)**: `cur += (tgt − cur) >> k` in Q8 (integer, geen
-  deling), met k zó gekozen dat ±10 ms het doel bijna bereikt (instelbaar 5–20 ms; standaard 10 ms). Pas als de
-  afgeronde waarde verandert, schrijft hij `t->p[id]`. Eén schrijver per variabele: alleen de ISR schrijft `t->p` van
-  gemapte parameters zolang een macro actief is.
-- **Relatief t.o.v. de preset**: bij laden van een sound (`apply_preset_to`) springen de macro's naar het midden (64)
-  en onthoudt de laag de basiswaarde van elke doelparameter. Waarde = basis + (macro − 64) × bereik / 64, geklemd.
-  (De deling door 64 is een shift; geen deling door een variabele.)
-- **Tabel (const, in flash)**, per engine een rij van 8 macro's → tot 2 doelen elk, met bereik:
-
-| Knop | CC | L: FM6 | R: ANALOG |
-|---|---|---|---|
-| 1 | 74 | MLVL (P_E2) | CUT (P_E4) |
-| 2 | 71 | MRAT (P_E3) — **stapt** (integer) | RES (P_E5) |
-| 3 | 70 | FB (P_E1, stapt) + DIST (P_DIST) | ENV→FLT (P_ED_FLT) |
-| 4 | 73 | MEG (P_E4) | ATK (P_ATK) |
-| 5 | 72 | MEG + REL (P_REL) | DEC + REL (P_DEC, P_REL) |
-| 6 | 76 | LFO-diepte (P_LD_PIT/P_LD_AMP; sync bestaat: P_LSYNC) | LFO-snelheid + diepte (P_LRATE, P_LD_FLT) |
-| 7 | 77 | DTUN (P_E6) + SPREAD (P_SPRD) | Chorus-send (P_CHOR) — Juno-chorus I/II komt in mijlpaal 2 |
-| 8 | 78 | **niet in M1** (arp-verdeling hoort bij mijlpaal 3: arp op het raster) | idem |
-
-Let op: FB en MRAT zijn gehele stappen (−7..7, −16..16). Slew maakt die niet vloeiend; het zorgt alleen dat een snelle
-draai niet tien stappen in één blok zet. Of dat hoorbaar klikt, meet ik in de test (en op het apparaat).
-
-- **Standaard-CC-map**: met de vlag nemen de macro's CC 70–77 over (CC 71/72/73/74 zaten in Felucca's vaste map).
-  CC 5, 7, 10, 91, 93, 94 blijven zoals Felucca ze doet.
+| `firmware/src/felucca.c` | `FELUCCA_LIVEUI` (standaard 0); met de vlag `perf_layer.c` en `live_ui.c` includen. |
+| `firmware/src/main.c` | De UI-aanroepen via `#if FELUCCA_LIVEUI` naar `live_*`; bij opstart tracks 1/2 = FM6/ANALOG, ROUTE_TRACK, kanalen 3/4 als het project nog niets heeft. |
+| `firmware/src/midi_control.c` | Met de vlag in `midi_control()`: eerst `perf_cc(ch, cc, value)`; 1 = van de macrolaag. |
+| `firmware/src/fx.c` | Eén aanroep `perf_block()` per audioblok, direct na `events_block(n)`. |
+| `firmware/src/eng_fm6.c` | Alleen als je CEG wilt: een carrier-envelope-offset naast MEG. |
+| `tools/build.py` | `FELUCCA_LIVEUI` aan de lijst met doorgegeven vlaggen (identity/naam: al gedaan). |
+| `tests/run_tests.sh` | De twee nieuwe tests + de regressie ook met `-DFELUCCA_LIVEUI=1`. |
 
 ## De live-UI (minimaal)
-- **OCT− / OCT+**: focus L / R (LED van de knop aan). Geen octaafwissel meer op die knoppen met de vlag.
-  OCT− bij het aanzetten blijft de USB-rescue (dat zit vóór de UI in `main.c`, raak ik niet aan).
-- **PRESETS-encoder**: volgende/vorige sound van het gefocuste part; laden na ±150 ms stilstand (zoals Felucca's
-  `preset_go`), dus draaien door de lijst klikt niet.
-- **ALGORITHM-encoder**: bij FM6 de SLOT (F1–F8, B1–B32); bij ANALOG niets in M1.
-- **27 toetsen**: spelen het gefocuste part (via Felucca's toetsenroute naar de geselecteerde track: `song.sel` = focus).
-- **Scherm 240×240**: bovenbalk (BPM, ext. klok ja/nee), twee kolommen L/R met engine-naam, sound-naam en een
-  MIDI-activiteitsstip; de gefocuste kolom licht, de andere gedimd. Popup "CUT 87" ±1 s bij een NC-macro.
-  Alleen tekenen wat verandert (vlaggen per veld), nooit een heel scherm per frame.
-- Alles anders (EDIT, GLO, SAVE, FX, ARP-pagina's) doet in M1 **niets**. Opslaan gebeurt via Felucca's autosave
-  (alleen als het stil is).
+- **OCT− / OCT+**: focus L / R (LED). OCT− bij het aanzetten blijft de USB-rescue (zit vóór de UI, blijft onaangeroerd).
+- **PRESETS**: volgende/vorige sound van het gefocuste part, laden na ±150 ms stilstand (geen klikken bij doordraaien).
+- **ALGORITHM**: bij FM6 de SLOT (F1–F8, B1–B32); bij ANALOG niets in M1.
+- **27 toetsen**: spelen het gefocuste part.
+- **Scherm**: bovenbalk (NCC, BPM, externe klok), twee kolommen L/R met engine, sound-naam, kanaal en MIDI-stip;
+  focus licht, de andere gedimd. Popup met het **Circuit-label** + waarde ("FILTER FREQ 87") ±1 s bij een macro.
+- De rest (EDIT, GLO, SAVE, FX, ARP) doet in M1 niets. Opslaan via Felucca's autosave (alleen als het stil is).
 
 ## Testen
-1. **Bestaande suite zonder vlag**: `sh tests/run_tests.sh` moet volledig groen blijven, goldens en CPU-budget
-   ongewijzigd (de vlag staat standaard uit, dus dat moet vanzelf).
-2. **`tests/perf_test.c`** (nieuw, host):
-   - stap van 0 → 127 op CC74: de parameter loopt monotoon op, geen sprong groter dan X per blok, doel bereikt
-     binnen 10 ms ± 1 blok;
-   - 100 CC's in één blok → alleen de laatste telt;
-   - sound laden → macro's terug naar midden, waarde = preset;
-   - geklemd aan het bereik van elke parameter (ook bipolaire FM6-macro's);
-   - render-check: een FM6- en ANALOG-noot met een macro-sweep geeft geen klik (max. sample-sprong onder een drempel),
-     met de bestaande render-helpers van `tests/regress.c`.
-3. **`tests/live_ui_test.c`** (nieuw): OCT−/OCT+ wisselt focus en LED; PRESETS laadt op het gefocuste part en niet op
-   het andere; TRACK-routing: noot op kanaal 1 → track 1, kanaal 2 → track 2; UI-render-lint van het nieuwe scherm
-   (geen tekst buiten beeld), zoals `tests/ui_render.c` dat voor de oude schermen doet.
-4. **CPU**: `perf_block` kost per blok max. 16 vergelijkingen + een paar schrijfacties; ik voeg het toe aan de
-   CPU-meting van de regressie (budget +25 % mag niet geraakt worden; verwacht < 1 %).
-5. **Firmwarebuild** (cloud, want lokaal geen Docker): build met en zonder `FELUCCA_LIVEUI=1`, size-report vergelijken.
-6. **Op het apparaat** (alleen na jouw akkoord, jij flasht): testlijst — rescue werkt nog, focus, presets, NC op
-   kanaal 1/2, macro's draaien zonder zipper, geen hangende noten.
+1. Bestaande suite zonder vlag: volledig groen, goldens en CPU-budget ongewijzigd.
+2. `tests/perf_test.c`: stap 0→127 loopt monotoon zonder grote sprongen en is binnen 10 ms ± 1 blok bij het doel;
+   100 CC's in één blok → de laatste telt; sound laden → midden, waarde = preset; klemmen; render-check zonder klik
+   (FM6 en ANALOG, sweep van elke macro); CC 1/5/11 op kanaal 3/4 doen niets meer met modwiel/glide/volume.
+3. `tests/live_ui_test.c`: focus en LED; PRESETS op het gefocuste part; noot op kanaal 3 → L, kanaal 4 → R,
+   kanaal 1/2 genegeerd; render-lint van het nieuwe scherm.
+4. CPU: `perf_block` en de FM6-herberekening bij glijden in de regressiemeting.
+5. Firmwarebuild (cloud) met en zonder de vlag; size-report vergelijken.
+6. Op het apparaat (alleen na jouw akkoord, jij flasht): rescue, focus, presets, Circuit op kanaal 3/4, macro's
+   zonder zipper, geen hangende noten.
 
-## Wat het kost aan geheugen (schatting, te bevestigen met het size-report)
-- **RAM (.data+.bss)**: macrolaag ±100 B (per part 8 × doel/huidig/basis + een paar vlaggen), live-UI ±100 B
-  (focus, popup-timer, "wat is vuil"-vlaggen). Totaal **< 0,5 KB** van de ±12,5 KB vrij. De oude UI blijft, dus
-  daar winnen we nog niets terug.
-- **Pool**: 0 (geen buffers).
-- **Flash/image**: ±4–8 KB code + tabellen (image nu 511 KB; de app-slot heeft ruimte, check in het size-report).
-- **CPU**: verwaarloosbaar (zie boven).
+## Geheugen (schatting, te bevestigen met het size-report)
+- RAM: < 0,5 KB (van ±12,5 KB vrij). Pool: 0. Flash: ±4–8 KB. CPU: klein, behalve mogelijk FM6 tijdens glijden (meten).
 
-## Risico's / open punten
-- FB en MRAT stappen (integer): mogelijk hoorbaar bij snel draaien. Alternatief: die twee alleen bij een nieuwe noot
-  laten ingaan. Beslissen na de test.
-- Felucca's autosave bewaart `t->p` mét macro-offset. Voor M1 acceptabel; later basis en offset apart bewaren.
-- `beat_samples()`-guard (deling door BPM 0) hoort bij mijlpaal 3, maar is één regel: mag ik die meteen meenemen?
-- De standaard MIDI-kanalen van de NC-tracks (1 en 2?) nog bevestigen.
+## Nog te beslissen
+1. FM6 knop 3 (Amp Envelope): CEG toevoegen in M1, of later?
+2. FM6 knop 6 (Resonance): DTUN goed, of iets anders?
+3. Na een presetwissel: pick-up of springen?
+4. De `beat_samples()`-guard (deling door BPM 0) nu al meenemen?

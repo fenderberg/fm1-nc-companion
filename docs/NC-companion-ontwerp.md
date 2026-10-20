@@ -1,10 +1,11 @@
-# FM-1 als hulpje van de Novation Circuit Tracks: ontwerp v0.6
+# NCC (Novation Circuit Companion): FM-1 als hulpje van de Circuit Tracks, ontwerp v0.7
 
 Status: ontwerp, 20 oktober 2026. Verkenning (stap 0) klaar, bouwen begint in Claude Code.
 - v0.2: geen sequencer, split-uitgang als optie, interface voor live gebruik.
 - v0.3: rolverdeling. **NC = noten + klankvorming (8 macro's). FM-1-paneel = sounds kiezen, arp bedienen, effecten.** Ontworpen voor een live jam.
 - v0.4: arp altijd vast aan de klok, met Arp-hold. Losse Drone-hold voor drones.
 - v0.5: basis gekozen: fork van Felucca, met eigen interface. Architectuur in lagen; live tweaken is de belangrijkste eis.
+- v0.7 (20-10-2026): naam **NCC**, identity FM-1_7XY; engines op **kanaal 3 en 4** (MIDI 1/2 van de NC); de 8 macro's volgen de **paneellabels van de Circuit Tracks** en het fabriekstemplate (CC 1 2 5 11 12 13 71 74); arp later.
 - v0.6: **verkenning verwerkt** (zie `NC-companion-verkenning.md`): Felucca bevestigd, open vragen over code en FM6 beantwoord, split aangepast aan het geheugen, hergebruik per onderdeel aangegeven.
 
 ## Doel
@@ -46,8 +47,8 @@ Basis is Felucca's `engine_t`: 8 parameters met namen en bereik, presets, `note_
 | | Engine L | Engine R |
 |---|---|---|
 | Type | **FM6** (msfa/Dexed-port, 6-op, 32 algoritmes) | **ANALOG** (2 polyBLEP-osc, sub, noise, drive, SVF) + Juno-chorus en -presets |
-| Bestuurd door | NC MIDI-track 1 | NC MIDI-track 2 |
-| MIDI-kanaal | Felucca's **TRACK**-routing (elk part een eigen kanaal), instelbaar | idem |
+| Bestuurd door | NC MIDI-track 1 (MIDI 1) | NC MIDI-track 2 (MIDI 2) |
+| MIDI-kanaal | **3** (NC MIDI 1), via Felucca's TRACK-routing, instelbaar | **4** (NC MIDI 2) |
 | Klanken | **32-voice DX7 .syx-banks**: FM6 laadt die al (via de web-editor); eigen patch per part | ANALOG-presets; Juno-106-import later uitzoeken |
 | Stemmen | Max 6 per part | |
 | Totaal | **8 stemmen gedeeld** door beide parts (Felucca-budget); later meten of meer kan, bijv. met de tweede CPU-core | |
@@ -61,21 +62,25 @@ Basis is Felucca's `engine_t`: 8 parameters met namen en bereik, presets, `note_
   - Nog checken: mixt de NC zijn twee ingangen als losse kanalen?
 
 ## De 8 macroknoppen (alleen op de NC)
-Beide engines gebruiken dezelfde CC-nummers. Eén Components-template werkt dan voor beide MIDI-tracks. In `FELUCCA_LIVEUI` vervangt de macrolaag Felucca's vaste CC-map voor deze nummers; MIDI Learn kan blijven bestaan.
+De macro's volgen zoveel mogelijk de **paneellabels van de Circuit Tracks**. Een MIDI-track van de NC stuurt met zijn
+macroknoppen CC's volgens het gekozen template; het fabriekstemplate stuurt CC 1, 2, 5, 11, 12, 13, 71, 74. NCC luistert
+daar standaard naar, dus het werkt zonder Components. In `FELUCCA_LIVEUI` vangt de macrolaag deze CC's op de kanalen van
+de twee parts af vóór Felucca's eigen betekenis (modwiel, glide, expressie). MIDI Learn kan blijven bestaan.
 
-| Knop | CC | Engine L: FM6 | Engine R: ANALOG/Juno |
-|---|---|---|---|
-| 1 | 74 | Kleur → FM6-macro **MLVL** (level van alle modulators) | Cutoff |
-| 2 | 71 | Karakter → **MRAT** (ratio's van de modulators) | Resonance (met lichte saturatie) |
-| 3 | 70 | Grom → **FB** (feedback) + drive | Env → filter |
-| 4 | 73 | Aanslag → **MEG** (sneller/trager) | Attack |
-| 5 | 72 | Staart → MEG + release | Decay/release |
-| 6 | 76 | Beweging: LFO-diepte (klok-gesynct) | LFO: snelheid + diepte |
-| 7 | 77 | Breedte → **DTUN** (carriers uit elkaar) + spread | Chorus: uit / I / II / I+II + drift |
-| 8 | 78 | Arp: uit · 1/8 · 1/16 · 1/16T · 1/32 | idem |
+| Knop | Label NC | CC | Engine L: FM6 | Engine R: ANALOG/Juno |
+|---|---|---|---|---|
+| 1 | Oscillator | 1 | MRAT (ratio's modulators) | MIX (osc 1 / osc 2) |
+| 2 | Oscillator Mod | 2 | FB (feedback) | DTN (detune osc 2) |
+| 3 | Amp Envelope | 5 | CEG (carrier-envelopes, nieuw) | Attack + release |
+| 4 | Filter Envelope | 11 | MEG (modulator-envelopes) | Env → filter |
+| 5 | Filter Frequency | 12 | MLVL (helderheid) | Cutoff |
+| 6 | Resonance | 13 | DTUN (voorstel; FM6 heeft geen filter) | Resonance |
+| 7 | Modulation | 71 | LFO-diepte (helderheid + vibrato) | LFO-diepte + snelheid |
+| 8 | FX | 74 | Drive + chorus-send | Drive + chorus-send (later Juno-chorus) |
 
-- FM6 heeft deze macro's al op zijn patch (ALG, FB, MLVL, MRAT, MEG, VMOD, DTUN, SLOT). Wij sturen ze aan met slew.
-- Macro's werken **relatief t.o.v. de preset**. Bij een nieuwe preset gaan ze terug naar de middenstand (instelbaar).
+- Macro's glijden (slew ± 10 ms) en werken **relatief t.o.v. de preset**. Bij een nieuwe preset gaan ze terug naar de
+  middenstand (instelbaar; pick-up of springen nog te kiezen).
+- Arp-bediening via een macro vervalt; de arp wordt op het FM-1-paneel bediend (later).
 
 ## Arpeggiator (per part)
 Basis: Felucca's arp in `seq.c`: 14 modes (o.a. up, down, up/down, random, as played, chord), OCT, GATE, SWING, PROB, HOLD; volgt de externe klok.
@@ -183,11 +188,11 @@ Per part: **Drive → Insert/Mod → sends naar chorus, delay en reverb** (Feluc
 - Zijn de FM-1-encoders indrukbaar? Vasthouden en kort drukken: Felucca heeft al een instelbare HOLD-drempel voor lagen.
 - Juno-106 SysEx-patchformaat (voor import op ANALOG)
 - Stemmenbudget: is 8 gedeeld genoeg met arp + drone? Kan het meer met de tweede core?
-- Eigen package identity: hoe herkennen installers en de Firmware Hub die?
+- ✔ Eigen package identity: FM-1_700 / FM-1_7XY (installers kijken alleen naar "FM-1", de Firmware Hub naar de SHA-256).
 
 ## Bouwplan
 0. ✔ **Verkenning** (20-10-2026): Felucca bouwt en test in de cloud, code en engines doorgelicht. Zie `NC-companion-verkenning.md`.
-1. **Mijlpaal 1**: `FELUCCA_LIVEUI=1` met minimale live-UI (twee parts FM6/ANALOG, focus, presets bladeren, hoofdscherm), TRACK-routing, macrolaag met slew. Hosttests groen + nieuwe tests.
+1. **Mijlpaal 1**: `FELUCCA_LIVEUI=1` met minimale live-UI (twee parts FM6/ANALOG, focus, presets bladeren, hoofdscherm), TRACK-routing op kanaal 3/4, macrolaag met slew volgens de Circuit-labels (zie `NC-mijlpaal-1-plan.md`). Hosttests groen + nieuwe tests.
 2. Juno-smaak op ANALOG; stereo/split-uitgang (v1: zonder FM-1-delay/reverb in split)
 3. Arp op het raster, Arp-hold, Drone-hold (+ guard op `beat_samples`)
 4. FX-pagina + throws (PERFORM hergebruiken)

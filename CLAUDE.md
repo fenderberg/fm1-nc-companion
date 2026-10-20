@@ -1,4 +1,4 @@
-# CLAUDE.md: NC-Companion (Felucca fork for the M-VAVE FM-1)
+# CLAUDE.md: NCC, Novation Circuit Companion (Felucca fork for the M-VAVE FM-1)
 
 ## Who and how
 - Owner: Remco (GitHub: Fenderberg). He speaks and dictates **Dutch**: always answer in Dutch. Dictation errors are common ("ferm" = FM, "M1/F1/MWave" = FM-1, "formeer" = firmware, "NC" = Novation Circuit Tracks).
@@ -8,7 +8,8 @@
 ## What we are building
 Firmware that makes the FM-1 a live companion to a **Novation Circuit Tracks (NC)**:
 - The NC plays the notes (its two MIDI tracks) and sends the MIDI clock; its **8 macro knobs** shape the sound via CCs.
-- The FM-1 has **two parts**: L = FM6 (DX7-style, 6-op), R = ANALOG (to become Juno-style). Each on its own MIDI channel.
+- The FM-1 has **two parts**: L = FM6 (DX7-style, 6-op), R = ANALOG (to become Juno-style), on MIDI channels **3 and 4** by default (the NC's MIDI 1 / MIDI 2 tracks).
+- The 8 macros follow the NC's **panel legends** (Oscillator, Osc Mod, Amp Env, Filter Env, Filter Freq, Resonance, Modulation, FX) and its factory MIDI template (CC 1 2 5 11 12 13 71 74).
 - The FM-1's panel is for **live jamming**: choosing sounds, the arp (always locked to the clock, with Arp-hold), Drone-hold, and effects (incl. throws). **No sequencer.**
 - **Live tweaking without glitches is the most important requirement.** Engines must stay swappable.
 
@@ -43,7 +44,7 @@ Read before starting work:
 ## Flashing (only Remco does this, on his Mac, after he agrees)
 - Never flash without asking. Before the first own build: test the rescue path (hold **OCT−** while switching on = updater) and keep the official V15 and a released Felucca at hand.
 - Install: Chrome/Edge web installer, or `python3 tools/fm1_install.py build/felucca.fwsc` (`--info` shows what runs now).
-- Give the fork its **own package identity** in `tools/build.py` (`PRODUCT`), not Felucca's `FM-1_9xx`. Check first how installers and the Firmware Hub match identities.
+- Package identity (`tools/build.py` `PRODUCT`): **`FM-1_700`**, releases `FM-1_7XY` (`ncc-X.Y.fwsc`). The installers match only the model ("FM-1" before the `_`), the Firmware Hub the SHA-256.
 - After a flash: run the test list in the design doc and update the FM-1 log (Remco keeps it in his claude.ai project).
 
 ## Licence
