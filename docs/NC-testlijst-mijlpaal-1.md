@@ -1,0 +1,41 @@
+# NCC mijlpaal 1: testlijst op de FM-1
+
+Voor Remco. Pas gebruiken als er een echte build is (`FELUCCA_LIVEUI=1 ./build.sh`, in de cloud) en jij besluit te
+flashen. Vink af en noteer bijzonderheden in je FM-1-logboek.
+
+## Vooraf (één keer)
+- [ ] FM-1 op een bekende firmware (officieel V15 of Felucca), accu vol, goede datakabel.
+- [ ] Rescue getest: OCT− ingedrukt houden bij het aanzetten = updater. Dit is je terugweg.
+- [ ] Back-up van eigen klanken en projecten.
+- [ ] Na het flashen: `python3 tools/fm1_install.py --info` meldt `FM-1_700`.
+
+## Opstarten
+- [ ] Opstartscherm toont **NCC** (en Felucca + Hügelton).
+- [ ] Hoofdscherm: links **L · CH 3 · FM6**, rechts **R · CH 4 · ANALOG**; L heeft de balk eronder.
+- [ ] OCT− brandt (focus L).
+
+## Paneel
+- [ ] OCT+ → balk naar R, OCT− gaat uit. OCT− → terug naar L.
+- [ ] Toetsen spelen het part met de focus.
+- [ ] PRESETS draaien: kolom toont "NEXT >" of "< PREV"; na het loslaten laadt er één sound, zonder klik.
+- [ ] ALGORITHM op L (FM6): SLOT wisselt (F1…F8, B1…), de klank verandert.
+- [ ] OCT− + OCT+ samen 5 s vasthouden: update-aftelling verschijnt; loslaten = geannuleerd (scherm komt terug).
+
+## Met de Circuit Tracks
+Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-MIDI-template.
+- [ ] Noten van MIDI 1 → L (stipje links knippert), MIDI 2 → R.
+- [ ] Synth 1/2 van de Circuit (kanaal 1/2) laten de FM-1 stil.
+- [ ] Elke macroknop toont onderin een popup met het Circuit-label en de waarde (±1 s).
+- [ ] Per knop luisteren (op L en R): 1 Oscillator, 2 Osc Mod, 3 Amp Env, 4 Filter Env, 5 Filter Freq, 6 Resonance,
+      7 Modulation, 8 FX. Geen zipper-ruis bij snel draaien. Bij FM6 knop 1 en 2: stappen hoorbaar? Klikt het?
+- [ ] Andere sound kiezen: de klank is weer precies de preset (macro's terug naar het midden); de eerste draai daarna
+      glijdt naar de stand van de knop.
+- [ ] Program Change vanaf de Circuit (als je die gebruikt) laadt een sound op het juiste part.
+- [ ] Start/Stop en klok van de Circuit: BPM rechtsboven wordt amber; er gaat geen eigen patroon van de FM-1 spelen.
+- [ ] Alle 16 knoppen tegelijk wild draaien met akkoorden op beide parts: geen haperingen of krakers
+      (CPU-meting hoort hierbij).
+- [ ] Geen hangende noten na Stop of na een sound-wissel tijdens het spelen.
+
+## Na afloop
+- [ ] Uit- en aanzetten: de laatste sounds staan er weer.
+- [ ] Terug naar Felucca of V15 als dat nodig is (rescue of de web-installer).
