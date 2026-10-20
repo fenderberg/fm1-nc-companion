@@ -129,7 +129,8 @@ Gebouwd (branch `nc/setup`, lokaal, niet gepusht):
   popup met het Circuit-label, opstart: FM6/ANALOG, TRACK op kanaal 3/4, tracks 3/4 stil, geen patronen.
 - `eng_fm6.c`: CEG (carrier-envelopes) achter de vlag. `fx.c`: BPM-guard (altijd, ook zonder vlag).
 - Haakjes (`/* NC: */`): `felucca.c` (vlag + include), `main.c` (live_* i.p.v. ui_*), `fx.c` (include + `ncm_block`),
-  `midi_control.c` (`ncm_cc` vóór `mod_midi`), `tools/build.py` (vlag), `tools/size_fns.py` (live_ui.c compact).
+  `midi_control.c` (`ncm_cc` vóór `mod_midi`), `ui_draw.c` ("NCC" op het opstartscherm, Felucca en Hügelton blijven
+  vermeld), `tools/build.py` (vlag), `tools/size_fns.py` (live_ui.c compact).
 - `tests/ncc_test.c` + twee regels in `tests/run_tests.sh` (de test, en de regressie met de vlag).
 
 Getest op de Mac (hosttests):

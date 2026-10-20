@@ -14,6 +14,7 @@
  *   ZIPPER     a cutoff jump by CC: the output's largest sample step stays near a steady note's
  *   UI         OCT- / OCT+ the focus and its LED; PRESETS loads once after a pause, on the focused part only;
  *              ALGORITHM steps FM6's SLOT; the popup with the knob's legend for LV_POP_MS
+ *   SPLASH     NCC on the power-on screen, Felucca's version and credits kept, every line inside its square
  *   BPM 0      beat_samples counts it as 120
  * Built and run by tests/run_tests.sh. */
 #ifndef FELUCCA_LIVEUI
@@ -296,6 +297,15 @@ static void ui_test_ncc(void)
     }
 }
 
+static void splash_test(void)
+{
+    uint32_t i, fit = 1;
+    for (i = 0; i < NELEM(SPLASH_LINES); i++)
+        fit &= text_w(&AF_M, SPLASH_LINES[i]) <= (int32_t)(SPL_SQ - 2u * SPL_PAD);
+    ok("splash: NCC, then Felucca's version and credits, each line inside the square",
+       !strcmp(SPLASH_LINES[0], "NCC") && !strncmp(SPLASH_LINES[1], "Felucca ", 8) && fit);
+}
+
 static void bpm0_test(void)
 {
     int16_t b = song.g[G_BPM];
@@ -318,6 +328,7 @@ int main(void)
     ceg_test();
     zipper_test();
     ui_test_ncc();
+    splash_test();
     bpm0_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");
     return bad ? 1 : 0;
