@@ -1,7 +1,7 @@
 # NCC mijlpaal 1: plan (nog geen code)
 
 Datum: 20 oktober 2026. Basis: Felucca v1.6.1 (fork `Fenderberg/fm1-nc-companion`, branch `nc/setup`).
-Hoort bij `NC-companion-ontwerp.md`. Status: **v2, akkoord van Remco (20-10-2026); code geschreven en lokaal getest (hosttests), nog niet op de chip gebouwd.** Zie "Stand van zaken" onderaan.
+Hoort bij `NC-companion-ontwerp.md`. Status: **v2, akkoord van Remco (20-10-2026); code af, gebouwd voor de chip en getest (host). Nog niet geflasht.** Zie "Stand van zaken" onderaan.
 
 Besluiten van Remco (20-10-2026):
 - De firmware heet **NCC** (Novation Circuit Companion).
@@ -162,3 +162,30 @@ Open punten voor de cloudbuild / het apparaat:
    niet de laag. Op de chip nog meten met Felucca's CPU-meter.
 3. De volledige `tests/run_tests.sh` (ook UI-renders, target-budget) in de cloud.
 4. Op het apparaat: rescue, focus, PRESETS, Circuit op kanaal 3/4, macro's zonder zipper, FB/MRAT-stappen beluisteren.
+
+## Echte build (20-10-2026, op de Mac via Colima + Rosetta)
+| | Felucca (zonder vlag) | NCC (`FELUCCA_LIVEUI=1`) | Verschil |
+|---|---|---|---|
+| Image | 511.136 B | 387.428 B | −123,7 KB |
+| RAM (.data+.bss) | 60.984 van 73.728 B | 58.696 B | −2.288 B (15 KB vrij) |
+| Pool | 328.896 van 368.640 B | 325.632 B | −3.264 B |
+| Identity | FM-1_700 | FM-1_700 | |
+
+De build zonder vlag is exact gelijk aan Felucca v1.6.1 (zelfde toolchain). NCC is kleiner: de linker gooit de oude
+UI-code weg die niet meer wordt aangeroepen (`size: 412 main-loop functions ... 500 not in this build`). Alle
+chip-controles van `build.py` slagen (register-toegang alleen in hal/, .ram_text zonder calls, .c1_text).
+
+Volledige `tests/run_tests.sh` tegen de echte build: 100 testgroepen. Groen, behalve twee die ook in ongewijzigd
+Felucca op deze Mac falen (letterafstand met Mac-fonts; PERFORM FLANGER/PHASER-kosten met de Apple-compiler). Eén
+webtest eiste `FM-1_9xx` als identity: aangepast naar `FM-1_[79]xx`. Doellussen op de chip (target budget): binnen
+budget. M-UPGRADE (eigen loader): groen.
+
+Bouwen op deze Mac, zonder build.sh (macOS haalt `DYLD_LIBRARY_PATH` weg zodra `/bin/sh` start):
+```
+colima start --vm-type vz --vz-rosetta        # (eenmalig per herstart)
+DYLD_LIBRARY_PATH=/opt/homebrew/lib JIELI_TOOLCHAIN=~/.jieli/toolchain AC79_SDK=~/fw-AC79_AIoT_SDK \
+  FELUCCA_LIVEUI=1 /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tools/build.py
+```
+Emulator met NCC: `EMU_CFLAGS=-DFELUCCA_LIVEUI=1 sh web/emu/build.sh`, dan `build/emu` serveren op localhost
+(bijv. `/usr/bin/python3 -m http.server 8766 -d <kopie buiten Dropbox>`) en openen in Chrome (Web MIDI voor de
+Circuit). In de emulator gecontroleerd: scherm, OCT−/OCT+ met LED, PRESETS (TINE EP → BELL), ALGORITHM (F1 → F2).
