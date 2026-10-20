@@ -10,6 +10,7 @@
  *   RELATIVE   CC 64 is the sound; a new sound puts the knobs back to 64 (its values as loaded); a value written by
  *              something else becomes the base; clamped to the range
  *   OWN CCS    CC 1 / 5 / 11 on an NCC part are knobs, not the wheel, GLIDE, EXPR
+ *   LAZY       FM6's patch values (MEG, FB ..) are written every 4th block while sliding, and end exactly
  *   CEG        CC 5 on FM6: the carriers' envelope rates move, the modulators' do not
  *   ZIPPER     a cutoff jump by CC: the output's largest sample step stays near a steady note's
  *   UI         OCT- / OCT+ the focus and its LED; PRESETS loads once after a pause, on the focused part only;
@@ -197,6 +198,30 @@ static void own_cc_test(void)
     ok("own CCs: on another channel nothing changes", trk[0].mw == 0 && trk[1].mw == 0);
 }
 
+static void lazy_test(void)
+{
+    track_t *t = &trk[0];
+    int32_t prev, base;
+    uint32_t i, writes = 0;
+    power();
+    base = t->p[P_E1];
+    midi(0xB2, 4, 0);                                   /* (no knob on CC 4: nothing) */
+    midi(0xB2, 11, 127);                                /* FILTER ENV on L: MEG, rebuilds FM6's patch */
+    prev = t->p[P_E4];
+    for (i = 0; i < 40u; i++) {
+        blk();
+        writes += t->p[P_E4] != prev;
+        prev = t->p[P_E4];
+    }
+    printf("ncc: MEG sliding 40 blocks: %u writes\n", writes);
+    ok("lazy: FM6's MEG written at most every 4th block while sliding (+ the arrival)", writes >= 3u && writes <= 40u / 4u + 2u);
+    ok("lazy: .. and it ends exactly at its value", t->p[P_E4] == clamp(0 + (((127 << 8) - NCM_MID) * 127 * 32 >> 20), -64, 63));
+    midi(0xB2, 2, 127);                                 /* OSC MOD: FB, steps */
+    for (i = 0; i < 40u; i++)
+        blk();
+    ok("lazy: FB (steps) ends at its value too", t->p[P_E1] == clamp(base + (((127 << 8) - NCM_MID) * 14 * 32 >> 20), -7, 7));
+}
+
 static void ceg_test(void)
 {
     track_t *t = &trk[0];
@@ -325,6 +350,7 @@ int main(void)
     slew_test();
     relative_test();
     own_cc_test();
+    lazy_test();
     ceg_test();
     zipper_test();
     ui_test_ncc();

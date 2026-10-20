@@ -26,6 +26,7 @@
 #define NCM_CEG 0xFEu                   /* FM6's carrier envelope times (eng_fm6.c fm6_ceg: not a stored parameter) */
 #define NCM_MID (64 << 8)               /* a knob's middle, Q8 */
 #define NCM_SLEW 2                      /* per block: a 1/4 of the way (time constant 4 blocks, 2.9 ms) */
+#define NCM_LAZY 3u                     /* FM6's patch values: written while sliding every 4th block (and on arrival) */
 #define NCM_UNSET (-32768)
 
 static const uint8_t NCM_CC[NCM_N] = {1, 2, 5, 11, 12, 13, 71, 74};
@@ -69,6 +70,7 @@ static struct {
     int16_t base[NCM_PARTS][NCM_N][NCM_DST];    /* the parameter as the sound has it */
     int16_t put[NCM_PARTS][NCM_N][NCM_DST];     /* what ncm_block last wrote (NCM_UNSET: nothing yet) */
     uint32_t snd[NCM_PARTS];            /* the sound's signature (ncm_sig) */
+    uint32_t n;                         /* blocks */
     uint8_t ok;
 } ncm;
 static volatile uint32_t ncm_seen;      /* the last knob moved: part << 16 | knob << 8 | value, + 1 << 24 a turn */
@@ -96,6 +98,13 @@ static void ncm_set(track_t *t, uint32_t id, int32_t v)
         fm6_ceg[t - trk] = (int8_t)v;
     else
         t->p[id] = (int16_t)v;
+}
+/* a value FM6 rebuilds its patch through (fm6_sync: a copy of the patch and the six operators): while a knob slides
+ * it is written every 4th block only, so a turn costs a rebuild per 2.9 ms, not per block. MLVL is read per block
+ * as it is (fm6_render) */
+static int ncm_lazy(const track_t *t, uint32_t id)
+{
+    return t->eng_req == ENGI_FM6 && (id == NCM_CEG || (id >= P_E0 && id <= P_E6 && id != P_E2));
 }
 static void ncm_range(const track_t *t, uint32_t id, int32_t *lo, int32_t *hi)
 {
@@ -140,6 +149,7 @@ static int ncm_cc(track_t *t, uint32_t cc, uint32_t value)
 static void ncm_block(void)
 {
     uint32_t part, m, k;
+    int there;
     if (!ncm.ok) {
         for (part = 0; part < NCM_PARTS; part++) {
             ncm_reset(part);
@@ -147,6 +157,7 @@ static void ncm_block(void)
         }
         ncm.ok = 1;
     }
+    ncm.n++;
     for (part = 0; part < NCM_PARTS; part++) {
         track_t *t = &trk[part];
         const ncm_map_t *mp = ncm_map(t);
@@ -163,6 +174,7 @@ static void ncm_block(void)
                 continue;                                   /* anyone else meanwhile is the base when it moves: put) */
             c = s ? c + s : c + d;                          /* (the last 1/4 steps: there) */
             ncm.cur[part][m] = (uint16_t)c;
+            there = c == (int32_t)ncm.tgt[part][m] << 8;
             for (k = 0; k < NCM_DST; k++) {
                 const ncm_dst_t *ds = &mp->d[m][k];
                 int32_t lo, hi, v, now;
@@ -176,8 +188,11 @@ static void ncm_block(void)
                 ncm_range(t, ds->id, &lo, &hi);
                 v = ncm.base[part][m][k] + (((c - NCM_MID) * (hi - lo) * ds->a64) >> 20);   /* (64 << 8) * 64 */
                 v = clamp(v, lo, hi);
-                if (v != now)
+                if (v != now) {
+                    if (!there && (ncm.n & NCM_LAZY) && ncm_lazy(t, ds->id))
+                        continue;                           /* (later: put stays what the patch has) */
                     ncm_set(t, ds->id, v);
+                }
                 ncm.put[part][m][k] = (int16_t)v;
             }
         }

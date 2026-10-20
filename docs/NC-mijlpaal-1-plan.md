@@ -156,8 +156,9 @@ Afwijkingen van het plan:
 
 Open punten voor de cloudbuild / het apparaat:
 1. Echte build met `FELUCCA_LIVEUI=1` en zonder; size-report (RAM, pool, image) vergelijken.
-2. CPU op de chip: in rust verwaarloosbaar; als alle 16 knoppen tegelijk glijden ±15–20 % meer op de Mac, vooral
-   doordat FM6 zijn patch per blok herberekent bij MEG/DTUN/CEG. Als dat te veel is: FM6 alleen om de 4 blokken laten
-   herrekenen.
+2. CPU op de chip. Op de Mac gemeten: de macrolaag zelf kost in rust ±0,7 % van een blok, met alle 16 knoppen
+   glijdend ±4,6 % (FM6 herrekent zijn patch tijdens het glijden nu maar elk 4e blok: gedaan). Een render met alle
+   knoppen wild gedraaid is ±16–20 % duurder, maar dat is de klank zelf (feller, meer modulatie, drive/chorus aan),
+   niet de laag. Op de chip nog meten met Felucca's CPU-meter.
 3. De volledige `tests/run_tests.sh` (ook UI-renders, target-budget) in de cloud.
 4. Op het apparaat: rescue, focus, PRESETS, Circuit op kanaal 3/4, macro's zonder zipper, FB/MRAT-stappen beluisteren.
