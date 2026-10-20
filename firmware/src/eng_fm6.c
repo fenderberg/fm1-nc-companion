@@ -52,7 +52,15 @@ static struct {                                  /* the patch through the macros
     uint8_t gen, alg, fb, ok;
     int16_t e[7];                                /* P_E0..P_E6 it was made with */
     int32_t dt[6];                               /* DTUN: per operator, Q24 log2 */
+#if FELUCCA_LIVEUI
+    int8_t ceg;                                  /* NC: the fm6_ceg it was made with */
+#endif
 } fm6_eff[NTRK];
+#if FELUCCA_LIVEUI
+/* NC: NCC's AMP ENV knob (perf_layer.c): the carriers' envelope times as MEG does the modulators' (+ slower). Not a
+ * stored parameter: the audio ISR writes it, 0 with every new sound */
+static int8_t fm6_ceg[NTRK];
+#endif
 static fm6_lfo_t fm6_lfo[NTRK];
 static int32_t fm6_lfo_v[NTRK], fm6_lfo_d[NTRK]; /* this block's LFO value and delay (Q24) */
 ENG_MEM_FITS("FM6", sizeof(fm6_note_t) * FM6_POLY);
@@ -285,6 +293,10 @@ static void fm6_sync(const track_t *t)
     if (fm6_eff[tr].ok && fm6_eff[tr].gen == fm6_pgen[tr]) {
         for (k = 0; k < 7u && fm6_eff[tr].e[k] == e[k]; k++)
             ;
+#if FELUCCA_LIVEUI
+        if (fm6_eff[tr].ceg != fm6_ceg[tr])                 /* NC */
+            k = 0;
+#endif
         if (k == 7u)
             return;
     }
@@ -292,6 +304,9 @@ static void fm6_sync(const track_t *t)
     memcpy(fm6_eff[tr].p, fm6_patch[tr], FP_SIZE);
     for (k = 0; k < 7u; k++)
         fm6_eff[tr].e[k] = e[k];
+#if FELUCCA_LIVEUI
+    fm6_eff[tr].ceg = fm6_ceg[tr];                          /* NC */
+#endif
     {
         uint8_t *p = fm6_eff[tr].p;
         uint32_t alg = e[0] >= 1 && e[0] <= 32 ? (uint32_t)e[0] - 1u : p[FP_ALG] & 31u;
@@ -307,6 +322,10 @@ static void fm6_sync(const track_t *t)
             if ((car >> ki) & 1u) {                          /* carriers 0, +1, -1, +2, -2, +3 steps apart */
                 static const int8_t SPREAD[6] = {0, 1, -1, 2, -2, 3};
                 fm6_eff[tr].dt[ki] = SPREAD[n++] * step;
+#if FELUCCA_LIVEUI
+                for (j = 0; j < 4u; j++)                     /* NC: CEG, rate steps as MEG (+ slower) */
+                    op[FP_R1 + j] = (uint8_t)clamp(op[FP_R1 + j] - fm6_ceg[tr] * 40 / 64, 0, 99);
+#endif
                 continue;
             }
             if (!op[FP_MODE])

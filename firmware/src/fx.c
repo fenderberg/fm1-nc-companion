@@ -218,7 +218,10 @@ static const uint8_t DIV_DEN[6] = {1, 2, 4, 8, 3, 6};    /* original IDs stay fi
 static uint32_t midi_beat_samples;                    /* zero until an external clock has a measured tempo */
 static uint32_t beat_samples(void)
 {
-    return song.g[G_CLOCK] && midi_beat_samples ? midi_beat_samples : (uint32_t)FS * 60u / (uint32_t)song.g[G_BPM];
+    /* NC: BPM 0 (UBSan caught it once in the drumfuzz SONG run, mid song load) divides by zero, and the chip does not
+     * trap but returns garbage: below BPM's range (40) counts as 120 */
+    uint32_t bpm = song.g[G_BPM] >= 40 ? (uint32_t)song.g[G_BPM] : 120u;
+    return song.g[G_CLOCK] && midi_beat_samples ? midi_beat_samples : (uint32_t)FS * 60u / bpm;
 }
 static uint32_t div_samples(uint32_t div)
 {
@@ -227,6 +230,9 @@ static uint32_t div_samples(uint32_t div)
 }
 
 #include "perform.c"                                 /* the FX hold layer's effects (the master) */
+#if FELUCCA_LIVEUI
+#include "perf_layer.c"                              /* NC: NCC's macro layer (the Circuit Tracks' knobs, slewed) */
+#endif
 #include "click.c"                                   /* the metronome's click (after the master: audio.c) */
 
 /* the delay's TIME (params.c N_DTIME): N_DIV's ten (div_samples), then 1.5.1's dotted 1/8D 1/16D 1/4D (10, 11, 12: 3/4,
@@ -1036,6 +1042,9 @@ static void mix_block(int32_t *out, uint32_t n)
     for (i = 0; i < n; i++)
         send_c[i] = send_d[i] = send_r[i] = mix_l[i] = mix_r[i] = 0;
     events_block(n);
+#if FELUCCA_LIVEUI
+    ncm_block();                                        /* NC: the macros slide, their parameters follow */
+#endif
     perf = perf_begin(n);                               /* the FX hold layer at work (perform.c) */
 #if FELUCCA_CPU2
     uint32_t m = C1_ON() ? C1_SPLIT() & ((1u << NPART) - 1u) : 0u;

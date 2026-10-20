@@ -1,7 +1,7 @@
 # NCC mijlpaal 1: plan (nog geen code)
 
 Datum: 20 oktober 2026. Basis: Felucca v1.6.1 (fork `Fenderberg/fm1-nc-companion`, branch `nc/setup`).
-Hoort bij `NC-companion-ontwerp.md`. Status: **v2, na bespreking met Remco; wacht op akkoord.**
+Hoort bij `NC-companion-ontwerp.md`. Status: **v2, akkoord van Remco (20-10-2026); code geschreven en lokaal getest (hosttests), nog niet op de chip gebouwd.** Zie "Stand van zaken" onderaan.
 
 Besluiten van Remco (20-10-2026):
 - De firmware heet **NCC** (Novation Circuit Companion).
@@ -115,8 +115,44 @@ Opmerkingen:
 ## Geheugen (schatting, te bevestigen met het size-report)
 - RAM: < 0,5 KB (van ±12,5 KB vrij). Pool: 0. Flash: ±4–8 KB. CPU: klein, behalve mogelijk FM6 tijdens glijden (meten).
 
-## Nog te beslissen
-1. FM6 knop 3 (Amp Envelope): CEG toevoegen in M1, of later?
-2. FM6 knop 6 (Resonance): DTUN goed, of iets anders?
-3. Na een presetwissel: pick-up of springen?
-4. De `beat_samples()`-guard (deling door BPM 0) nu al meenemen?
+## Besloten (Remco, 20-10-2026)
+1. FM6 knop 3: **CEG toevoegen** in M1 (carrier-envelopes, naast MEG in `eng_fm6.c`).
+2. FM6 knop 6: **DTUN**.
+3. Na een presetwissel: **springen met glijden** (geen pick-up).
+4. De `beat_samples()`-guard: **nu meenemen**.
+
+## Stand van zaken (20-10-2026, eind van de dag)
+Gebouwd (branch `nc/setup`, lokaal, niet gepusht):
+- `firmware/src/perf_layer.c`: de macrolaag (CC 1 2 5 11 12 13 71 74 op part L/R, slew ±10 ms, relatief, reset bij
+  nieuwe sound, snelle route als een knop stilstaat).
+- `firmware/src/live_ui.c`: focus (OCT−/OCT+), PRESETS met pauze, ALGORITHM = FM6-SLOT, scherm met twee kolommen,
+  popup met het Circuit-label, opstart: FM6/ANALOG, TRACK op kanaal 3/4, tracks 3/4 stil, geen patronen.
+- `eng_fm6.c`: CEG (carrier-envelopes) achter de vlag. `fx.c`: BPM-guard (altijd, ook zonder vlag).
+- Haakjes (`/* NC: */`): `felucca.c` (vlag + include), `main.c` (live_* i.p.v. ui_*), `fx.c` (include + `ncm_block`),
+  `midi_control.c` (`ncm_cc` vóór `mod_midi`), `tools/build.py` (vlag), `tools/size_fns.py` (live_ui.c compact).
+- `tests/ncc_test.c` + twee regels in `tests/run_tests.sh` (de test, en de regressie met de vlag).
+
+Getest op de Mac (hosttests):
+- `tests/ncc_test.c`: alles groen, ook met UBSan (ASan start niet op deze Mac: bekend macOS-probleem).
+- Regressie zonder én met de vlag: 98 golden renders, 0 gewijzigd. CPU in rust: 334 i.p.v. 326 instructies/sample
+  (+2,5 %). Twee CPU-posten staan op de Mac al boven budget in **ongewijzigd** Felucca (Apple-compiler; in de cloud
+  op Linux opnieuw kijken).
+- `ui_test`, `fm6_test`, `midi_control_test` zonder vlag: groen. Met de vlag faalt `midi_control_test` op 14 checks
+  die Felucca's eigen CC-betekenissen (CC 1/5/11/71/74 op track 1/2, MIDI Learn met CC74) testen: dat is precies wat
+  NCC bewust vervangt. Die test draait in `run_tests.sh` daarom alleen zonder vlag (zoals upstream).
+- Syntax-check van de hele firmware (`felucca.c`) met en zonder vlag: in orde. **Nog geen echte build** (geen Docker
+  op de Mac; cloudbuild nodig) en dus nog geen size-report.
+
+Afwijkingen van het plan:
+- Eén testbestand (`tests/ncc_test.c`) i.p.v. twee.
+- De macro-CC's gaan vóór MIDI Learn én vóór Felucca's modwiel/expressie (CC 1/11 werden al vóór `midi_control`
+  gebruikt, door `mod_midi`). MIDI Learn is in de live-UI toch niet bereikbaar.
+- OCT+ heeft in Felucca's knoppenkaart geen LED. Focus R = OCT− donker (het scherm toont de focus met een balk).
+
+Open punten voor de cloudbuild / het apparaat:
+1. Echte build met `FELUCCA_LIVEUI=1` en zonder; size-report (RAM, pool, image) vergelijken.
+2. CPU op de chip: in rust verwaarloosbaar; als alle 16 knoppen tegelijk glijden ±15–20 % meer op de Mac, vooral
+   doordat FM6 zijn patch per blok herberekent bij MEG/DTUN/CEG. Als dat te veel is: FM6 alleen om de 4 blokken laten
+   herrekenen.
+3. De volledige `tests/run_tests.sh` (ook UI-renders, target-budget) in de cloud.
+4. Op het apparaat: rescue, focus, PRESETS, Circuit op kanaal 3/4, macro's zonder zipper, FB/MRAT-stappen beluisteren.

@@ -35,10 +35,12 @@ Read before starting work:
 
 ## Build and test
 - Set up once: `sh tools/setup_env.sh` (toolchain, the 3 SDK files, Pillow, first build). On Linux x86-64 no Docker is needed; on macOS Docker Desktop must run.
-- Build: `./build.sh` → `build/felucca.fwsc` (+ size report: watch RAM and pool).
+- Build: `./build.sh` → `build/felucca.fwsc` (+ size report: watch RAM and pool). NCC itself: `FELUCCA_LIVEUI=1 ./build.sh` (without the flag the firmware is Felucca as is).
+- Without a firmware build (macOS without Docker): `build/gen` can be made with Python alone (`DYLD_LIBRARY_PATH=/opt/homebrew/lib` for Pillow's Raqm, and `pip3 install fonttools`), then single host tests compile with `cc -w -Ibuild/gen -Ifirmware/src`, e.g. `tests/ncc_test.c`. `tests/run_tests.sh` itself stops without `build/felucca.fwsc`.
 - Tests: `sh tests/run_tests.sh` (after a build). On Linux the drumfuzz test needs `-include stdint.h` (an upstream portability issue): add it to its compile line in `tests/run_tests.sh` in our fork.
 - The regression suite (`tests/regress.c`) checks golden renders, CPU per preset (`tests/cpu_baseline.txt`, +25 %) and target loop cost (`tests/target_budget.txt`, +10 %). A sound change fails it: update goldens only on purpose (`GOLDEN_UPDATE=1`, `BUDGET_UPDATE=1`) and say so in the commit.
-- Add host tests for new behaviour (macro slew, arp grid lock, holds) in the style of `tests/*_test.c`.
+- Add host tests for new behaviour (macro slew, arp grid lock, holds) in the style of `tests/*_test.c`. NCC's: `tests/ncc_test.c` (built with the flag on). Upstream's `midi_control_test` tests Felucca's own CC meanings and fails with the flag on, by design.
+- NCC's code: `firmware/src/perf_layer.c` (macros, audio ISR), `firmware/src/live_ui.c` (main loop), hooks marked `/* NC: */` in `felucca.c`, `main.c`, `fx.c`, `midi_control.c`, `eng_fm6.c` (CEG), `tools/build.py`, `tools/size_fns.py`.
 - Browser emulator: `web/emu/build.sh` needs Emscripten (`brew install emscripten` on a Mac). It accepts Web MIDI (notes; CC 20–27 as panel knobs), so the NC can be tested against it.
 
 ## Flashing (only Remco does this, on his Mac, after he agrees)

@@ -304,6 +304,11 @@ static void fm1_main(void)
         felucca_dbg.page = ui.page;
         felucca_dbg.home = ui.home;
         felucca_dbg.stage = 1;
+#if FELUCCA_LIVEUI
+#define ui_input live_input                           /* NC: NCC's live UI (live_ui.c) in place of the UI's */
+#define ui_leds live_leds
+#define ui_draw live_draw
+#endif
         ui_input();
         settings_poll();                              /* queued settings save: only while stopped */
         autosave_poll();                              /* (1.2) the music, stopped and idle: project.c */

@@ -315,6 +315,10 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "DRUM grid stress (#211, ASan / UBSan): random grid editing, locks, undo, engines over a playing synth, the ISR anywhere" \
         "$OUT/drumfuzz" 1 6 1500
     run "DRUM grid stress (#211) with a SONG playing" "$OUT/drumfuzz" 101 3 1500 song
+    # NC: NCC (FELUCCA_LIVEUI=1): the Circuit Tracks' macros (slew, relative to the sound, CC 1 2 5 11 12 13 71 74 on
+    # parts 1 / 2), FM6's AMP ENV, the live UI, MIDI IN TRACK on channels 3 / 4, the BPM 0 guard (tests/ncc_test.c)
+    $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/ncc_test" tests/ncc_test.c -lm
+    run "NCC: macro layer (slew, relative, own CCs), CEG, live UI (focus, PRESETS, popup), TRACK 3 / 4, BPM 0" "$OUT/ncc_test"
     FV=$(sed -n 's/^#define FELUCCA_VERSION "\([^"]*\)".*/\1/p' firmware/src/felucca.c | head -n 1)   # (the splash, ABOUT: the real version)
     $CC -O1 -w "-DFELUCCA_VERSION=\"$FV\"" -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/ui_render" tests/ui_render.c -lm
     mkdir -p build/ui_new/ppm build/ui_slot
@@ -377,6 +381,9 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "REVERB TYPE: ROOM / SPRING bit-identical, SPRING and HALL decay / stability / level, HALL silence / stereo / ringing, model changes, cost, demos" "$OUT/reverb_test" build/fx_demo build/reverb_demo
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/regress" tests/regress.c -lm
     run "regression: golden renders, health, voices, CPU budget (2ND CORE OFF: one core)" "$OUT/regress" tests/golden.txt tests/cpu_baseline.txt
+    $CC -O2 -w -DFELUCCA_LIVEUI=1 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_liveui" tests/regress.c -lm   # NC
+    run "regression, an NCC build (FELUCCA_LIVEUI=1: the macro layer at rest): the same golden renders and CPU budget" \
+        "$OUT/regress_liveui" tests/golden.txt tests/cpu_baseline.txt
     $CC -O2 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_cpu2_0" tests/regress.c -lm
     run "regression, a FELUCCA_CPU2=0 build (none of the second core): the same golden renders and CPU budget" \
         "$OUT/regress_cpu2_0" tests/golden.txt tests/cpu_baseline.txt

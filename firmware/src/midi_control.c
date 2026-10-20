@@ -402,6 +402,10 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
         midi_channel(ch)->bend = (int16_t)((int32_t)(d1 | (d2 << 7)) - 8192);
         midi_expression_channel(ch);
     } else if (st == 0xB0u) {
+#if FELUCCA_LIVEUI
+        if (ncm_cc(midi_track(ch), d1, d2))        /* NC: the Circuit Tracks' macro knobs on an NCC part (perf_layer.c), */
+            return;                                /* before CC1 / CC11 reach the matrix (mod_midi) */
+#endif
         mod_midi(midi_track(ch), st, d1, d2);
         midi_control(ch, d1, d2);
     } else if (st == 0xD0u)

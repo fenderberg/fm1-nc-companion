@@ -39,6 +39,10 @@
 #endif
 #define FM1_CPU1_USED FELUCCA_CPU2   /* hal/fm1_sys.h: the second core is built in; every reset holds it first (its
                                       * waiting loop is in RAM the ROM and the SPL use at boot) */
+#ifndef FELUCCA_LIVEUI
+#define FELUCCA_LIVEUI 0         /* NC: 1 = NCC (Novation Circuit Companion): the live UI (live_ui.c) in place of the UI's
+                                  * input / LEDs / screen, the Circuit Tracks' macros (perf_layer.c); 0 = Felucca as is */
+#endif
 #ifndef FELUCCA_VERSION
 #define FELUCCA_VERSION "v1.6.1" /* shown in the menu, the console and the editor; build.py --release X.Y */
 #endif
@@ -98,6 +102,9 @@
 #include "ui_menu.c"
 #include "ui_input.c"
 #include "ui_layer.c"              /* the quick layers (FX GLO SCL EDIT REC held; SEQ TOOLS: ui_tools.c) */
+#if FELUCCA_LIVEUI
+#include "live_ui.c"               /* NC: NCC's live UI (main.c calls it in place of ui_input / ui_leds / ui_draw) */
+#endif
 
 /* --------------------------------------------- storage, update, editor --- */
 #if FELUCCA_FLASH
