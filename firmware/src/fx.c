@@ -1097,11 +1097,6 @@ static void mix_block(int32_t *out, uint32_t n)
     if (perf)
         perf_pre(mix_l, mix_r, send_d, send_r, n);
     fx_buses(send_c, send_d, send_r, wet, n);
-#if FELUCCA_LIVEUI
-    if (NCC_SPLIT())                                    /* NC: NCC's SPLIT (core.h): the buses are mono: none of */
-        for (i = 0; i < n; i++)                         /* them out (a throw, THROW, a tail), L only left, R only right */
-            wet[i] = rev_side[i] = 0;
-#endif
     if (hl.side)
         rev_side_mix(mix_l, mix_r, n);                  /* HALL: stereo */
     if (scope_mix)

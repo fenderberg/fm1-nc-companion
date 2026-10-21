@@ -17,7 +17,8 @@
  *              ALGORITHM steps FM6's SLOT; the popup with the knob's legend for LV_POP_MS
  *   CHORUS     the Juno chorus: OFF is Felucca's loop, II stereo (left != right, the mono sum kept), the rates, no
  *              click at a mode change, OFF fades out
- *   SPLIT      a note on L: the right output exactly 0 (no bus sends), and the other way round
+ *   SPLIT      a note on L (no sends): the right output exactly 0, and the other way round; sends: their return on
+ *              both sides
  *   JUNO       a Juno sound's values, chorus and drift; the macros back to 64; the drift per POLY note, none below 4
  *   UI 2       ALGORITHM on R the chorus (popup), PRESETS the Juno list first, GLO + SEQ SPLIT, both stored
  *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
@@ -26,8 +27,8 @@
  *   FX UI      FX opens its mode on SENDS (the keys PERFORM's, no button held), FX taps and SELECT its pages SENDS DELAY
  *              REVERB (+ R's send) CHORUS INSERT PERFORM (the insert's knobs named by its type), FX after the last /
  *              HOME close it; ENV / LFO throws
- *   SPLIT DAC  one part with sends, throws, THROW, FLANGER, Juno chorus and the other's tail: the other side of the
- *              output after MASTER exactly 0
+ *   SPLIT DAC  one part with FLANGER and Juno chorus, no sends: the other side of the output after MASTER exactly 0;
+ *              with sends, throws, THROW: their return on the other side too
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
  *   ENGINES    SELECT on SOUND picks the part's engine (after a rest, round the list), ACID slides, stored; the
  *              Circuit's FILTER FREQ on PHASE, TRIO, ACID
@@ -445,9 +446,9 @@ static void split_test(void)
     uint32_t b, i, rz = 1, lz = 1, lsum = 0, rsum = 0;
     power();
     fx_quiet();
-    trk[0].p[P_REV] = 100;
-    trk[0].p[P_DLY] = 100;                              /* (sends that would put L on both sides) */
-    song.g[G_ENGGO] = 0;                                /* SPLIT */
+    for (i = 0; i < 2u; i++)
+        trk[i].p[P_REV] = trk[i].p[P_DLY] = trk[i].p[P_CHOR] = 0;
+    song.g[G_ENGGO] = 0;                                /* SPLIT (no sends) */
     midi(0x92, 60, 100);
     for (b = 0; b < 60u; b++) {
         blk();
@@ -456,7 +457,7 @@ static void split_test(void)
             lsum += blk_out[2u * i] != 0;
         }
     }
-    ok("split: a note on L: the left plays, the right is exactly 0 (no bus sends)", rz && lsum > 0u);
+    ok("split: a note on L: the left plays, the right is exactly 0 (no sends)", rz && lsum > 0u);
     midi(0x82, 60, 0);
     midi_silence_track(0);                              /* (L's release cut: only R from here) */
     for (b = 0; b < 40u; b++)
@@ -470,6 +471,15 @@ static void split_test(void)
         }
     }
     ok("split: a note on R: the right plays, the left mix and the buses exactly 0", lz && rsum > 0u);
+    midi(0x83, 60, 0);
+    trk[1].p[P_REV] = trk[1].p[P_DLY] = 100;            /* sends: R's reverb and delay on both sides */
+    midi(0x93, 62, 100);
+    for (b = 0, lz = 0; b < 200u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++)
+            lz += wet[i] != 0;                          /* (mix_l: HALL's stereo side is added to it) */
+    }
+    ok("split: R with sends: its delay and reverb come back (on both sides)", lz > 100u);
     song.g[G_ENGGO] = 1;
 }
 
@@ -736,14 +746,15 @@ static void fx_ui_test(void)
 /* SPLIT to the DAC: one part plays with everything that could reach the other side on (its reverb / delay / chorus
  * sends, both throws, PERFORM's THROW macro and a FLANGER, its Juno chorus, a tail of the other part from before): the
  * other side of the output, after MASTER (mix_block's out), exactly 0 */
-static int split_side_silent(uint32_t play, uint32_t quiet)
+/* wet 0: no sends, no throws: the quiet side exactly 0; wet 1: sends, throws, THROW: their return on it too */
+static int split_side_silent(uint32_t play, uint32_t quiet, uint32_t wet)
 {
     track_t *t = &trk[play], *o = &trk[quiet];
     uint32_t b, i, silent = 1, sound = 0;
     power();
     fx_quiet();
-    t->p[P_REV] = t->p[P_DLY] = t->p[P_CHOR] = 120;
-    o->p[P_REV] = o->p[P_DLY] = 120;
+    t->p[P_REV] = t->p[P_DLY] = t->p[P_CHOR] = (int16_t)(wet ? 120 : 0);
+    o->p[P_REV] = o->p[P_DLY] = (int16_t)(wet ? 120 : 0);
     midi(0x92 + quiet, 60, 120);                        /* the other part first, in ST: its reverb and delay ringing */
     for (b = 0; b < 100u; b++)
         blk();
@@ -758,8 +769,8 @@ static int split_side_silent(uint32_t play, uint32_t quiet)
     lv_frame();
     lv_press(B_FX);                                     /* the FX mode: FLANGER held, THROW up */
     key_down(white_key(perf_map[10] == PF_FLG ? 10u : 10u));
-    perf_k[2] = 100;
-    ncm_throw = 3;                                      /* ENV and LFO held */
+    perf_k[2] = (int16_t)(wet ? 100 : 0);
+    ncm_throw = (uint8_t)(wet ? 3 : 0);                 /* ENV and LFO held */
     midi(0x92 + play, 48, 120); midi(0x92 + play, 55, 120);
     for (b = 0; b < 300u; b++) {
         blk();
@@ -774,15 +785,15 @@ static int split_side_silent(uint32_t play, uint32_t quiet)
     midi(0x82 + play, 48, 0); midi(0x82 + play, 55, 0);
     song.g[G_ENGGO] = 1;
     lv_press(B_FX);
-    return silent && sound > 1000u;
+    return (wet ? !silent : silent) && sound > 1000u;
 }
 static void split_dac_test(void)
 {
     ui_power_on();
     ok("split: NCC's default (a project, power-on: G_ENGGO 0)", song.g[G_ENGGO] == 0 && NCC_SPLIT());
-    ok("split to the DAC: L with sends, throws, THROW, FLANGER, Juno chorus, R's tail: the right output exactly 0",
-       split_side_silent(0, 1));
-    ok("split to the DAC: R alike: the left output exactly 0", split_side_silent(1, 0));
+    ok("split to the DAC: L with FLANGER, Juno chorus, no sends: the right output exactly 0", split_side_silent(0, 1, 0));
+    ok("split to the DAC: R alike: the left output exactly 0", split_side_silent(1, 0, 0));
+    ok("split to the DAC: L with sends, throws, THROW: their return on the right too", split_side_silent(0, 1, 1));
 }
 
 static void screen_test(void)

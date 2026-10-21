@@ -18,11 +18,11 @@
  *
  * SPLIT, NCC's default (G_ENGGO = 1 is STEREO: a stored global nothing reads, "unused, ids fixed by the formats", 0 in
  * every project and at power-on, so a project plays split until GLO + SEQ turns it to STEREO): part L entirely on the left
- * output, part R on the right, each mono (PAN ignored), for the Circuit Tracks' two audio inputs. The delay, reverb and
- * chorus buses are mono and would put both parts on both sides, so an NCC part sends them nothing in SPLIT, and their
- * return (wet, HALL's side) is not mixed in at all (fx.c mix_block: no throw, THROW macro or tail either), nor the small
- * speaker's BASS+ of both sides (fx.c master_out). Its Juno chorus is summed onto its own side. DIST, INSERT, the
- * SLICER and PERFORM's effects (each side its own) keep working.
+ * output, part R on the right, each mono (PAN ignored), for the Circuit Tracks' two audio inputs: the dry sound only.
+ * The delay, reverb and chorus buses are shared, so their return (wet, HALL's side, throws, tails) comes out on both
+ * sides as in STEREO (Remco's choice: the effects heard, the dry parts apart); with every send at 0 the sides are
+ * exactly apart. Not the small speaker's BASS+ of both sides (fx.c master_out). Its Juno chorus is summed onto its own
+ * side. DIST, INSERT, the SLICER and PERFORM's effects (each side its own) keep working.
  *
  * State in the pool (zeroed at boot), per part; the audio ISR only (the main loop writes P_ED_FX and G_ENGGO). */
 
@@ -78,10 +78,9 @@ static __attribute__((noinline)) void ncc_mix(track_t *t, int32_t *b, uint32_t n
     lo = JC_LO[s->mode];
     span = (uint32_t)(JC_HI[s->mode] - JC_LO[s->mode]);
     inc = JC_INC[s->mode];
-    if (split) {                                        /* L left, R right, no bus sends */
-        gl = part ? 0 : 4096;
+    if (split) {                                        /* L left, R right (the sends as ever: their return on */
+        gl = part ? 0 : 4096;                           /* both sides) */
         gr = part ? 4096 : 0;
-        c = d = r = 0;
     }
     xmax = c > d ? c : d;
     xmax = 0x7FFFFFFF / ((xmax > r ? xmax : r) | 1);    /* sends: loud chords at a high LEVEL (as mix_part) */
