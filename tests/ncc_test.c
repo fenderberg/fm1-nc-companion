@@ -14,13 +14,13 @@
  *   CEG        CC 5 on FM6: the carriers' envelope rates move, the modulators' do not
  *   ZIPPER     a cutoff jump by CC: the output's largest sample step stays near a steady note's
  *   UI         OCT- / OCT+ the focus and its LED; PRESETS loads once after a pause, on the focused part only;
- *              ALGORITHM steps FM6's SLOT; the popup with the knob's legend for LV_POP_MS
+ *              ALGORITHM L's engine filter; the popup with the knob's legend for LV_POP_MS
  *   CHORUS     the Juno chorus: OFF is Felucca's loop, II stereo (left != right, the mono sum kept), the rates, no
  *              click at a mode change, OFF fades out
  *   SPLIT      a note on L (no sends): the right output exactly 0, and the other way round; sends: their return on
  *              both sides
  *   JUNO       a Juno sound's values, chorus and drift; the macros back to 64; the drift per POLY note, none below 4
- *   UI 2       ALGORITHM on R the chorus (popup), PRESETS the Juno list first, GLO + SEQ SPLIT, both stored
+ *   UI 2       PRESETS on R: the Juno sounds before ANALOG's, GLO + SEQ SPLIT, both stored
  *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
  *   ARP GRID   a note mid-step starts the arp on the next step of the bar, a little late at once; no clock: BPM
  *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
@@ -30,8 +30,10 @@
  *   SPLIT DAC  one part with FLANGER and Juno chorus, no sends: the other side of the output after MASTER exactly 0;
  *              with sends, throws, THROW: their return on the other side too
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
- *   ENGINES    SELECT on SOUND picks the part's engine (after a rest, round the list), ACID slides, stored; the
- *              Circuit's FILTER FREQ on PHASE, TRIO, ACID
+ *   SOUNDS     the library (ncc_library.c): every factory sound in a category; SELECT the category, ALGORITHM the engine
+ *              (after a rest, past the empty ones, the sound kept if it fits), PRESETS through what fits and over the
+ *              engines, a bank voice by its name, ACID slides, the engines stored; the Circuit's FILTER FREQ on PHASE,
+ *              TRIO, ACID
  *   MACROS     every engine's 8 knobs (CC 0 / 127) move what NCM_MAP says; the popup names it with the value the
  *              parameter has now, fits beside the legend; ANALOG SUB / SYNC named so; FM6's vibrato a little
  *   ACID       it sounds, the filter envelope closes, RES 127 bounded, accent brighter and louder, slide on overlap
@@ -345,10 +347,12 @@ static void ui_test_ncc(void)
        trk[1].preset == (p1 + 3u) % ENGINES[ENGI_ANALOG]->npresets);
     lv_press(B_OCTDN);
     ok("UI: OCT- focuses L", song.sel == 0u && lit(B_OCTDN));
-    i = (uint32_t)trk[0].p[P_E7];
+    i = trk[0].preset;
     t_turn(EN_ALGO, 1);
-    lv_frame();
-    ok("UI: ALGORITHM steps FM6's SLOT", (uint32_t)trk[0].p[P_E7] == i + 1u && fm6_slot[0] == i + 1u);
+    lv_frames(400);
+    ok("UI: ALGORITHM: L's engine filter FM6, its FM6 sound kept", lv.ep[0] == 1u && trk[0].preset == i &&
+       trk[0].eng_req == ENGI_FM6);
+    lv.ep[0] = 0;
     midi(0xB3, 13, 100); blk();
     lv_frame();
     ok("UI: the popup shows the knob (R FX 100)", lv.pop_ms != 0u && (ncm_seen & 0xFFFFFFu) == (1u << 16 | 7u << 8 | 100u));
@@ -525,12 +529,6 @@ static void ui_m2_test(void)
     track_t *t = &trk[1];
     power();
     lv_press(B_OCTUP);
-    t_turn(EN_ALGO, 2);
-    lv_frame();
-    ok("UI: ALGORITHM on R: the Juno chorus (II), the popup says so", t->p[P_ED_FX] == JC_II && lv.say &&
-       !strcmp(lv.say, "R CHORUS II"));
-    t_turn(EN_ALGO, 5);
-    ok("UI: .. up to I+II, no further", t->p[P_ED_FX] == JC_I_II);
     t_turn(EN_PRESET, -(int32_t)NCC_NJUNO);            /* from ANALOG's first preset back over the Juno list */
     lv_frames(200);
     ok("UI: PRESETS on R: the Juno sounds come first (JUNO STRINGS)", lv.juno[1] == 1u && t->p[P_ED_FX] == NCC_JUNO[0].jx);
@@ -553,9 +551,6 @@ static void ui_m2_test(void)
     lv_press(B_SEQ);
     fm1_in.buttons &= ~(1u << panel.btn[B_GLO]);
     ok("UI: GLO + SEQ again: STEREO", !NCC_SPLIT());
-    lv_press(B_OCTDN);
-    t_turn(EN_ALGO, 1);
-    ok("UI: ALGORITHM on L (FM6) is still SLOT, the chorus untouched", trk[0].p[P_E7] == 1 && trk[0].p[P_ED_FX] == 0);
 }
 
 /* ------------------------------------------------------- milestone 3 --- */
@@ -830,39 +825,90 @@ static void screen_test(void)
 }
 
 /* ------------------------------------------------------- milestone 4 --- */
+/* a stub bank (FM6's voice bank, fm6_vbank.c, has no flash here): voice 0 "E.PIANO 1", 1 "STRINGS" */
+static int stub_bank(uint32_t k, uint8_t *pk)
+{
+    static const char *const N[2] = {"E.PIANO 1 ", "STRINGS   "};
+    memset(pk, 0, FM6_PACKED);
+    if (k > 1u)
+        return 1;
+    memcpy(pk + 118, N[k], 10);
+    return 0;
+}
 static void engine_ui_test(void)
 {
     track_t *t = &trk[0];
-    uint32_t i;
+    uint32_t i, n[NC_N] = {0}, user = 0;
     power();
-    t_turn(EN_SELECT, 4);                               /* FM6 -> JUNO PHASE TRIO ACID */
-    ok("engines: SELECT on SOUND: not switched while turning", t->eng_req == ENGI_FM6 && lv.epend == 4);
+    nl_build();
+    for (i = 0; i < nl.n; i++) {
+        n[nl.s[i].cat]++;
+        user += nl.s[i].kind == NLK_USER;
+    }
+    printf("ncc: library: %u sounds, BASS %u PAD %u LEAD %u KEYS %u PLUCK %u OTHER %u\n", nl.n, n[NC_BASS], n[NC_PAD],
+           n[NC_LEAD], n[NC_KEYS], n[NC_PLUCK], n[NC_OTHER]);
+    ok("sounds: the library holds every factory sound of the five engines, each in a category (none OTHER)",
+       nl.n - user == 51u && n[NC_OTHER] == 0u && n[NC_BASS] == 13u && n[NC_PAD] == 10u && n[NC_LEAD] == 14u &&
+       n[NC_KEYS] == 6u && n[NC_PLUCK] == 8u);
+    ok("sounds: names of other sounds: E.PIANO 1 KEYS, Strings 2 PAD, DEEP BASS BASS, POLY SYNTH KEYS, WEIRD OTHER",
+       nl_cat("E.PIANO 1", ENGI_FM6) == NC_KEYS && nl_cat("Strings 2", ENGI_FM6) == NC_PAD &&
+       nl_cat("DEEP BASS", ENGI_ACID) == NC_BASS && nl_cat("POLY SYNTH", ENGI_ANALOG) == NC_KEYS &&
+       nl_cat("WEIRD", ENGI_TRIO) == NC_OTHER);
+    t_turn(EN_SELECT, 1);
+    ok("sounds: SELECT on SOUND: nothing yet while turning, the pad shows it coming", lv.cpend == 1 && lv.cat[0] == NC_ALL);
     lv_frames(400);
-    ok("engines: after the rest: L is ACID, R untouched, the popup", t->eng_req == ENGI_ACID &&
-       trk[1].eng_req == ENGI_ANALOG && lv.say && !strcmp(lv.say, "L ENGINE ACID"));
-    ok("engines: a new ACID sound slides (LEGATO, GLIDE in TIME mode)", t->p[P_VOICE] == V_LEGATO && t->p[P_GLMODE] == 1 &&
-       t->p[P_GLIDE] == LV_ACID_GLIDE);
+    ok("sounds: after the rest: L BASS, its first bass loaded (FM BASS), R untouched, the popup",
+       lv.cat[0] == NC_BASS && t->eng_req == ENGI_FM6 && !strcmp(t->eng_req == ENGI_FM6 ?
+       ENGINES[ENGI_FM6]->presets[t->preset].name : "", "FM BASS") && trk[1].eng_req == ENGI_ANALOG && lv.say &&
+       !strcmp(lv.say, "L BASS / ALL"));
+    t_turn(EN_ALGO, -1);
+    lv_frames(400);
+    ok("sounds: ALGORITHM back from ALL: ACID, its first bass (ACID 303)", lv.ep[0] == 5u && t->eng_req == ENGI_ACID &&
+       t->preset == 0u);
+    ok("sounds: a new ACID sound slides (LEGATO, GLIDE in TIME mode)", t->p[P_VOICE] == V_LEGATO &&
+       t->p[P_GLMODE] == 1 && t->p[P_GLIDE] == LV_ACID_GLIDE);
+    t_turn(EN_PRESET, 1);
+    lv_frames(200);
+    ok("sounds: PRESETS: the next ACID bass (SQUELCH)", t->eng_req == ENGI_ACID && t->preset == 1u);
     t_turn(EN_SELECT, 1);
     lv_frames(400);
-    ok("engines: round the list (ACID -> FM6)", t->eng_req == ENGI_FM6);
-    t_turn(EN_SELECT, -1);
+    ok("sounds: SELECT on: ACID has no PAD, so LEAD (SCREAM)", lv.cat[0] == NC_LEAD && t->eng_req == ENGI_ACID &&
+       !strcmp(ENGINES[ENGI_ACID]->presets[t->preset].name, "SCREAM"));
+    t_turn(EN_ALGO, 1);
     lv_frames(400);
-    ok("engines: back (FM6 -> ACID)", t->eng_req == ENGI_ACID);
+    ok("sounds: ALGORITHM on: ALL engines, the lead kept", lv.ep[0] == 0u && t->eng_req == ENGI_ACID);
+    t_turn(EN_PRESET, 1);
+    lv_frames(200);
+    ok("sounds: PRESETS over the engines: the next lead (HOOVERISH, then other engines')", t->eng_req == ENGI_ACID &&
+       !strcmp(ENGINES[ENGI_ACID]->presets[t->preset].name, "HOOVERISH"));
+    t_turn(EN_PRESET, 1);
+    lv_frames(200);
+    ok("sounds: .. round to FM6's (BRASS)", t->eng_req == ENGI_FM6 && !strcmp(ENGINES[ENGI_FM6]->presets[t->preset].name,
+       "BRASS"));
+    fm6_bank_read = stub_bank;                          /* a bank of two voices: E.PIANO 1 among the KEYS */
+    fm6_bank_used = 3u;
+    lv.cat[0] = NC_KEYS;
+    lv.ep[0] = 1u;
+    t_turn(EN_PRESET, 3);                               /* TINE EP, ORGAN, E.PIANO 1 */
+    lv_frames(200);
+    ok("sounds: a DX7 bank voice in the list by its name (E.PIANO 1: KEYS), loaded as FM6's slot B1",
+       t->eng_req == ENGI_FM6 && t->p[P_E7] == (int16_t)(FM6_OWN + 1u) && !strcmp(nl.bname[0], "E.PIANO 1"));
+    fm6_bank_read = 0;
+    fm6_bank_used = 0;
+    nl.bsig = 0;
     lv_press(B_OCTUP);
-    t_turn(EN_SELECT, 2);
+    t_turn(EN_ALGO, 4);
     lv_frames(400);
-    ok("engines: R: JUNO -> TRIO", trk[1].eng_req == ENGI_TRIO);
-    t_turn(EN_ALGO, 2);
-    ok("engines: ALGORITHM on TRIO: the Juno chorus", trk[1].p[P_ED_FX] == JC_II);
+    ok("sounds: R's filters its own: TRIO, its sound", lv.ep[1] == 4u && trk[1].eng_req == ENGI_TRIO && lv.ep[0] == 1u);
     (void)project_save(0);
-    t->eng_req = ENGI_FM6;
+    t->eng_req = ENGI_ACID;
     project_load(0);
     for (i = 0; i < 3u; i++)
         lv_frame();
-    ok("engines: the parts' engines come back with the project", trk[0].eng_req == ENGI_ACID && trk[1].eng_req == ENGI_TRIO);
+    ok("sounds: the parts' engines come back with the project", trk[0].eng_req == ENGI_FM6 && trk[1].eng_req == ENGI_TRIO);
     lv_press(B_ARP);
     t_turn(EN_SELECT, 1);
-    ok("engines: SELECT on ARP is its page 2, not the engine", lv.sub == 1u && !lv.epend);
+    ok("sounds: SELECT on ARP is its page 2, not the filter", lv.sub == 1u && !lv.cpend);
 }
 
 static void engine_macro_test(void)

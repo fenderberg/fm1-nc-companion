@@ -7,10 +7,14 @@
  *               Tracks plays them, MIDI IN TRACK, L on channel 3 and R on 4 (its MIDI 1 / MIDI 2 tracks) unless the
  *               project has TRACK already; the clock from USB (with none coming, the arp runs on BPM: seq.c)
  *   pages       SOUND (HOME), ARP, FX: KNOB 1..4 set the focused part's (LV_KNOBS); SELECT turns ARP's and FX's pages
- *   engines     on SOUND, SELECT picks the focused part's engine (LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID: the
- *               ones the Circuit's knobs map onto, perf_layer.c NCM_MAP), switched once the knob has rested LV_ENG_MS
- *               (its first sound; Felucca's fade). Stored with the project: a part keeps the engine it had; a project
- *               opened in NCC the first time (MIDI IN not TRACK yet) starts with L FM6, R JUNO
+ *   sounds      one library of the five engines' sounds (ncc_library.c; LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID:
+ *               the ones the Circuit's knobs map onto, perf_layer.c NCM_MAP), each with a category (BASS PAD LEAD KEYS
+ *               PLUCK, OTHER). On SOUND, SELECT filters the focused part's list by category, ALGORITHM (any page) by
+ *               engine, each with ALL, skipping what has no sound left; once the knob has rested LV_ENG_MS the part's
+ *               sound stays if it fits, else the first that does loads. PRESETS steps through what fits: a sound of
+ *               another engine switches the part to it (Felucca's fade). The filters are the part's (not stored); its
+ *               engine and sound are kept with the project: a project opened in NCC the first time (MIDI IN not TRACK
+ *               yet) starts with L FM6, R JUNO
  *   OCT- / OCT+ the focus: L / R (its LED: OCT+ has none in PANEL_DEFAULT, so R is OCT- dark); the 27 keys play the
  *               part in focus (song.sel)
  *   ARP         the arp on for the focused part (its last mode, UP at first) and the ARP page; on the ARP page with
@@ -27,11 +31,9 @@
  *               when the mode closes, but with FX LATCH)
  *   ENV / LFO   held: ECHO THROW / REV THROW (perf_layer.c ncm_throw), on every page
  *   HOME        the SOUND page
- *   PRESETS     the focused part's sounds (on ANALOG first NCC's Juno sounds, ncc_presets.c; then the engine's presets,
- *               then its user presets), loaded once the knob has rested LV_LOAD_MS, so turning through the list loads
- *               one sound, not each one passed
- *   ALGORITHM   FM6: SLOT (F1..F8, OWN, the bank's voices; empty bank slots skipped as on the knobs); the other engines:
- *               the Juno chorus, OFF / I / II / I+II (juno_chorus.c), as the buttons on a Juno
+ *   PRESETS     the focused part's sounds as its filters leave them (the factory sounds, NCC's Juno sounds, FM6's voice
+ *               bank, the user presets), loaded once the knob has rested LV_LOAD_MS, so turning through the list loads
+ *               one sound, not each one passed. (The Juno chorus: FX > CHORUS, KNOB 3)
  *   ACID        a new ACID sound slides (GLIDE in TIME mode, eng_acid.c): LEGATO glides between overlapping notes */
 #include "ncc_presets.c"                                /* (the Juno sounds: ncc_juno_load) */
 
@@ -95,8 +97,9 @@ static struct {
     uint32_t hot_ms;                    /* .. when, fm1_ms | 1 */
     uint8_t amode[LV_PARTS];            /* the arp's mode while off (ARP on brings it back) */
     int16_t pend;                       /* PRESETS detents not loaded yet */
-    int8_t epend;                       /* SELECT detents on SOUND: the engine not switched yet */
-    uint32_t epend_ms;                  /* the last of them, fm1_ms | 1 */
+    int8_t cpend, apend;                /* SELECT detents on SOUND / ALGORITHM detents: the filter not applied yet */
+    uint32_t fpend_ms;                  /* the last of them, fm1_ms | 1 */
+    uint8_t cat[LV_PARTS], ep[LV_PARTS];   /* the part's filters: NC_* category, its engine in LV_ENGS + 1 (0: ALL) */
     uint32_t snd[LV_PARTS];             /* the part's sound as last seen (a new ACID sound: its slide) */
     uint32_t pend_ms;                   /* the last of them, fm1_ms | 1 */
     uint32_t seen;                      /* the ncm_seen the foot shows */
@@ -164,50 +167,91 @@ static void lv_setup(void)
     lv.ok = 1;
 }
 
-/* PRESETS: d sounds on from the focused part's (on ANALOG the Juno sounds first, then eng_list_step's list: the
- * engine's presets, then its user presets) */
-static void lv_list_go(int32_t d)
+#include "ncc_library.c"                               /* (the sounds by category: nl_*) */
+
+/* the pos-th sound (from 0) that fits the filters, on the focused part */
+static void lv_load_nth(uint32_t part, uint32_t c, uint32_t ep, uint32_t pos)
 {
-    uint32_t te, ce = eng_list_pos(&te), e = TSEL->eng_req % NENGINES, np = preset_shown(e), k, n, part = song.sel;
-    uint32_t nj = e == ENGI_ANALOG && part < LV_PARTS ? NCC_NJUNO : 0u, total = nj + te;
-    uint32_t cur = nj && lv_juno(part) ? lv.juno[part] - 1u : nj + ce;
-    if (total < 2u)
-        return;
-    d %= (int32_t)total;
-    n = (cur + (uint32_t)(d + (int32_t)total)) % total;
-    if (n < nj) {
-        ncc_juno_load(TSEL, n);
-        lv.juno[part] = (uint8_t)(n + 1u);
-        lv.jsig[part] = lv_snd(TSEL);
-        return;
-    }
-    n -= nj;
-    if (part < LV_PARTS)
-        lv.juno[part] = 0;
-    if (n < np) {
-        for (k = 0; preset_orig(ENGINES[e], k) != k || n--; k++)   /* the n-th shown preset */
-            ;
-        apply_preset(k);
-        return;
-    }
-    n -= np;
-    for (k = 0; k < UP_SLOTS; k++)
-        if (up_used(k) && up_engine(k) == e && !n--) {
-            up_load(k);
+    uint32_t i;
+    for (i = 0; i < nl.n; i++)
+        if (nl_fits(i, c, ep) && !pos--)
             break;
-        }
+    if (i == nl.n)
+        return;
+    nl_load(i);
+    lv.juno[part] = (uint8_t)(nl.s[i].kind == NLK_JUNO ? nl.s[i].k + 1u : 0u);
+    lv.jsig[part] = lv_snd(TSEL);
 }
 
-/* SELECT on SOUND: d engines on from the focused part's (LV_ENGS, round) */
-static void lv_engine_go(int32_t d)
+/* PRESETS: d sounds on from the focused part's, among those its filters leave (not among them: from the first / last) */
+static void lv_list_go(int32_t d)
 {
-    int32_t n = (int32_t)NELEM(LV_ENGS), i = lv_eng_pos(TSEL->eng_req);
-    uint32_t e = LV_ENGS[(uint32_t)((i < 0 ? 0 : i) + d % n + n) % (uint32_t)n];
-    if (e == TSEL->eng_req || song.sel >= LV_PARTS)
+    uint32_t part = song.sel, c, ep, n, i, pos = 0, cur = NL_MAX;
+    int32_t f;
+    if (part >= LV_PARTS || !d)
         return;
-    set_engine_of(TSEL, e);                             /* its first sound, Felucca's fade */
-    lv.juno[song.sel] = 0;
-    lv_say(song.sel ? "R ENGINE " : "L ENGINE ", lv_eng_name(e));
+    nl_build();
+    c = lv.cat[part];
+    ep = lv.ep[part];
+    if (!(n = nl_count(c, ep)))
+        return;
+    f = nl_find(part, lv_juno(part));
+    for (i = 0; i < nl.n; i++)
+        if (nl_fits(i, c, ep)) {
+            if ((int32_t)i == f)
+                cur = pos;
+            pos++;
+        }
+    if (cur == NL_MAX)
+        pos = d > 0 ? (uint32_t)(d - 1) % n : n - 1u - (uint32_t)(-d - 1) % n;
+    else if (n < 2u)
+        return;
+    else
+        pos = (cur + (uint32_t)(d % (int32_t)n + (int32_t)n)) % n;
+    lv_load_nth(part, c, ep, pos);
+}
+
+/* the filters dc categories and de engines on from the part's (round, past those with no sound left; nl_build first) */
+static void lv_filter_peek(uint32_t part, int32_t dc, int32_t de, uint32_t *c, uint32_t *ep)
+{
+    *c = lv.cat[part] % NC_N;
+    *ep = lv.ep[part] % (NELEM(LV_ENGS) + 1u);
+    for (; dc; dc += dc > 0 ? -1 : 1)                   /* (ALL always has some: it ends) */
+        do
+            *c = (*c + (dc > 0 ? 1u : NC_N - 1u)) % NC_N;
+        while (!nl_count(*c, *ep));
+    for (; de; de += de > 0 ? -1 : 1)
+        do
+            *ep = (*ep + (de > 0 ? 1u : (uint32_t)NELEM(LV_ENGS))) % (NELEM(LV_ENGS) + 1u);
+        while (!nl_count(*c, *ep));
+}
+/* "PAD / ALL" (b holds 16) */
+static void lv_filter_name(char *b, uint32_t c, uint32_t ep)
+{
+    str_cpy(b, NC_NAME[c % NC_N], 6);
+    str_cpy(b + str_len(b), " / ", 4);
+    str_cpy(b + str_len(b), ep ? LV_ENG_NAME[(ep - 1u) % NELEM(LV_ENGS)] : "ALL", 6);
+}
+
+/* SELECT on SOUND, ALGORITHM: the focused part's filters on; its sound kept if it fits, else the first that does */
+static void lv_filter_go(int32_t dc, int32_t de)
+{
+    uint32_t part = song.sel, c, ep;
+    int32_t f;
+    char b[24];
+    if (part >= LV_PARTS)
+        return;
+    nl_build();
+    lv_filter_peek(part, dc, de, &c, &ep);
+    lv.cat[part] = (uint8_t)c;
+    lv.ep[part] = (uint8_t)ep;
+    f = nl_find(part, lv_juno(part));
+    if (f < 0 || !nl_fits((uint32_t)f, c, ep))
+        lv_load_nth(part, c, ep, 0);
+    b[0] = LV_NAME[part];
+    b[1] = ' ';
+    lv_filter_name(b + 2, c, ep);
+    lv_say(b, "");
 }
 
 static void lv_focus(uint32_t part)
@@ -216,9 +260,9 @@ static void lv_focus(uint32_t part)
         lv_list_go(lv.pend);
         lv.pend = 0;
     }
-    if (lv.epend) {                                     /* .. an engine too */
-        lv_engine_go(lv.epend);
-        lv.epend = 0;
+    if (lv.cpend | lv.apend) {                          /* .. a filter too */
+        lv_filter_go(lv.cpend, lv.apend);
+        lv.cpend = lv.apend = 0;
     }
     track_select(part);
 }
@@ -452,24 +496,19 @@ static void live_input(void)
         lv_list_go(lv.pend);
         lv.pend = 0;
     }
-    if ((s = panel_enc(EN_ALGO)) != 0 && TSEL->eng_req == ENGI_FM6) {
-        const param_desc_t *d = param_desc_of(ENGI_FM6, P_E7);
-        int32_t from = TSEL->p[P_E7], v = clamp(from + s, d->min, d->max);
-        TSEL->p[P_E7] = (int16_t)enum_step(d, from, v);   /* (fm6_poll loads it) */
-    } else if (s && song.sel < LV_PARTS) {             /* the other engines: the Juno chorus, the drift kept */
-        int32_t x = clamp(TSEL->p[P_ED_FX], 0, 63), m = clamp((x & 3) + s, JC_OFF, JC_I_II);
-        TSEL->p[P_ED_FX] = (int16_t)((x & ~3) | m);
-        lv_say(song.sel ? "R CHORUS " : "L CHORUS ", JC_NAME[m]);
+    if ((s = panel_enc(EN_ALGO)) != 0 && song.sel < LV_PARTS) {   /* the engine filter (after a rest) */
+        lv.apend = (int8_t)clamp(lv.apend + s, -12, 12);
+        lv.fpend_ms = fm1_ms | 1u;
     }
     if ((s = panel_enc(EN_SELECT)) != 0 && LV_NSUB[lv.page % PG_N] > 1u)   /* the page's pages, a step a turn */
         lv.sub = (uint8_t)clamp((int32_t)lv.sub + (s > 0 ? 1 : -1), 0, LV_NSUB[lv.page % PG_N] - 1);
-    else if (s && lv.page == PG_SOUND) {                /* the engine (after a rest) */
-        lv.epend = (int8_t)clamp(lv.epend + s, -8, 8);
-        lv.epend_ms = fm1_ms | 1u;
+    else if (s && lv.page == PG_SOUND && song.sel < LV_PARTS) {   /* the category filter (after a rest) */
+        lv.cpend = (int8_t)clamp(lv.cpend + s, -12, 12);
+        lv.fpend_ms = fm1_ms | 1u;
     }
-    if (lv.epend && (fm1_ms | 1u) - lv.epend_ms >= LV_ENG_MS) {
-        lv_engine_go(lv.epend);
-        lv.epend = 0;
+    if ((lv.cpend | lv.apend) && (fm1_ms | 1u) - lv.fpend_ms >= LV_ENG_MS) {
+        lv_filter_go(lv.cpend, lv.apend);
+        lv.cpend = lv.apend = 0;
     }
     for (k = 0; k < LV_PARTS; k++) {                    /* a new ACID sound slides */
         track_t *t = &trk[k];

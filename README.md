@@ -23,6 +23,8 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
 - **Your Circuit's knobs just work.** For every engine, the Circuit's 8 macro knobs (OSCILLATOR, OSC MOD, AMP ENV,
   FILTER ENV, FILTER FREQ, RESONANCE, MODULATION, FX) are mapped to the parameters that match their labels. Every sound
   is hands-on from the Circuit, with smooth (zipper-free) moves. The FM-1's screen shows what each knob does.
+- **Sounds by role, not by engine.** SELECT picks the type (BASS, PAD, LEAD, KEYS, PLUCK), ALGORITHM the engine (or
+  ALL), PRESETS walks through what's left. A pad is a pad, wherever it comes from.
 - **Five synth engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
   (Casio CZ-style phase distortion), TRIO (SID-style chip synth) and ACID (a 303 with accent and slide).
 - **Built for jamming.** OCT- / OCT+ switch the FM-1's keys and knobs between your two sounds in one press. An arp

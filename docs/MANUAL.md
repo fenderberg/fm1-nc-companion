@@ -59,14 +59,24 @@ The FM-1 has two parts, **L** (blue) and **R** (pink). Each has its own engine, 
 
 ## Sounds and engines
 
-On the **SOUND** page (press **HOME**):
+NCC puts the sounds of all five engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
+KEYS, PLUCK**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**):
 
 | Control | What it does |
 |---|---|
-| **PRESETS** (knob) | Picks a sound for the part in focus. It loads once you stop turning, so you can scroll freely. |
-| **SELECT** (knob) | Picks the engine for the part in focus: FM6, JUNO, PHASE, TRIO, ACID. |
-| **ALGORITHM** (knob) | FM6: the patch slot (F1–F8 and your own DX7 bank). Other engines: the Juno chorus OFF / I / II / I+II. |
+| **SELECT** (knob) | The **type** filter: ALL, BASS, PAD, LEAD, KEYS, PLUCK. |
+| **ALGORITHM** (knob) | The **engine** filter: ALL, FM6, JUNO, PHASE, TRIO, ACID. |
+| **PRESETS** (knob) | Steps through the sounds that pass both filters, across engines. It loads once you stop turning, so you can scroll freely. |
 | KNOB 1–4 | LEVEL, OCTAVE, VOICE (poly / mono / legato ...), GLIDE |
+
+- When you stop turning SELECT or ALGORITHM, the part keeps its sound if it fits the new filter; otherwise the first
+  sound that fits loads, so you hear the change right away. Types or engines with no matching sound are skipped
+  (ACID has no pads, for example).
+- A sound from another engine switches the part to that engine automatically.
+- Each part has its own filters, shown at the bottom of its box (`PAD / ALL`).
+- Your own sounds join in: user presets and a DX7 bank loaded into FM6 get their type from their name ("E.PIANO" is
+  KEYS, "STRINGS" is PAD). Sounds whose name doesn't tell show up under **OTHER**.
+- The Juno chorus lives on **FX > CHORUS** (KNOB 3).
 
 The five engines:
 
@@ -149,9 +159,9 @@ effect lasts as long as you hold its key. The PERFORM page shows which key does 
 |---|---|
 | OCT- / OCT+ | Focus on part L / part R |
 | HOME | SOUND page |
-| PRESETS | Choose the part's sound |
-| SELECT | SOUND page: engine. ARP / FX: next page |
-| ALGORITHM | FM6: patch slot. Others: Juno chorus |
+| PRESETS | Choose the part's sound (within the filters) |
+| SELECT | SOUND page: type filter. ARP / FX: next page |
+| ALGORITHM | Engine filter |
 | ARP | Arp on + ARP page / off |
 | REC | Arp HOLD |
 | SEQ | Drone |
@@ -187,6 +197,7 @@ If an install is ever cut off, run the same command again, or hold **OCT-** whil
   the pad rings.
 - Tap **FX** once and you're on SENDS: a quick way to add delay to just one part.
 - Hold **ENV** on the last beat before a break for an echo throw.
-- On FM6, ALGORITHM flips through patch slots fast. Load your own DX7 bank with Felucca's
-  [web editor](https://hugelton.github.io/Felucca/webapp/editor/).
+- Set SELECT to PAD and leave ALGORITHM on ALL: PRESETS then walks through every pad of every engine.
+- Load your own DX7 bank into FM6 with Felucca's [web editor](https://hugelton.github.io/Felucca/webapp/editor/):
+  its voices appear in the library by type.
 - No Circuit at hand? `DEMO=1 sh tools/ncc_demo.sh` builds the browser emulator with a built-in player.
