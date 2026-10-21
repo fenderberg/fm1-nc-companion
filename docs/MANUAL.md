@@ -168,16 +168,16 @@ Your parts, engines, sounds and effect settings are kept by Felucca's autosave.
 Installing firmware is at your own risk, but the way back is easy: M-VAVE's own updater, or Felucca's
 [web installer](https://hugelton.github.io/Felucca/) with **Return to official V15**.
 
-1. Get the package: `ncc.fwsc` from the [Releases](https://github.com/fenderberg/fm1-nc-companion/releases) page, or
+1. Get the package: `ncc-0.1.fwsc` (or the newest `ncc-X.Y.fwsc`) from the [Releases](https://github.com/fenderberg/fm1-nc-companion/releases) page, or
    build it yourself (`FELUCCA_LIVEUI=1 ./build.sh`, see [BUILDING.md](../BUILDING.md)).
 2. Connect the FM-1 by USB and install with the command-line installer (Python 3 with `pip3 install mido
    python-rtmidi`):
 
    ```bash
-   python3 tools/fm1_install.py ncc.fwsc
+   python3 tools/fm1_install.py ncc-0.1.fwsc
    ```
 
-3. The FM-1 restarts into NCC (identity `FM-1_700`). Check with `python3 tools/fm1_install.py --info`.
+3. The FM-1 restarts into NCC (identity `FM-1_701` for release 0.1; NCC uses `FM-1_7XY`). Check with `python3 tools/fm1_install.py --info`.
 
 If an install is ever cut off, run the same command again, or hold **OCT-** while switching on to reach the updater.
 
