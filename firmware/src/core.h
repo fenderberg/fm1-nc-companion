@@ -365,6 +365,15 @@ typedef struct {
 
 static track_t trk[NTRK];        /* the instrument: four parts */
 static song_t song;
+#if FELUCCA_LIVEUI
+/* NC: NCC's SPLIT (juno_chorus.c): G_ENGGO, stored, unused by Felucca. NCC_SPLIT_DEFAULT 1 (the firmware): 0 (every
+ * project, power-on) is SPLIT and 1 STEREO; 0 (tests/run_tests.sh's regression of an NCC build: Felucca's sound as it
+ * is) the other way round */
+#ifndef NCC_SPLIT_DEFAULT
+#define NCC_SPLIT_DEFAULT 1
+#endif
+#define NCC_SPLIT() (NCC_SPLIT_DEFAULT ? song.g[G_ENGGO] != 1 : song.g[G_ENGGO] == 1)
+#endif
 #define TSEL (&trk[song.sel])    /* the selected track */
 /* MIDI IN TRACK: track i's channel 0..15, MCH_OMNI or MCH_OFF (song.mch), and set */
 static inline uint32_t mch_get(uint32_t i)

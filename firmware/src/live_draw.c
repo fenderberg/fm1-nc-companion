@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* NCC (FELUCCA_LIVEUI=1): the live UI's screen (240 x 240), in the Circuit Tracks' manner: black, the parts in the
  * colours of the Circuit's tracks that play them (L: MIDI 1, blue; R: MIDI 2, pink), bright blocks, a white playhead.
- *   HEAD    the page (SOUND / ARP / FX, its page 2, PERFORM while FX is held) in a block of the focused part's colour,
+ *   HEAD    the page (SOUND / ARP and its page 2; in the FX mode its page: PERFORM SENDS DELAY REVERB CHORUS INSERT)
+ *           in a block of the focused part's colour,
  *           NCC, ST / SPLIT, the tempo (amber on an external clock)
  *   PARTS   L and R as two pads: the focused one lit in its colour, the other dark; channel, engine, the sound,
  *           ARP / HOLD / DRONE badges, SLOT (FM6) or the Juno chorus (ANALOG), a MIDI dot.
- *           FX held: PERFORM's key map instead, the 16 white keys as pads (lit while their effect plays)
+ *           the FX mode's PERFORM page: PERFORM's key map instead, the 16 white keys as pads (lit while they play)
  *   STEPS   the bar's 16 sixteenths as pads, the white playhead on the clock (seq.c beat_pos: ncc_bar)
  *   KNOBS   KNOB 1..4 of the page as rings (the Circuit's macro LEDs): the label, the arc in the part's colour (white
  *           just turned), the value
@@ -72,7 +73,7 @@ static void lv_draw_head(void)
         return;
     cv_begin(240, 26, LC_BG);
     cv_rrect(2, 2, 82, 22, 4, LC_PART[part], LC_BG);
-    str_cpy(s, lv.fx ? "PERFORM" : PG_NAME[lv.page % PG_N], sizeof s);
+    str_cpy(s, lv.fx ? LV_FX_PAGE[lv.sub % 6u] : PG_NAME[lv.page % PG_N], sizeof s);
     if (!lv.fx && lv.sub)
         str_cpy(s + str_len(s), " 2", 3);
     cv_text_in(2, 4, 82, &AF_M, s, LC_TEXT, LC_PART[part]);
@@ -219,7 +220,7 @@ static void lv_draw_knobs(void)
         char s[16];
         if (kb->kind == LK_NONE)
             continue;
-        cv_text_in(cx, 0, 60, &AF_S, kb->label, on ? LC_TEXT : LC_MID, LC_BG);
+        cv_text_in(cx, 0, 60, &AF_S, lv_label(kb), on ? LC_TEXT : LC_MID, LC_BG);
         if (lo[k] < 0) {                                /* bipolar: from 12 o'clock */
             int32_t sv = v[k] * KA_END / (v[k] < 0 ? -lo[k] : (hi[k] ? hi[k] : 1));
             a0 = (sv < 0 ? sv : 0) - 8;
@@ -250,13 +251,14 @@ static void lv_draw_foot(void)
         lv.pop_ms = 0;
     if (!lv.pop_ms)
         lv.say = 0;
-    sig = !lv.pop_ms ? 1u << 31 | lv.page << 4 | lv.fx : lv.say ? 1u << 29 | lv.say_n : (seen & 0xFFFFFFu) | 1u << 30;
+    sig = !lv.pop_ms ? 1u << 31 | lv.page << 4 | lv.fx | lv.sub << 8 : lv.say ? 1u << 29 | lv.say_n : (seen & 0xFFFFFFu) | 1u << 30;
     if (!lv_changed(RG_FOOT, sig))
         return;
     cv_begin(240, 26, LC_BG);
     cv_rect(0, 0, 240, 1, LC_LINE);
     if (!lv.pop_ms)
-        cv_text_in(0, 6, 240, &AF_S, lv.fx ? "KNOBS: FILTER CRUSH THROW DEPTH" : HINT[lv.page % PG_N], LC_DIM, LC_BG);
+        cv_text_in(0, 6, 240, &AF_S, !lv.fx ? HINT[lv.page % PG_N] : lv.sub ? "SELECT: PAGES   FX: CLOSE" :
+                   "KEYS: EFFECTS   SELECT: PAGES", LC_DIM, LC_BG);
     else if (lv.say)
         cv_text_in(0, 4, 240, &AF_M, lv.say, LC_TEXT, LC_BG);
     else {
@@ -292,7 +294,7 @@ static void live_draw(void)
         memset(lv.sig, 0, sizeof lv.sig);
     }
     lv_draw_head();
-    if (lv.fx)
+    if (lv.fx && !lv.sub)                               /* the FX mode's PERFORM page: the key map */
         lv_draw_perform();
     else {
         if (lv.sig[RG_STEPS] == 2u)

@@ -381,7 +381,7 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "REVERB TYPE: ROOM / SPRING bit-identical, SPRING and HALL decay / stability / level, HALL silence / stereo / ringing, model changes, cost, demos" "$OUT/reverb_test" build/fx_demo build/reverb_demo
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/regress" tests/regress.c -lm
     run "regression: golden renders, health, voices, CPU budget (2ND CORE OFF: one core)" "$OUT/regress" tests/golden.txt tests/cpu_baseline.txt
-    $CC -O2 -w -DFELUCCA_LIVEUI=1 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_liveui" tests/regress.c -lm   # NC
+    $CC -O2 -w -DFELUCCA_LIVEUI=1 -DNCC_SPLIT_DEFAULT=0 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_liveui" tests/regress.c -lm   # NC (STEREO)
     run "regression, an NCC build (FELUCCA_LIVEUI=1): Felucca's golden renders unchanged, ACID's own (tests/ncc_golden.txt)" \
         "$OUT/regress_liveui" tests/ncc_golden.txt tests/cpu_baseline.txt
     $CC -O2 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_cpu2_0" tests/regress.c -lm

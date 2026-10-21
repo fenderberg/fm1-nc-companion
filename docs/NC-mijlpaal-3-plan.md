@@ -143,3 +143,24 @@ Nog open / later:
   arps stoppen". Bekijken na het spelen.
 - KNOB 4 op FX-pagina 2 = reverb-grootte; het reverb-type (ROOM/SPRING/HALL) zit nog niet op een knop.
 - Luisteren en bijstellen: arp-gevoel op het raster, de PERFORM-effecten, de throws.
+
+## Aanpassing (21-10-2026, na de eerste keer op de FM-1)
+Op verzoek van Remco:
+- **FX is een aan/uit-knop**: één tik opent de FX-modus, nog een tik (of HOME, of ARP) sluit hem. In de FX-modus zijn
+  de witte toetsen de PERFORM-effecten zonder dat je FX vasthoudt (Felucca's `kb_lock`), elk zolang je de toets houdt.
+  **SELECT** bladert door de pagina's, elk met KNOB 1–4:
+  | Pagina | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
+  |---|---|---|---|---|
+  | PERFORM (met de effect-pads) | FILTER | CRUSH | THROW | DEPTH |
+  | SENDS (per part) | drive | chorus-send | delay-send | reverb-send |
+  | DELAY | tijd | feedback | kleur | mix |
+  | REVERB | type | grootte | demping | – |
+  | CHORUS | snelheid (bus) | diepte (bus) | Juno-chorus (part) | drift (part) |
+  | INSERT (per part) | type | A, B, C met de namen die het type geeft (bijv. DRIVE, TONE, LEVEL) |
+- **SPLIT is nu echt 100 %**: in SPLIT gaat de retour van de mono-bussen (delay, reverb, chorus; ook throws, de
+  THROW-macro en galmstaarten) niet meer naar de uitgang, en de BASS+-luidspreker-EQ mengt geen bas van de ene kant
+  naar de andere. Getest tot aan de uitgang na de master: speelt alleen L (met sends, throws, THROW, FLANGER en de
+  Juno-chorus aan), dan is rechts exact 0, en andersom.
+- **SPLIT is de standaard** (ook in bestaande projecten); GLO + SEQ schakelt naar STEREO en terug. Technisch:
+  `G_ENGGO = 1` betekent nu STEREO (`NCC_SPLIT()` in `core.h`; de regressietest van de NCC-build bouwt met
+  `NCC_SPLIT_DEFAULT=0`, zodat Felucca's goldens in stereo blijven gelden).

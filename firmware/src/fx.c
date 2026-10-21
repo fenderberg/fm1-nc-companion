@@ -192,6 +192,10 @@ static inline void master_out(int32_t *l, int32_t *r)
     if (fx_lowcut) {                  /* two one-pole high-passes, error feedback as dc_block (the */
         uint32_t sh = fx_lowcut == 2u ? 5u : 6u;    /* rounded step stopped at |x - lc| < 32: an offset) */
         int32_t b = fx_lowcut == 2u ? spk_bass((*l + *r) >> 1) : 0;
+#if FELUCCA_LIVEUI
+        if (NCC_SPLIT())                                /* NC: NCC's SPLIT (core.h): no bass of one side into the other */
+            b = 0;
+#endif
         *l = lowcut1(*l, &lc_l1, &lce[0], sh);
         *l = lowcut1(*l, &lc_l2, &lce[1], sh) + b;
         *r = lowcut1(*r, &lc_r1, &lce[2], sh);
@@ -1093,6 +1097,11 @@ static void mix_block(int32_t *out, uint32_t n)
     if (perf)
         perf_pre(mix_l, mix_r, send_d, send_r, n);
     fx_buses(send_c, send_d, send_r, wet, n);
+#if FELUCCA_LIVEUI
+    if (NCC_SPLIT())                                    /* NC: NCC's SPLIT (core.h): the buses are mono: none of */
+        for (i = 0; i < n; i++)                         /* them out (a throw, THROW, a tail), L only left, R only right */
+            wet[i] = rev_side[i] = 0;
+#endif
     if (hl.side)
         rev_side_mix(mix_l, mix_r, n);                  /* HALL: stereo */
     if (scope_mix)

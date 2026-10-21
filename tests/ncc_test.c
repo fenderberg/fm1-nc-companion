@@ -23,7 +23,10 @@
  *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
  *   ARP GRID   a note mid-step starts the arp on the next step of the bar, a little late at once; no clock: BPM
  *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
- *   FX UI      the FX page's knobs (and page 2), FX held: PERFORM's keys and macros, ENV / LFO throws
+ *   FX UI      FX a toggle: its mode (the keys PERFORM's, no button held), SELECT its pages PERFORM SENDS DELAY REVERB
+ *              CHORUS INSERT (the insert's knobs named by its type), FX / HOME close it; ENV / LFO throws
+ *   SPLIT DAC  one part with sends, throws, THROW, FLANGER, Juno chorus and the other's tail: the other side of the
+ *              output after MASTER exactly 0
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
  *   ENGINES    SELECT on SOUND picks the part's engine (after a rest, round the list), ACID slides, stored; the
  *              Circuit's FILTER FREQ on PHASE, TRIO, ACID
@@ -86,6 +89,7 @@ static void power(void)
     memset(fm6_ceg, 0, sizeof fm6_ceg);
     ncm_seen = 0;
     song.master_q12 = 2048;                             /* (main.c: the MASTER pot's level) */
+    song.g[G_ENGGO] = 1;                                /* STEREO (SPLIT, NCC's default, where a test says so) */
     lv_frame();                                         /* lv_setup */
     blk();
 }
@@ -363,6 +367,9 @@ static void fx_quiet(void)                              /* the buses empty: no t
     rev_clear();
     memset(ins, 0, sizeof ins);
     memset(jc, 0, sizeof jc);
+    lc_l1 = lc_l2 = lc_r1 = lc_r2 = dc_l = dc_r = dce_l = dce_r = 0;   /* MASTER's filters: no ring of a test before */
+    memset(lce, 0, sizeof lce);
+    lim_env = LIM_T;
 }
 static void chorus_test(void)
 {
@@ -420,7 +427,7 @@ static void split_test(void)
     fx_quiet();
     trk[0].p[P_REV] = 100;
     trk[0].p[P_DLY] = 100;                              /* (sends that would put L on both sides) */
-    song.g[G_ENGGO] = 1;
+    song.g[G_ENGGO] = 0;                                /* SPLIT */
     midi(0x92, 60, 100);
     for (b = 0; b < 60u; b++) {
         blk();
@@ -443,7 +450,7 @@ static void split_test(void)
         }
     }
     ok("split: a note on R: the right plays, the left mix and the buses exactly 0", lz && rsum > 0u);
-    song.g[G_ENGGO] = 0;
+    song.g[G_ENGGO] = 1;
 }
 
 static void juno_test(void)
@@ -506,7 +513,7 @@ static void ui_m2_test(void)
     ok("UI: GLO + SEQ: SPLIT, the popup", NCC_SPLIT() && lv.say && !strncmp(lv.say, "SPLIT", 5));
     {   /* stored with the project: SPLIT and the part's Juno character */
         int saved = project_save(0) == 0 || 1;
-        song.g[G_ENGGO] = 0;
+        song.g[G_ENGGO] = 1;
         t->p[P_ED_FX] = 0;
         project_load(0);
         ok("UI: SPLIT and the Juno chorus / drift come back with the project", saved && NCC_SPLIT() &&
@@ -628,6 +635,14 @@ static void drone_test(void)
     ok("drone: off: a note ends with its note-off", !note_playing(t, 60));
 }
 
+static uint32_t white_key(uint32_t place)               /* the key of white place p (F3 = 0) */
+{
+    uint32_t k;
+    for (k = 0; k < 27u; k++)
+        if (!key_black(k) && key_place(k) == place)
+            return k;
+    return 0;
+}
 static void fx_ui_test(void)
 {
     track_t *t = &trk[1];
@@ -635,30 +650,54 @@ static void fx_ui_test(void)
     power();
     lv_press(B_OCTUP);
     lv_press(B_FX);
-    ok("FX UI: FX: the FX page, its LED", lv.page == PG_FX && led_is(B_FX, 1));
-    t_turn(EN_K1, 3); t_turn(EN_K2, 3); t_turn(EN_K3, 3); t_turn(EN_K4, 3);
-    ok("FX UI: KNOB 1..4 drive, chorus, delay, reverb of R", t->p[P_DIST] > 0 && t->p[P_CHOR] > 0 && t->p[P_DLY] > 0 &&
-       t->p[P_REV] > 0 && trk[0].p[P_DIST] == 0);
-    t_turn(EN_SELECT, 1);
-    t_turn(EN_K1, 1);
-    ok("FX UI: page 2 KNOB 1: an INSERT type, its MIX up (heard)", t->p[P_ITYPE] == 1 && t->p[P_IMIX] > 0);
-    i = (uint32_t)song.g[G_DTIME];
-    t_turn(EN_K2, 1);
-    ok("FX UI: page 2 KNOB 2: the delay time (global)", (uint32_t)song.g[G_DTIME] != i);
-    lv_press(B_HOME);
-    btn_down(B_FX);
-    lv_frame();
-    ok("FX UI: FX held: the PERFORM layer (the keys are its), PERFORM in the head", kb_mask == (1u << panel.btn[B_FX]) &&
-       perf_mask == kb_mask && lv.fx);
+    ok("FX UI: a tap on FX: the FX mode on its PERFORM page, the keys locked to it, its LED", lv.fx && lv.page == PG_FX &&
+       lv.sub == 0u && kb_lock == 2u && led_is(B_FX, 1));
     key_down(0); blk();
-    ok("FX UI: FX + the first white key: its effect (REPEAT 1/8) held", (perf_held >> perf_map[0]) & 1u);
+    ok("FX UI: FX mode, the first white key (no button held): its effect (REPEAT 1/8)", (perf_held >> perf_map[0]) & 1u);
     t_turn(EN_K1, -10);
-    ok("FX UI: FX + KNOB 1: PERFORM's FILTER macro", perf_k[0] < 0);
+    ok("FX UI: KNOB 1 on PERFORM: the FILTER macro", perf_k[0] < 0);
     key_up(0); blk();
     ok("FX UI: the key let go: the effect off", !((perf_held >> perf_map[0]) & 1u));
-    btn_up(B_FX);
-    lv_frame();
-    ok("FX UI: FX let go: the macros back to 0 (no FX LATCH)", perf_k[0] == 0 && !lv.fx);
+    t_turn(EN_SELECT, 1);
+    t_turn(EN_K1, 3); t_turn(EN_K2, 3); t_turn(EN_K3, 3); t_turn(EN_K4, 3);
+    ok("FX UI: SELECT: SENDS, KNOB 1..4 drive, chorus, delay, reverb of R", lv.sub == 1u && t->p[P_DIST] > 0 &&
+       t->p[P_CHOR] > 0 && t->p[P_DLY] > 0 && t->p[P_REV] > 0 && trk[0].p[P_DIST] == 0);
+    i = (uint32_t)song.g[G_DTIME];
+    t_turn(EN_SELECT, 1);
+    t_turn(EN_K1, 1); t_turn(EN_K3, 5);
+    ok("FX UI: DELAY: KNOB 1 its time, KNOB 3 its colour", lv.sub == 2u && (uint32_t)song.g[G_DTIME] != i &&
+       song.g[G_DCOLOR] != GP[G_DCOLOR].def);
+    t_turn(EN_SELECT, 1);
+    i = (uint32_t)song.g[G_RTYPE];
+    t_turn(EN_K1, -1); t_turn(EN_K3, 5);
+    ok("FX UI: REVERB: KNOB 1 its type, KNOB 3 its damping", lv.sub == 3u && (uint32_t)song.g[G_RTYPE] != i &&
+       song.g[G_RDAMP] != GP[G_RDAMP].def);
+    t_turn(EN_SELECT, 1);
+    t_turn(EN_K3, 2); t_turn(EN_K4, 3);
+    ok("FX UI: CHORUS: KNOB 3 R's Juno chorus (II), KNOB 4 its drift (3)", lv.sub == 4u && (t->p[P_ED_FX] & 3) == 2 &&
+       ((t->p[P_ED_FX] >> 2) & 15) == 3);
+    t_turn(EN_SELECT, 1);
+    t_turn(EN_K1, 1);
+    ok("FX UI: INSERT: KNOB 1 its type (SOFT), KNOB 2..4 named as the type names them (DRIVE TONE LEVEL)",
+       lv.sub == 5u && t->p[P_ITYPE] == 1 && !strcmp(lv_label(lv_knob(1)), "DRIVE") && !strcmp(lv_label(lv_knob(3)), "LEVEL"));
+    i = (uint32_t)t->p[P_IA];
+    t_turn(EN_K2, 4);
+    ok("FX UI: .. KNOB 2 its DRIVE", (uint32_t)t->p[P_IA] != i);
+    t_turn(EN_SELECT, 3);
+    ok("FX UI: SELECT stops at the last page", lv.sub == 5u);
+    lv_press(B_FX);
+    ok("FX UI: FX again: the mode closes (back to SOUND), the keys play, the macros back to 0", !lv.fx &&
+       lv.page == PG_SOUND && kb_lock == 0u && perf_k[0] == 0 && led_is(B_FX, 0));
+    key_down(white_key(3)); blk();
+    ok("FX UI: closed: a key plays a note again", gate_on(t));
+    key_up(white_key(3)); blk();
+    lv_press(B_ARP);
+    lv_press(B_FX);
+    lv_press(B_FX);
+    ok("FX UI: opened from ARP, closed back to ARP", lv.page == PG_ARP);
+    lv_press(B_FX);
+    lv_press(B_HOME);
+    ok("FX UI: HOME closes it too", !lv.fx && lv.page == PG_SOUND && kb_lock == 0u);
     btn_down(B_ENV);
     lv_frame(); blk();
     ok("FX UI: ENV held: ECHO THROW", (perf_held >> PF_ETHR) & 1u);
@@ -669,6 +708,58 @@ static void fx_ui_test(void)
     btn_up(B_LFO);
     lv_frame(); blk();
     ok("FX UI: LFO let go: no throw", !((perf_held >> PF_RTHR) & 1u));
+}
+
+/* SPLIT to the DAC: one part plays with everything that could reach the other side on (its reverb / delay / chorus
+ * sends, both throws, PERFORM's THROW macro and a FLANGER, its Juno chorus, a tail of the other part from before): the
+ * other side of the output, after MASTER (mix_block's out), exactly 0 */
+static int split_side_silent(uint32_t play, uint32_t quiet)
+{
+    track_t *t = &trk[play], *o = &trk[quiet];
+    uint32_t b, i, silent = 1, sound = 0;
+    power();
+    fx_quiet();
+    t->p[P_REV] = t->p[P_DLY] = t->p[P_CHOR] = 120;
+    o->p[P_REV] = o->p[P_DLY] = 120;
+    midi(0x92 + quiet, 60, 120);                        /* the other part first, in ST: its reverb and delay ringing */
+    for (b = 0; b < 100u; b++)
+        blk();
+    midi(0x82 + quiet, 60, 0);
+    midi_silence_track(quiet);
+    for (b = 0; b < 40u; b++)
+        blk();                                          /* (its own release over; the buses still ring) */
+    song.g[G_ENGGO] = 0;                                /* SPLIT */
+    for (b = 0; b < 2000u; b++)
+        blk();                                          /* (the other side's own past rings out of MASTER's DC blocker) */
+    t->p[P_ED_FX] = JC_II | 6 << 2;
+    lv_frame();
+    lv_press(B_FX);                                     /* the FX mode: FLANGER held, THROW up */
+    key_down(white_key(perf_map[10] == PF_FLG ? 10u : 10u));
+    perf_k[2] = 100;
+    ncm_throw = 3;                                      /* ENV and LFO held */
+    midi(0x92 + play, 48, 120); midi(0x92 + play, 55, 120);
+    for (b = 0; b < 300u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++) {
+            silent &= blk_out[2u * i + (quiet ? 1u : 0u)] == 0;
+            sound += blk_out[2u * i + (play ? 1u : 0u)] != 0;
+        }
+    }
+    key_up(white_key(10));
+    ncm_throw = 0;
+    perf_k[2] = 0;
+    midi(0x82 + play, 48, 0); midi(0x82 + play, 55, 0);
+    song.g[G_ENGGO] = 1;
+    lv_press(B_FX);
+    return silent && sound > 1000u;
+}
+static void split_dac_test(void)
+{
+    ui_power_on();
+    ok("split: NCC's default (a project, power-on: G_ENGGO 0)", song.g[G_ENGGO] == 0 && NCC_SPLIT());
+    ok("split to the DAC: L with sends, throws, THROW, FLANGER, Juno chorus, R's tail: the right output exactly 0",
+       split_side_silent(0, 1));
+    ok("split to the DAC: R alike: the left output exactly 0", split_side_silent(1, 0));
 }
 
 static void screen_test(void)
@@ -693,9 +784,11 @@ static void screen_test(void)
     {   /* every label of the knobs and of the PERFORM pads fits its cell */
         uint32_t g, sb, k, fit = 1;
         for (g = 0; g < PG_N; g++)
-            for (sb = 0; sb < 2u; sb++)
+            for (sb = 0; sb < LV_NSUB[g]; sb++)
                 for (k = 0; k < 4u; k++)
-                    fit &= text_w(&AF_S, LV_KNOBS[g][sb][k].label) <= 58;
+                    fit &= text_w(&AF_S, lv_label(&LV_KNOBS[g][sb][k])) <= 58;
+        for (k = 0; k < 6u; k++)
+            fit &= text_w(&AF_M, LV_FX_PAGE[k]) <= 78;  /* (the head's block) */
         for (k = 0; k <= PF_N; k++)
             fit &= text_w(&AF_S, LV_PF[k][0]) <= 25 && text_w(&AF_S, LV_PF[k][1]) <= 25;
         ok("screen: the knob labels fit their 60 px, the PERFORM pads' their 26 px", fit);
@@ -898,6 +991,7 @@ int main(void)
     drone_test();
     fx_ui_test();
     screen_test();
+    split_dac_test();
     engine_ui_test();
     engine_macro_test();
     acid_test();

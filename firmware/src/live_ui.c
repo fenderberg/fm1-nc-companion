@@ -6,7 +6,7 @@
  *   two parts   L = track 1, FM6; R = track 2, ANALOG; tracks 3 and 4 muted and deaf. No sequencer: the Circuit
  *               Tracks plays them, MIDI IN TRACK, L on channel 3 and R on 4 (its MIDI 1 / MIDI 2 tracks) unless the
  *               project has TRACK already; the clock from USB (with none coming, the arp runs on BPM: seq.c)
- *   pages       SOUND (HOME), ARP, FX: KNOB 1..4 set the focused part's (LV_KNOBS); SELECT turns to page 2 of ARP / FX
+ *   pages       SOUND (HOME), ARP, FX: KNOB 1..4 set the focused part's (LV_KNOBS); SELECT turns ARP's and FX's pages
  *   engines     on SOUND, SELECT picks the focused part's engine (LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID: the
  *               ones the Circuit's knobs map onto, perf_layer.c NCM_MAP), switched once the knob has rested LV_ENG_MS
  *               (its first sound; Felucca's fade). Stored with the project: a part keeps the engine it had; a project
@@ -17,9 +17,13 @@
  *               the arp on: off. Its LED: the arp on
  *   REC         HOLD (latch) of the focused part's arp (P_AHOLD: a new chord after letting go replaces it, keys added
  *               while held add); off with no key down lets the latched chord go (ncc_seq.c). Its LED
- *   SEQ         Drone-hold of the focused part (ncc_seq.c). Its LED.   GLO + SEQ: ST <-> SPLIT (juno_chorus.c)
- *   FX          the FX page; held: the white keys are PERFORM's effects (perform.c, the key map on the screen) and
- *               KNOB 1..4 its macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go, but with FX LATCH)
+ *   SEQ         Drone-hold of the focused part (ncc_seq.c). Its LED.   GLO + SEQ: SPLIT (the default) <-> STEREO
+ *   FX          a tap opens the FX mode, another (or HOME, or ARP) closes it. In it the white keys are PERFORM's effects
+ *               (perform.c; seq.c kb_lock: the layer locked open), each held while its key is, and SELECT turns its
+ *               pages: PERFORM (the key map on the screen, KNOB 1..4 its macros FILTER CRUSH THROW DEPTH, back to 0 when
+ *               the mode closes, but with FX LATCH), SENDS (the focused part's drive and sends), DELAY, REVERB, CHORUS
+ *               (the bus's, and the part's Juno chorus and drift), INSERT (the part's: its type and A B C as the type
+ *               names them)
  *   ENV / LFO   held: ECHO THROW / REV THROW (perf_layer.c ncm_throw), on every page
  *   HOME        the SOUND page
  *   PRESETS     the focused part's sounds (on ANALOG first NCC's Juno sounds, ncc_presets.c; then the engine's presets,
@@ -56,29 +60,35 @@ static const char *lv_eng_name(uint32_t e)
 static const char LV_NAME[LV_PARTS] = {'L', 'R'};
 
 enum { PG_SOUND, PG_ARP, PG_FX, PG_N };
-enum { LK_NONE, LK_TP, LK_G, LK_OCT, LK_AMODE, LK_ARATE, LK_ITYPE, LK_PERF };
+enum { LK_NONE, LK_TP, LK_G, LK_OCT, LK_AMODE, LK_ARATE, LK_ITYPE, LK_PERF, LK_INS, LK_JUNO, LK_DRIFT };
+#define LV_NSUBMAX 6
 typedef struct {
     uint8_t kind, id;                   /* LK_*, the P_* / G_* id (LK_PERF: perf_k's index) */
     const char *label;
 } lv_knob_t;
-/* KNOB 1..4 per page and its page 2 (SELECT); FX held: PERFORM's macros */
-static const lv_knob_t LV_KNOBS[PG_N][2][4] = {
-    [PG_SOUND] = {{{LK_TP, P_LEVEL, "LEVEL"}, {LK_OCT, 0, "OCTAVE"}, {LK_TP, P_VOICE, "VOICE"}, {LK_TP, P_GLIDE, "GLIDE"}},
-                  {{LK_NONE, 0, ""}, {LK_NONE, 0, ""}, {LK_NONE, 0, ""}, {LK_NONE, 0, ""}}},
+/* KNOB 1..4 per page and its pages (SELECT) */
+#define LK_EMPTY {LK_NONE, 0, ""}
+static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
+    [PG_SOUND] = {{{LK_TP, P_LEVEL, "LEVEL"}, {LK_OCT, 0, "OCTAVE"}, {LK_TP, P_VOICE, "VOICE"}, {LK_TP, P_GLIDE, "GLIDE"}}},
     [PG_ARP] = {{{LK_AMODE, P_AMODE, "MODE"}, {LK_ARATE, P_ARATE, "RATE"}, {LK_TP, P_AOCT, "OCTAVES"},
                  {LK_TP, P_AGATE, "GATE"}},
-                {{LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, {LK_TP, P_AORDER, "ORDER"}, {LK_NONE, 0, ""}}},
-    [PG_FX] = {{{LK_TP, P_DIST, "DRIVE"}, {LK_TP, P_CHOR, "CHORUS"}, {LK_TP, P_DLY, "DELAY"}, {LK_TP, P_REV, "REVERB"}},
-               {{LK_ITYPE, P_ITYPE, "INSERT"}, {LK_G, G_DTIME, "TIME"}, {LK_G, G_DFDBK, "FEEDBK"}, {LK_G, G_RSIZE, "SIZE"}}},
+                {{LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, {LK_TP, P_AORDER, "ORDER"}, LK_EMPTY}},
+    [PG_FX] = {{{LK_PERF, 0, "FILTER"}, {LK_PERF, 1, "CRUSH"}, {LK_PERF, 2, "THROW"}, {LK_PERF, 3, "DEPTH"}},
+               {{LK_TP, P_DIST, "DRIVE"}, {LK_TP, P_CHOR, "CHORUS"}, {LK_TP, P_DLY, "DELAY"}, {LK_TP, P_REV, "REVERB"}},
+               {{LK_G, G_DTIME, "TIME"}, {LK_G, G_DFDBK, "FEEDBK"}, {LK_G, G_DCOLOR, "COLOR"}, {LK_G, G_DMIX, "MIX"}},
+               {{LK_G, G_RTYPE, "TYPE"}, {LK_G, G_RSIZE, "SIZE"}, {LK_G, G_RDAMP, "DAMP"}, LK_EMPTY},
+               {{LK_G, G_CRATE, "RATE"}, {LK_G, G_CDEPTH, "DEPTH"}, {LK_JUNO, 0, "JUNO"}, {LK_DRIFT, 0, "DRIFT"}},
+               {{LK_ITYPE, P_ITYPE, "TYPE"}, {LK_INS, P_IA, ""}, {LK_INS, P_IB, ""}, {LK_INS, P_IC, ""}}},
 };
-static const lv_knob_t LV_PERF[4] = {{LK_PERF, 0, "FILTER"}, {LK_PERF, 1, "CRUSH"}, {LK_PERF, 2, "THROW"},
-                                     {LK_PERF, 3, "DEPTH"}};
+static const uint8_t LV_NSUB[PG_N] = {1, 2, 6};        /* the pages SELECT turns, per page */
+static const char *const LV_FX_PAGE[6] = {"PERFORM", "SENDS", "DELAY", "REVERB", "CHORUS", "INSERT"};
 static const uint8_t LV_RATES[] = {0, 1, 4, 2, 5, 3};   /* RATE on KNOB 2: 1/4 1/8 8T 1/16 16T 1/32 (N_DIV) */
 
 static struct {
     uint8_t ok;                         /* lv_setup done */
-    uint8_t page, sub;                  /* PG_*, its page 2 */
-    uint8_t fx;                         /* FX held (its layer: the key map, the macros) */
+    uint8_t page, sub;                  /* PG_*, its page (SELECT) */
+    uint8_t prev;                       /* the page the FX mode was opened from */
+    uint8_t fx;                         /* the FX mode (its layer: the keys PERFORM's) */
     uint8_t hot;                        /* the knob turned last + 1 (0 none) */
     uint32_t hot_ms;                    /* .. when, fm1_ms | 1 */
     uint8_t amode[LV_PARTS];            /* the arp's mode while off (ARP on brings it back) */
@@ -214,11 +224,18 @@ static void lv_focus(uint32_t part)
 /* ---------------------------------------------------------- the knobs --- */
 static const lv_knob_t *lv_knob(uint32_t k)
 {
-    return lv.fx ? &LV_PERF[k & 3u] : &LV_KNOBS[lv.page % PG_N][lv.sub & 1u][k & 3u];
+    return &LV_KNOBS[lv.page % PG_N][lv.sub % LV_NSUBMAX][k & 3u];
 }
 static const param_desc_t *lv_desc(const lv_knob_t *kb)
 {
+    if (kb->kind == LK_INS)                             /* A B C as the INSERT's type names them */
+        return ins_desc(TSEL->p[P_ITYPE], kb->id - P_IA);
     return kb->kind == LK_G ? &GP[kb->id] : param_desc_of(eng_idx(TSEL->eng_req), kb->id);
+}
+static const char *lv_label(const lv_knob_t *kb)
+{
+    const char *l = kb->kind == LK_INS ? lv_desc(kb)->label : kb->label;
+    return l ? l : "";                                  /* (a page's empty places) */
 }
 /* the knob's value and its range */
 static int32_t lv_get(const lv_knob_t *kb, int32_t *lo, int32_t *hi)
@@ -244,6 +261,14 @@ static int32_t lv_get(const lv_knob_t *kb, int32_t *lo, int32_t *hi)
         for (i = 0; i < NELEM(LV_RATES) && LV_RATES[i] != TSEL->p[P_ARATE]; i++)
             ;
         return i < NELEM(LV_RATES) ? (int32_t)i : 3;    /* (a RATE outside the six: shown at 1/16) */
+    case LK_JUNO:
+        *lo = 0;
+        *hi = 3;
+        return clamp(TSEL->p[P_ED_FX], 0, 63) & 3;
+    case LK_DRIFT:
+        *lo = 0;
+        *hi = 15;
+        return (clamp(TSEL->p[P_ED_FX], 0, 63) >> 2) & 15;
     case LK_NONE:
         *lo = *hi = 0;
         return 0;
@@ -275,6 +300,12 @@ static void lv_text(const lv_knob_t *kb, char *b)
     case LK_ARATE:
         str_cpy(b, N_DIV[LV_RATES[v]], 8);
         return;
+    case LK_JUNO:
+        str_cpy(b, JC_NAME[v & 3], 8);
+        return;
+    case LK_DRIFT:
+        fmt_int(b, v);
+        return;
     default:
         param_format(lv_desc(kb), v, b, &unit);
         if (unit && str_len(b) + str_len(unit) < 15u)
@@ -292,7 +323,7 @@ static void lv_turn(uint32_t k, int32_t s)
         return;
     lv.hot = (uint8_t)(k + 1u);
     lv.hot_ms = fm1_ms | 1u;
-    if (hi - lo > 60)
+    if (hi - lo > 60 && !(kb->kind == LK_INS && lv_desc(kb)->names))
         s *= 2;                                         /* (0..127 in two turns or so) */
     v = clamp(from + s, lo, hi);
     switch (kb->kind) {
@@ -315,6 +346,12 @@ static void lv_turn(uint32_t k, int32_t s)
         if (v && !t->p[P_IMIX])
             t->p[P_IMIX] = 100;                         /* (a type with MIX 0 is not heard) */
         break;
+    case LK_JUNO:
+    case LK_DRIFT: {
+        int32_t x = clamp(t->p[P_ED_FX], 0, 63);
+        t->p[P_ED_FX] = (int16_t)(kb->kind == LK_JUNO ? (x & ~3) | v : (x & 3) | v << 2);
+        break;
+    }
     case LK_G: {
         const param_desc_t *d = lv_desc(kb);
         song.g[kb->id] = (int16_t)(d->names ? enum_step(d, from, v) : v);
@@ -337,7 +374,7 @@ static void lv_arp_button(void)                        /* ARP: on (and its page)
         lv.page = PG_ARP;
         lv.sub = 0;
         lv_say_part("ARP", 1);
-    } else if (lv.page == PG_ARP) {
+    } else if (lv.page == PG_ARP && !lv.fx) {
         lv.amode[part] = (uint8_t)t->p[P_AMODE];
         t->p[P_AMODE] = 0;
         lv_say_part("ARP", 0);
@@ -369,28 +406,34 @@ static void live_input(void)
     settings_later_poll();
     if (!lv.ok)
         lv_setup();
-    kb_mask = perf_mask = fxb;                          /* FX held: the keys are PERFORM's (seq.c keyboard_block) */
-    if (lv.fx && !(btn & fxb) && !perf_latch_on)
-        perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;   /* (the macros with the layer: off with it) */
-    lv.fx = (btn & fxb) != 0u;
+    kb_mask = perf_mask = fxb;                          /* (FX held works too, as in Felucca) */
+    if ((pressed >> panel.btn[B_FX]) & 1u) {            /* FX: the FX mode opens / closes */
+        if (lv.page == PG_FX)
+            lv.page = lv.prev, lv.sub = 0;
+        else
+            lv.prev = lv.page, lv.page = PG_FX, lv.sub = 0;
+    }
+    if ((pressed >> panel.btn[B_HOME]) & 1u)
+        lv.page = PG_SOUND, lv.sub = 0;
+    if ((pressed >> panel.btn[B_ARP]) & 1u)
+        lv_arp_button();
+    if (lv.fx && lv.page != PG_FX && !perf_latch_on)
+        perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;   /* (the macros with the mode: off with it) */
+    lv.fx = lv.page == PG_FX;
+    kb_lock = lv.fx ? 2u : 0u;                          /* the FX mode: the keys PERFORM's, no button held (seq.c) */
+    (void)btn;
     ncm_throw = (uint8_t)(((btn >> panel.btn[B_ENV]) & 1u) | ((btn >> panel.btn[B_LFO]) & 1u) << 1);
     if ((pressed >> panel.btn[B_OCTDN]) & 1u)
         lv_focus(0);
     if ((pressed >> panel.btn[B_OCTUP]) & 1u)
         lv_focus(1);
-    if ((pressed >> panel.btn[B_HOME]) & 1u)
-        lv.page = PG_SOUND, lv.sub = 0;
-    if ((pressed >> panel.btn[B_FX]) & 1u)
-        lv.page = PG_FX, lv.sub = 0;
-    if ((pressed >> panel.btn[B_ARP]) & 1u)
-        lv_arp_button();
     if ((pressed >> panel.btn[B_REC]) & 1u && song.sel < LV_PARTS) {
         TSEL->p[P_AHOLD] = (int16_t)!TSEL->p[P_AHOLD];
         lv_say_part("HOLD", TSEL->p[P_AHOLD]);
     }
     if ((pressed >> panel.btn[B_SEQ]) & 1u) {
         if ((btn >> panel.btn[B_GLO]) & 1u) {           /* GLO + SEQ: ST <-> SPLIT */
-            song.g[G_ENGGO] = (int16_t)!NCC_SPLIT();
+            song.g[G_ENGGO] = (int16_t)(NCC_SPLIT() == NCC_SPLIT_DEFAULT);   /* (core.h) */
             lv_say(NCC_SPLIT() ? "SPLIT: L LEFT, R RIGHT" : "STEREO", "");
         } else if (song.sel < LV_PARTS) {               /* Drone-hold */
             ncd_want[song.sel] = (uint8_t)!ncd_want[song.sel];
@@ -414,9 +457,9 @@ static void live_input(void)
         TSEL->p[P_ED_FX] = (int16_t)((x & ~3) | m);
         lv_say(song.sel ? "R CHORUS " : "L CHORUS ", JC_NAME[m]);
     }
-    if ((s = panel_enc(EN_SELECT)) != 0 && (lv.page == PG_ARP || lv.page == PG_FX))
-        lv.sub = s > 0 ? 1u : 0u;                       /* page 2 / back */
-    else if (s && lv.page == PG_SOUND && !lv.fx) {      /* the engine (after a rest) */
+    if ((s = panel_enc(EN_SELECT)) != 0 && LV_NSUB[lv.page % PG_N] > 1u)   /* the page's pages, a step a turn */
+        lv.sub = (uint8_t)clamp((int32_t)lv.sub + (s > 0 ? 1 : -1), 0, LV_NSUB[lv.page % PG_N] - 1);
+    else if (s && lv.page == PG_SOUND) {                /* the engine (after a rest) */
         lv.epend = (int8_t)clamp(lv.epend + s, -8, 8);
         lv.epend_ms = fm1_ms | 1u;
     }
@@ -455,7 +498,7 @@ static void live_leds(void)
     led_put(nl, panel.btn[B_ARP], t->p[P_AMODE] != 0);
     led_put(nl, panel.btn[B_REC], t->p[P_AHOLD] != 0);
     led_put(nl, panel.btn[B_SEQ], ncd_want[part] != 0);
-    led_put(nl, panel.btn[B_FX], lv.page == PG_FX || perf_act != 0u);
+    led_put(nl, panel.btn[B_FX], lv.fx || perf_act != 0u);
     led_put(nb, panel.btn[B_ENV], (ncm_throw & 1u) != 0);
     led_put(nb, panel.btn[B_LFO], (ncm_throw & 2u) != 0);
     for (c = 0; c < FM1_NCOL; c++) {

@@ -45,8 +45,8 @@ Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-M
       een Juno-chorus (breed, zwevend), geen klik bij wisselen?
 - [ ] PRESETS op R: eerst de Juno-sounds (JUNO STRINGS … JUNO SWEEP), dan ANALOG's eigen sounds. Per sound luisteren.
 - [ ] Drift: akkoorden op een Juno-sound klinken iets "levend" (niet vals).
-- [ ] GLO vasthouden + SEQ: kop "SPLIT", popup "SPLIT: L LEFT, R RIGHT". Met een koptelefoon: L alleen links,
-      R alleen rechts, geen galm/delay. Nog eens: "STEREO".
+- [ ] SPLIT is de standaard (kop "SPLIT"). Met een koptelefoon: L alleen links, R alleen rechts, geen galm/delay.
+      GLO vasthouden + SEQ: "STEREO", nog eens: "SPLIT".
 - [ ] Uit/aan: SPLIT en de chorus-stand staan er weer (de naam toont dan "JUNO").
 - [ ] Y-kabel naar de twee ingangen van de Circuit Tracks: L en R los te mixen?
 
@@ -59,9 +59,8 @@ Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-M
 - [ ] Zonder Circuit-klok: de arp loopt op het eigen tempo.
 - [ ] REC = HOLD: akkoord spelen, loslaten, de arp loopt door; nieuw akkoord vervangt het. REC uit: stopt.
 - [ ] SEQ = Drone: noten blijven klinken, bijspelen stapelt, dezelfde noot nog eens = los, SEQ uit = alles uit.
-- [ ] FX: FX-pagina (drive, chorus, delay, reverb van het gefocuste part; pagina 2: insert, delaytijd, feedback,
-      reverb-grootte).
-- [ ] FX vasthouden + witte toets: het effect speelt (pad licht op), KNOB 1–4 = FILTER, CRUSH, THROW, DEPTH.
+- [ ] FX één keer tikken: FX-modus (PERFORM, effect-pads). Witte toets = effect zolang je hem houdt (pad licht op),
+      KNOB 1–4 = FILTER, CRUSH, THROW, DEPTH. SELECT: SENDS, DELAY, REVERB, CHORUS, INSERT. FX nog eens = dicht.
 - [ ] ENV vasthouden = delay-throw, LFO vasthouden = reverb-throw.
 
 ## Mijlpaal 4 (engines, ACID)

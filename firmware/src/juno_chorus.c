@@ -16,17 +16,19 @@
  * A mode change fades the wet out (2.9 ms, SL_SLOPE), clears the line, fades the new one in: no click. OFF and faded:
  * mix_part's own loop again, bit for bit as without NCC.
  *
- * SPLIT (G_ENGGO = 1: a stored global nothing reads, "unused, ids fixed by the formats"): part L entirely on the left
+ * SPLIT, NCC's default (G_ENGGO = 1 is STEREO: a stored global nothing reads, "unused, ids fixed by the formats", 0 in
+ * every project and at power-on, so a project plays split until GLO + SEQ turns it to STEREO): part L entirely on the left
  * output, part R on the right, each mono (PAN ignored), for the Circuit Tracks' two audio inputs. The delay, reverb and
- * chorus buses are mono and would put both parts on both sides, so an NCC part sends them nothing in SPLIT; its Juno
- * chorus is summed onto its own side. DIST, INSERT, the SLICER and the FX layer's mute keep working.
+ * chorus buses are mono and would put both parts on both sides, so an NCC part sends them nothing in SPLIT, and their
+ * return (wet, HALL's side) is not mixed in at all (fx.c mix_block: no throw, THROW macro or tail either), nor the small
+ * speaker's BASS+ of both sides (fx.c master_out). Its Juno chorus is summed onto its own side. DIST, INSERT, the
+ * SLICER and PERFORM's effects (each side its own) keep working.
  *
  * State in the pool (zeroed at boot), per part; the audio ISR only (the main loop writes P_ED_FX and G_ENGGO). */
 
 #define JC_LEN 256u                     /* the line, samples (a power of 2: masked) */
 #define JC_LPK 19661                    /* the taps' one-pole low-pass, Q15 (~7 kHz at 44.1 kHz) */
 #define JC_WET 23170                    /* the wet against the dry, Q15 (-3 dB) */
-#define NCC_SPLIT() (song.g[G_ENGGO] == 1)
 enum { JC_OFF, JC_I, JC_II, JC_I_II, JC_N };
 static const uint32_t JC_INC[JC_N] = {0, 49962u, 84049u, 949567u};   /* the LFO per sample: Hz x 2^32 / 44100 */
 static const uint16_t JC_LO[JC_N] = {0, 18739u, 18739u, 37255u};     /* the delay's ends, Q8 samples */
