@@ -75,6 +75,8 @@ static struct {
     uint8_t ok;
 } ncm;
 static volatile uint32_t ncm_seen;      /* the last knob moved: part << 16 | knob << 8 | value, + 1 << 24 a turn */
+static volatile uint8_t ncm_throw;      /* main (live_ui.c): bit 0 ENV held = ECHO THROW, bit 1 LFO held = REV THROW */
+static uint8_t ncm_thr;                 /* .. as the ISR last pressed them (perform.c perf_press: the ISR's alone) */
 static volatile uint8_t ncm_gen[NCM_PARTS];     /* the main loop: + 1 = a new sound the signature cannot see (live_ui.c:
                                                  * a Juno preset over ANALOG's preset 0) */
 
@@ -161,6 +163,14 @@ static void ncm_block(void)
         ncm.ok = 1;
     }
     ncm.n++;
+    if (ncm_throw != ncm_thr) {                         /* the throws on ENV / LFO: PERFORM's, held while held */
+        uint32_t ch = ncm_throw ^ ncm_thr;
+        if (ch & 1u)
+            perf_press(PF_ETHR, ncm_throw & 1u);
+        if (ch & 2u)
+            perf_press(PF_RTHR, (ncm_throw >> 1) & 1u);
+        ncm_thr = ncm_throw;
+    }
     for (part = 0; part < NCM_PARTS; part++) {
         track_t *t = &trk[part];
         const ncm_map_t *mp = ncm_map(t);

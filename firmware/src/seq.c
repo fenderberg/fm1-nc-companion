@@ -171,6 +171,11 @@ static uint32_t kb_map(const track_t *t, uint32_t k)
 #include "chord.c"
 
 /* ------------------------------------------------------------- arp --- */
+#if FELUCCA_LIVEUI
+static uint32_t ncc_arp_phase(const track_t *t);   /* NC: NCC's arp grid and Drone-hold (ncc_seq.c, after input_off) */
+static int ncd_again(track_t *t, uint32_t note);
+static int ncd_holds(const track_t *t, uint32_t note);
+#endif
 static void arp_add(track_t *t, uint32_t note)
 {
     uint32_t i, k = in_key - 1u;
@@ -191,7 +196,11 @@ static void arp_add(track_t *t, uint32_t note)
         t->held[t->nheld++] = (uint8_t)note;
     }
     if (t->nheld == 1u) {
+#if FELUCCA_LIVEUI
+        t->arp_pos = ncc_arp_phase(t);              /* NC: on the clock's grid (ncc_seq.c) */
+#else
         t->arp_pos = 0xFFFFFFF;                     /* fire on this block */
+#endif
         t->arp_idx = 0xFFFFFFFFu;
     }
 }
@@ -621,6 +630,10 @@ static __attribute__((noinline)) void cin_keep(track_t *t, uint32_t note, uint32
 
 static void input_on(track_t *t, uint32_t note, uint32_t vel)
 {
+#if FELUCCA_LIVEUI
+    if (ncd_again(t, note))                         /* NC: Drone-hold, a droning note again: let go (ncc_seq.c) */
+        return;
+#endif
     last_note = (uint8_t)note;
     if (cin_left)
         cin_keep(t, note, vel);
@@ -638,6 +651,10 @@ static void input_off(track_t *t, uint32_t note)
 {
     if (midi_note_held(t, note))
         return;
+#if FELUCCA_LIVEUI
+    if (ncd_holds(t, note))                         /* NC: Drone-hold keeps it ringing (ncc_seq.c) */
+        return;
+#endif
     if (cin_left) {                                 /* a kept note let go before step 1: recorded, then let go */
         uint32_t i = trk_index(t), k;
         for (k = 0; k < cin_n[i]; k++)
@@ -648,6 +665,9 @@ static void input_off(track_t *t, uint32_t note)
     arp_remove(t, note);                            /* both: the note may have started in the */
     trk_note_off(t, note);                          /* other mode (ARP switched while held) */
 }
+#if FELUCCA_LIVEUI
+#include "ncc_seq.c"                                /* NC: NCC's arp grid and Drone-hold */
+#endif
 
 /* the effect of key k in the FX layer (PF_N none): the white keys F3 .. G5 the map's (perf_map: the settings,
  * ui_layer.c; by default 1.1.5's ten, FLANGER, PHASER, REV / ECHO THROW), black keys 1..4 the track mutes */
@@ -1405,6 +1425,11 @@ static void events_block(uint32_t n)
         cin_record();
     if (song.playing)
         click_tick(seq_n);
+#if FELUCCA_LIVEUI
+    if (clock_mode && !(midi_clock.have_pulse && fm1_ms - midi_clock.last_ms < 300u))
+        clock_mode = 0;                               /* NC: no clock coming: the arp on the tempo (BPM) */
+    ncc_seq_block();                                  /* NC: Drone-hold, HOLD off, Start (ncc_seq.c) */
+#endif
     for (i = 0; i < NPART; i++)
         arp_step(&trk[i], clock_mode ? seq_n : n, clock_mode && song.playing ? seq_n : n);
     beat_pos += clock_mode ? seq_n : n;               /* the beat the ARP LED flashes on (ui_leds) */

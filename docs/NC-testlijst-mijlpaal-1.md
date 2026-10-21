@@ -49,3 +49,17 @@ Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-M
       R alleen rechts, geen galm/delay. Nog eens: "STEREO".
 - [ ] Uit/aan: SPLIT en de chorus-stand staan er weer (de naam toont dan "JUNO").
 - [ ] Y-kabel naar de twee ingangen van de Circuit Tracks: L en R los te mixen?
+
+## Mijlpaal 3 (arp, effecten, Circuit-stijl)
+- [ ] Het scherm: kop met paginablok in de kleur van het part (L blauw, R roze), twee pads, stappenrij, vier ringen.
+- [ ] ARP: arp aan (popup "L ARP ON", LED, ARP-pagina). KNOB 1 mode, 2 rate, 3 octaven, 4 gate; SELECT = pagina 2
+      (swing, kans, volgorde). ARP nog eens (op de ARP-pagina): uit.
+- [ ] Met de Circuit (klok via USB, Play): de arp valt op de tellen van de Circuit, ook als je een akkoord iets te laat
+      speelt. Start op de Circuit: beide arps vanaf de eerste stap.
+- [ ] Zonder Circuit-klok: de arp loopt op het eigen tempo.
+- [ ] REC = HOLD: akkoord spelen, loslaten, de arp loopt door; nieuw akkoord vervangt het. REC uit: stopt.
+- [ ] SEQ = Drone: noten blijven klinken, bijspelen stapelt, dezelfde noot nog eens = los, SEQ uit = alles uit.
+- [ ] FX: FX-pagina (drive, chorus, delay, reverb van het gefocuste part; pagina 2: insert, delaytijd, feedback,
+      reverb-grootte).
+- [ ] FX vasthouden + witte toets: het effect speelt (pad licht op), KNOB 1–4 = FILTER, CRUSH, THROW, DEPTH.
+- [ ] ENV vasthouden = delay-throw, LFO vasthouden = reverb-throw.

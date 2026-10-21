@@ -20,6 +20,11 @@
  *   SPLIT      a note on L: the right output exactly 0 (no bus sends), and the other way round
  *   JUNO       a Juno sound's values, chorus and drift; the macros back to 64; the drift per POLY note, none below 4
  *   UI 2       ALGORITHM on R the chorus (popup), PRESETS the Juno list first, GLO + SEQ SPLIT, both stored
+ *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
+ *   ARP GRID   a note mid-step starts the arp on the next step of the bar, a little late at once; no clock: BPM
+ *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
+ *   FX UI      the FX page's knobs (and page 2), FX held: PERFORM's keys and macros, ENV / LFO throws
+ *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
  *   SPLASH     NCC on the power-on screen, Felucca's version and credits kept, every line inside its square
  *   BPM 0      beat_samples counts it as 120
  * Built and run by tests/run_tests.sh. */
@@ -50,7 +55,7 @@ static void lv_press(uint32_t label)
     fm1_in.buttons &= ~(1u << panel.btn[label]);
     lv_frame();
 }
-static void lv_turn(uint32_t role, int32_t s)
+static void t_turn(uint32_t role, int32_t s)
 {
     host_enc[panel.enc[role]] += s * panel.dir[role];
     lv_frame();
@@ -80,6 +85,9 @@ static void power(void)
     lv_frame();                                         /* lv_setup */
     blk();
 }
+static int led_known(uint32_t label) { return led_pos[panel.btn[label]] != 0xFFu; }   /* (the stub's matrix: OCT- only) */
+static int led_is(uint32_t label, int on) { return !led_known(label) || ((fm1_led[led_pos[panel.btn[label]] >> 3] >>
+                                                   (led_pos[panel.btn[label]] & 7u)) & 1u) == (uint32_t)on; }
 static int lit(uint32_t label)                      /* its LED on (0: none, OCT+ in PANEL_DEFAULT) */
 {
     uint32_t q = led_pos[panel.btn[label]];
@@ -301,7 +309,7 @@ static void ui_test_ncc(void)
     ok("UI: OCT+ focuses R, OCT- dark", song.sel == 1u && !lit(B_OCTDN));
     p0 = trk[0].preset;
     p1 = trk[1].preset;
-    lv_turn(EN_PRESET, 1); lv_turn(EN_PRESET, 1); lv_turn(EN_PRESET, 1);
+    t_turn(EN_PRESET, 1); t_turn(EN_PRESET, 1); t_turn(EN_PRESET, 1);
     ok("UI: PRESETS turning: nothing loaded yet", trk[1].preset == p1);
     lv_frames(200);
     ok("UI: after the pause, three on, once, on R only", trk[1].preset != p1 && trk[0].preset == p0 &&
@@ -309,7 +317,7 @@ static void ui_test_ncc(void)
     lv_press(B_OCTDN);
     ok("UI: OCT- focuses L", song.sel == 0u && lit(B_OCTDN));
     i = (uint32_t)trk[0].p[P_E7];
-    lv_turn(EN_ALGO, 1);
+    t_turn(EN_ALGO, 1);
     lv_frame();
     ok("UI: ALGORITHM steps FM6's SLOT", (uint32_t)trk[0].p[P_E7] == i + 1u && fm6_slot[0] == i + 1u);
     midi(0xB3, 74, 100); blk();
@@ -317,13 +325,9 @@ static void ui_test_ncc(void)
     ok("UI: the popup shows the knob (R FX 100)", lv.pop_ms != 0u && (ncm_seen & 0xFFFFFFu) == (1u << 16 | 7u << 8 | 100u));
     lv_frames(1100);
     ok("UI: the popup goes after a second", lv.pop_ms == 0u);
-    {   /* something drawn in both columns, the focus bar under L only */
-        uint32_t x, l = 0, r = 0;
-        for (x = 8; x < 112u; x++) {
-            l += swap16(host_screen[(LV_Y_COL + 87u) * 240u + x]) == T_ACCENT;          /* (panel byte order) */
-            r += swap16(host_screen[(LV_Y_COL + 87u) * 240u + 128u + x - 8u]) == T_ACCENT;
-        }
-        ok("UI: the focus bar under L, not R", l == 104u && r == 0u);
+    {   /* the pads: L's rim in L's colour (blue), R's dark */
+        uint16_t l = swap16(host_screen[LY_PARTS * 240u + 60u]), r = swap16(host_screen[LY_PARTS * 240u + 178u]);
+        ok("UI: the focused pad L has its rim in L's colour, R's dark", l == LC_PART[0] && r == LC_LINE);
     }
 }
 
@@ -480,16 +484,16 @@ static void ui_m2_test(void)
     track_t *t = &trk[1];
     power();
     lv_press(B_OCTUP);
-    lv_turn(EN_ALGO, 2);
+    t_turn(EN_ALGO, 2);
     lv_frame();
     ok("UI: ALGORITHM on R: the Juno chorus (II), the popup says so", t->p[P_ED_FX] == JC_II && lv.say &&
        !strcmp(lv.say, "R CHORUS II"));
-    lv_turn(EN_ALGO, 5);
+    t_turn(EN_ALGO, 5);
     ok("UI: .. up to I+II, no further", t->p[P_ED_FX] == JC_I_II);
-    lv_turn(EN_PRESET, -(int32_t)NCC_NJUNO);            /* from ANALOG's first preset back over the Juno list */
+    t_turn(EN_PRESET, -(int32_t)NCC_NJUNO);            /* from ANALOG's first preset back over the Juno list */
     lv_frames(200);
     ok("UI: PRESETS on R: the Juno sounds come first (JUNO STRINGS)", lv.juno[1] == 1u && t->p[P_ED_FX] == NCC_JUNO[0].jx);
-    lv_turn(EN_PRESET, 1);
+    t_turn(EN_PRESET, 1);
     lv_frames(200);
     ok("UI: .. the next one (JUNO PAD)", lv.juno[1] == 2u);
     fm1_in.buttons |= 1u << panel.btn[B_GLO];
@@ -509,8 +513,189 @@ static void ui_m2_test(void)
     fm1_in.buttons &= ~(1u << panel.btn[B_GLO]);
     ok("UI: GLO + SEQ again: STEREO", !NCC_SPLIT());
     lv_press(B_OCTDN);
-    lv_turn(EN_ALGO, 1);
+    t_turn(EN_ALGO, 1);
     ok("UI: ALGORITHM on L (FM6) is still SLOT, the chorus untouched", trk[0].p[P_E7] == 1 && trk[0].p[P_ED_FX] == 0);
+}
+
+/* ------------------------------------------------------- milestone 3 --- */
+static int note_playing(const track_t *t, uint32_t note)
+{
+    uint32_t i;
+    for (i = 0; i < NVOICE; i++)
+        if (t->v[i].active && t->v[i].gate && t->v[i].note == note)
+            return 1;
+    return 0;
+}
+static void arp_ui_test(void)
+{
+    track_t *t = &trk[0];
+    power();
+    ok("arp UI: off at first, the SOUND page", !t->p[P_AMODE] && lv.page == PG_SOUND);
+    lv_press(B_ARP);
+    ok("arp UI: ARP: the arp on (UP), the ARP page, its LED", t->p[P_AMODE] == 1 && lv.page == PG_ARP && led_is(B_ARP, 1));
+    t_turn(EN_K1, 2);
+    ok("arp UI: KNOB 1 the mode (UP -> UPDN)", t->p[P_AMODE] == 3);
+    t_turn(EN_K2, -1);
+    ok("arp UI: KNOB 2 the rate (1/16 -> 8T)", t->p[P_ARATE] == 4);
+    t_turn(EN_K3, 2);
+    ok("arp UI: KNOB 3 the octaves (1 -> 3)", t->p[P_AOCT] == 3);
+    t_turn(EN_K4, 5);
+    ok("arp UI: KNOB 4 the gate (64 -> 74: two a detent)", t->p[P_AGATE] == 74);
+    t_turn(EN_SELECT, 1);
+    t_turn(EN_K1, 10);
+    ok("arp UI: SELECT page 2, KNOB 1 the swing", lv.sub == 1u && t->p[P_ASWING] == 20);
+    lv_press(B_HOME);
+    lv_press(B_ARP);
+    ok("arp UI: ARP from another page: its page, the arp stays on", lv.page == PG_ARP && t->p[P_AMODE] == 3);
+    lv_press(B_ARP);
+    ok("arp UI: ARP on its page: off, LED off", !t->p[P_AMODE] && led_is(B_ARP, 0));
+    lv_press(B_ARP);
+    ok("arp UI: on again: the mode it had (UPDN)", t->p[P_AMODE] == 3);
+    lv_press(B_REC);
+    ok("arp UI: REC: HOLD on, its LED, the popup", t->p[P_AHOLD] == 1 && led_is(B_REC, 1) && lv.say && !strcmp(lv.say, "L HOLD ON"));
+    midi(0x92, 60, 100); midi(0x92, 64, 100); blk();
+    midi(0x82, 60, 0); midi(0x82, 64, 0); blk();
+    ok("arp UI: HOLD keeps the chord after letting go", t->nheld == 2u);
+    lv_press(B_REC);
+    blk();
+    ok("arp UI: HOLD off with no key down: the latched chord goes", t->nheld == 0u && led_is(B_REC, 0));
+    lv_press(B_OCTUP);
+    ok("arp UI: R's arp is its own (off)", !trk[1].p[P_AMODE] && led_is(B_ARP, 0));
+}
+
+static void arp_grid_test(void)
+{
+    track_t *t = &trk[0];
+    uint32_t q, b, fired;
+    power();
+    t->p[P_AMODE] = 1;
+    t->p[P_ARATE] = 2;                                  /* 1/16 */
+    q = div_samples(2);
+    for (b = 0; b < 2000u && (ncc_bar % q) < q / 2u; b++)
+        blk();                                          /* (into the second half of a 1/16) */
+    {
+        uint32_t left = q - ncc_bar % q;
+        midi(0x92, 60, 100);
+        for (b = 0, fired = 0; b < 400u && !fired; b++) {
+            blk();
+            fired = t->arp_note != 0;
+        }
+        printf("ncc: a note in the middle of a 1/16 (%u samples left of it): the arp's first note after %u blocks\n",
+               (unsigned)left, (unsigned)b);
+        ok("arp grid: a note mid-step starts the arp on the next 1/16, not at once",
+           b > 1u && (b - 1u) * CTL + CTL >= left - CTL && (b - 1u) * CTL <= left + CTL);
+    }
+    midi(0x82, 60, 0); blk();
+    for (b = 0; b < 4000u && !((ncc_bar % q) > CTL && (ncc_bar % q) < q / 16u); b++)
+        blk();                                          /* (just after a 1/16 started) */
+    midi(0x92, 62, 100); blk();
+    ok("arp grid: a note a little late (within 1/8 of the step): at once", t->arp_note == 62);
+    midi(0x82, 62, 0); blk();
+    song.g[G_CLOCK] = 1;                                /* USB, no clock coming */
+    midi(0x92, 65, 100);
+    for (b = 0, fired = 0; b < 400u; b++) {
+        blk();
+        fired += t->arp_note == 65 && (b & 1u);
+    }
+    ok("arp grid: USB clock but none coming: the arp plays on the tempo", fired > 0u);
+    midi(0x82, 65, 0); blk();
+}
+
+static void drone_test(void)
+{
+    track_t *t = &trk[0];
+    uint32_t i;
+    power();
+    lv_press(B_SEQ);
+    ok("drone: SEQ: Drone-hold on, its LED, the popup", ncd_want[0] && led_is(B_SEQ, 1) && lv.say && !strcmp(lv.say, "L DRONE ON"));
+    midi(0x92, 60, 100); midi(0x92, 67, 100); blk();
+    midi(0x82, 60, 0); midi(0x82, 67, 0);
+    for (i = 0; i < 20u; i++)
+        blk();
+    ok("drone: let go, the notes ring on", note_playing(t, 60) && note_playing(t, 67));
+    midi(0x92, 72, 100); blk(); midi(0x82, 72, 0); blk();
+    ok("drone: another note piles up", note_playing(t, 72) && note_playing(t, 60));
+    midi(0x92, 67, 100); blk(); midi(0x82, 67, 0); blk();
+    ok("drone: a droning note played again: let go", !note_playing(t, 67) && note_playing(t, 60));
+    lv_press(B_SEQ);
+    blk();
+    ok("drone: SEQ again: off, every note through its release", !note_playing(t, 60) && !note_playing(t, 72) && led_is(B_SEQ, 0));
+    midi(0x92, 60, 100); blk(); midi(0x82, 60, 0); blk();
+    ok("drone: off: a note ends with its note-off", !note_playing(t, 60));
+}
+
+static void fx_ui_test(void)
+{
+    track_t *t = &trk[1];
+    uint32_t i;
+    power();
+    lv_press(B_OCTUP);
+    lv_press(B_FX);
+    ok("FX UI: FX: the FX page, its LED", lv.page == PG_FX && led_is(B_FX, 1));
+    t_turn(EN_K1, 3); t_turn(EN_K2, 3); t_turn(EN_K3, 3); t_turn(EN_K4, 3);
+    ok("FX UI: KNOB 1..4 drive, chorus, delay, reverb of R", t->p[P_DIST] > 0 && t->p[P_CHOR] > 0 && t->p[P_DLY] > 0 &&
+       t->p[P_REV] > 0 && trk[0].p[P_DIST] == 0);
+    t_turn(EN_SELECT, 1);
+    t_turn(EN_K1, 1);
+    ok("FX UI: page 2 KNOB 1: an INSERT type, its MIX up (heard)", t->p[P_ITYPE] == 1 && t->p[P_IMIX] > 0);
+    i = (uint32_t)song.g[G_DTIME];
+    t_turn(EN_K2, 1);
+    ok("FX UI: page 2 KNOB 2: the delay time (global)", (uint32_t)song.g[G_DTIME] != i);
+    lv_press(B_HOME);
+    btn_down(B_FX);
+    lv_frame();
+    ok("FX UI: FX held: the PERFORM layer (the keys are its), PERFORM in the head", kb_mask == (1u << panel.btn[B_FX]) &&
+       perf_mask == kb_mask && lv.fx);
+    key_down(0); blk();
+    ok("FX UI: FX + the first white key: its effect (REPEAT 1/8) held", (perf_held >> perf_map[0]) & 1u);
+    t_turn(EN_K1, -10);
+    ok("FX UI: FX + KNOB 1: PERFORM's FILTER macro", perf_k[0] < 0);
+    key_up(0); blk();
+    ok("FX UI: the key let go: the effect off", !((perf_held >> perf_map[0]) & 1u));
+    btn_up(B_FX);
+    lv_frame();
+    ok("FX UI: FX let go: the macros back to 0 (no FX LATCH)", perf_k[0] == 0 && !lv.fx);
+    btn_down(B_ENV);
+    lv_frame(); blk();
+    ok("FX UI: ENV held: ECHO THROW", (perf_held >> PF_ETHR) & 1u);
+    btn_up(B_ENV);
+    btn_down(B_LFO);
+    lv_frame(); blk();
+    ok("FX UI: ENV let go, LFO held: REV THROW only", !((perf_held >> PF_ETHR) & 1u) && ((perf_held >> PF_RTHR) & 1u));
+    btn_up(B_LFO);
+    lv_frame(); blk();
+    ok("FX UI: LFO let go: no throw", !((perf_held >> PF_RTHR) & 1u));
+}
+
+static void screen_test(void)
+{
+    uint32_t pg;
+    power();
+    for (pg = 0; pg < 3u; pg++) {
+        uint16_t head;
+        if (pg == 1u)
+            lv_press(B_ARP);
+        if (pg == 2u)
+            lv_press(B_FX);
+        lv_frame();
+        head = swap16(host_screen[10u * 240u + 6u]);
+        if (head != LC_PART[0])
+            pg = 99u;
+    }
+    ok("screen: the head's page block in L's colour on SOUND, ARP and FX", pg == 3u);
+    lv_press(B_OCTUP);
+    lv_frame();
+    ok("screen: focus R: the head's block in R's colour", swap16(host_screen[10u * 240u + 6u]) == LC_PART[1]);
+    {   /* every label of the knobs and of the PERFORM pads fits its cell */
+        uint32_t g, sb, k, fit = 1;
+        for (g = 0; g < PG_N; g++)
+            for (sb = 0; sb < 2u; sb++)
+                for (k = 0; k < 4u; k++)
+                    fit &= text_w(&AF_S, LV_KNOBS[g][sb][k].label) <= 58;
+        for (k = 0; k <= PF_N; k++)
+            fit &= text_w(&AF_S, LV_PF[k][0]) <= 25 && text_w(&AF_S, LV_PF[k][1]) <= 25;
+        ok("screen: the knob labels fit their 60 px, the PERFORM pads' their 26 px", fit);
+    }
 }
 
 static void splash_test(void)
@@ -549,6 +734,11 @@ int main(void)
     split_test();
     juno_test();
     ui_m2_test();
+    arp_ui_test();
+    arp_grid_test();
+    drone_test();
+    fx_ui_test();
+    screen_test();
     splash_test();
     bpm0_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");
