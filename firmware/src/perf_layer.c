@@ -41,6 +41,8 @@ typedef struct {
 typedef struct {
     uint8_t eng;                        /* ENGINES[] index */
     ncm_dst_t d[NCM_N][NCM_DST];
+    const char *show[NCM_N];            /* the popup's word for what each knob does here (0: the first parameter's
+                                         * label as the track shows it, ANALOG's MIX / SUB, DTN / SYNC) */
 } ncm_map_t;
 /* the Circuit's legends on the two engines (docs/NC-mijlpaal-1-plan.md) */
 static const ncm_map_t NCM_MAP[] = {
@@ -51,9 +53,11 @@ static const ncm_map_t NCM_MAP[] = {
         {{P_E4, 32}, {NCM_NONE, 0}},              /* FILTER ENV   MEG, the modulators' envelope times */
         {{P_E2, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  MLVL, the brightness */
         {{P_E6, 64}, {NCM_NONE, 0}},              /* RESONANCE    DTUN, the carriers apart (FM6 has no filter) */
-        {{P_LD_FLT, 32}, {P_LD_PIT, 8}},          /* MODULATION   the LFO on the brightness, a little vibrato */
+        {{P_LD_FLT, 32}, {P_LD_PIT, 2}},          /* MODULATION   the LFO on the brightness, a little vibrato */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
-    }},
+    },
+        {"RATIOS", "FEEDBK", "CAR ENV", "MOD ENV", "BRIGHT", "DETUNE", "LFO", "DRIVE"},
+    },
     {ENGI_ANALOG, {
         {{P_E2, 32}, {NCM_NONE, 0}},              /* OSCILLATOR   MIX, osc 1 / osc 2 */
         {{P_E1, 32}, {NCM_NONE, 0}},              /* OSC MOD      DTN, osc 2's detune */
@@ -63,7 +67,9 @@ static const ncm_map_t NCM_MAP[] = {
         {{P_E5, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on the filter, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
-    }},
+    },
+        {0, 0, "ATK+REL", "ENV AMT", "CUTOFF", "RESO", "LFO", "DRIVE"},
+    },
     {ENGI_PHASE, {                                /* (CZ-style phase distortion: DCW is its filter) */
         {{P_E0, 32}, {NCM_NONE, 0}},              /* OSCILLATOR   WAVE (steps) */
         {{P_E4, 32}, {NCM_NONE, 0}},              /* OSC MOD      DTN, the second line's detune */
@@ -73,7 +79,9 @@ static const ncm_map_t NCM_MAP[] = {
         {{P_E7, 32}, {NCM_NONE, 0}},              /* RESONANCE    FOLD */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on DCW, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
-    }},
+    },
+        {"WAVE", "DETUNE", "ATK+REL", "DCW ENV", "DCW", "FOLD", "LFO", "DRIVE"},
+    },
     {ENGI_TRIO, {                                 /* (SID-style: three oscillators, a multimode filter) */
         {{P_E1, 16}, {NCM_NONE, 0}},              /* OSCILLATOR   INT2, osc 2's interval: +-12 semitones */
         {{P_E7, 32}, {P_E3, 16}},                 /* OSC MOD      PW, a little DTN */
@@ -83,9 +91,11 @@ static const ncm_map_t NCM_MAP[] = {
         {{P_E6, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on the filter, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
-    }},
+    },
+        {"INT2", "PW", "ATK+REL", "ENV AMT", "CUTOFF", "RESO", "LFO", "DRIVE"},
+    },
     {ENGI_ACID, {                                 /* (NCC's 303, eng_acid.c) */
-        {{P_E0, 64}, {NCM_NONE, 0}},              /* OSCILLATOR   WAVE, saw <-> square */
+        {{P_E0, 127}, {NCM_NONE, 0}},             /* OSCILLATOR   WAVE, saw <-> square (a 2-step range: at 3/4 turn) */
         {{P_E5, 32}, {NCM_NONE, 0}},              /* OSC MOD      ACC, what an accent does */
         {{P_DEC, 32}, {P_REL, 32}},               /* AMP ENV      the VCA's decay and release */
         {{P_E3, 32}, {P_E4, 16}},                 /* FILTER ENV   ENV MOD, a little DECAY */
@@ -93,7 +103,9 @@ static const ncm_map_t NCM_MAP[] = {
         {{P_E2, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
         {{P_GLIDE, 32}, {NCM_NONE, 0}},           /* MODULATION   the slide's time */
         {{P_E6, 32}, {P_DLY, 32}},                /* FX           drive, delay send */
-    }},
+    },
+        {"WAVE", "ACCENT", "DEC+REL", "ENV MOD", "CUTOFF", "RESO", "SLIDE", "DRIVE"},
+    },
 };
 
 static struct {

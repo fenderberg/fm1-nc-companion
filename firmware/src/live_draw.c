@@ -236,12 +236,45 @@ static void lv_draw_knobs(void)
     cv_blit(0, LY_KNOBS);
 }
 
+/* the macro popup's right side: what knob m does on the part's engine (perf_layer.c NCM_MAP) and the value its
+ * first parameter has now, as the editor would show it ("CUTOFF 2.1kHz"); s: 24 bytes. -> that value (the redraw's
+ * signature: it follows the knob's slide) */
+static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
+{
+    track_t *t = &trk[part];
+    const ncm_map_t *mp = ncm_map(t);
+    const param_desc_t *d;
+    const char *unit;
+    uint32_t id, n;
+    int32_t v;
+    s[0] = 0;
+    if (!mp)
+        return 0;
+    id = mp->d[m][0].id;
+    v = ncm_get(t, id);
+    d = id == NCM_CEG ? 0 : track_desc(t, id);
+    str_cpy(s, mp->show[m] ? mp->show[m] : d ? d->label : "", 9);
+    n = str_len(s);
+    s[n++] = ' ';
+    if (!d) {                                           /* FM6's CEG: the offset, + slower */
+        if (v > 0)
+            s[n++] = '+';
+        fmt_int(s + n, v);
+        return v;
+    }
+    param_format(d, v, s + n, &unit);
+    if (str_len(s) + str_len(unit) < 23u)
+        str_cpy(s + str_len(s), unit, 24u - str_len(s));
+    return v;
+}
+
 static void lv_draw_foot(void)
 {
     static const char *const HINT[PG_N] = {"SELECT: ENGINE   PRESETS: SOUND", "SELECT: PAGE 2   REC: HOLD",
                                            "HOLD FX + KEY: PERFORM"};
-    uint32_t seen = ncm_seen, sig, part = song.sel % LV_PARTS, mp;
-    char s[24];
+    uint32_t seen = ncm_seen, sig, mp = (seen >> 16) & 1u, m = (seen >> 8) & 7u;
+    char s[24], r[24];
+    int32_t v = 0;
     if (seen != lv.seen) {
         lv.seen = seen;
         lv.pop_ms = fm1_ms | 1u;
@@ -251,7 +284,10 @@ static void lv_draw_foot(void)
         lv.pop_ms = 0;
     if (!lv.pop_ms)
         lv.say = 0;
-    sig = !lv.pop_ms ? 1u << 31 | lv.page << 4 | lv.fx | lv.sub << 8 : lv.say ? 1u << 29 | lv.say_n : (seen & 0xFFFFFFu) | 1u << 30;
+    if (lv.pop_ms && !lv.say)
+        v = lv_macro_text(mp, m, r);
+    sig = !lv.pop_ms ? 1u << 31 | lv.page << 4 | lv.fx | lv.sub << 8 : lv.say ? 1u << 29 | lv.say_n :
+          1u << 30 | (seen & 0x1FF00u) << 8 | ((uint32_t)v & 0xFFFFu);
     if (!lv_changed(RG_FOOT, sig))
         return;
     cv_begin(240, 26, LC_BG);
@@ -261,16 +297,15 @@ static void lv_draw_foot(void)
                    "KEYS: EFFECTS   SELECT: PAGES", LC_DIM, LC_BG);
     else if (lv.say)
         cv_text_in(0, 4, 240, &AF_M, lv.say, LC_TEXT, LC_BG);
-    else {
-        mp = (seen >> 16) & 1u;
+    else {                                              /* a macro: the Circuit's legend, then what it does here */
         s[0] = LV_NAME[mp];
         s[1] = ' ';
-        str_cpy(s + 2, NCM_NAME[(seen >> 8) & 7u], 20);
-        cv_text_on(8, 4, &AF_M, s, LC_PART[mp], LC_BG);
-        lv_num(s, seen & 127u);
-        cv_text_r(232, 4, &AF_M, s, LC_TEXT, LC_BG);
+        str_cpy(s + 2, NCM_NAME[m], 20);
+        cv_text_on(6, 4, &AF_M, s, LC_PART[mp], LC_BG);
+        if (!r[0])                                      /* (an engine without macros: the CC as it came) */
+            lv_num(r, seen & 127u);
+        cv_text_r(234, 7, &AF_S, r, LC_TEXT, LC_BG);
     }
-    (void)part;
     cv_blit(0, LY_FOOT);
 }
 

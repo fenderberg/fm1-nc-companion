@@ -30,6 +30,8 @@
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
  *   ENGINES    SELECT on SOUND picks the part's engine (after a rest, round the list), ACID slides, stored; the
  *              Circuit's FILTER FREQ on PHASE, TRIO, ACID
+ *   MACROS     every engine's 8 knobs (CC 0 / 127) move what NCM_MAP says; the popup names it with the value the
+ *              parameter has now, fits beside the legend; ANALOG SUB / SYNC named so; FM6's vibrato a little
  *   ACID       it sounds, the filter envelope closes, RES 127 bounded, accent brighter and louder, slide on overlap
  *              only, saw / square
  *   STOP       the Circuit's Stop (USB clock): the arp stops (latched chord dropped), the drone lets go
@@ -851,6 +853,70 @@ static void engine_macro_test(void)
     ok("engines: FILTER FREQ moves PHASE's DCW, TRIO's CUT, ACID's CUT", okv);
 }
 
+static void macro_map_test(void)
+{
+    uint32_t e, m, i, moved = 1, fits = 1, named = 1;
+    char r[24], l[24], cut[24];
+    int32_t pit;
+    for (e = 0; e < NELEM(NCM_MAP); e++)
+        for (m = 0; m < NCM_N; m++) {
+            const ncm_map_t *mp = &NCM_MAP[e];
+            uint32_t id = mp->d[m][0].id, cc;
+            int32_t base, now;
+            power();
+            set_engine_of(&trk[1], mp->eng);
+            for (i = 0; i < 5u; i++)
+                blk();
+            base = ncm_get(&trk[1], id);
+            for (cc = 0; cc < 128u; cc += 127u) {           /* (one way may be the end of its range) */
+                midi(0xB3, NCM_CC[m], cc);
+                for (i = 0; i < 30u; i++)
+                    blk();
+                if (ncm_get(&trk[1], id) != base)
+                    break;
+            }
+            now = ncm_get(&trk[1], id);
+            if (now == base) {
+                printf("  %s knob %u: parameter %u stays %d\n", ENGINES[mp->eng]->name, m + 1u, id, base);
+                moved = 0;
+            }
+            lv_macro_text(1, m, r);
+            l[0] = 'R';
+            l[1] = ' ';
+            str_cpy(l + 2, NCM_NAME[m], 20);
+            if (6 + text_w(&AF_M, l) + 8 > 234 - text_w(&AF_S, r)) {
+                printf("  %s knob %u: \"%s\" + \"%s\" too wide\n", ENGINES[mp->eng]->name, m + 1u, l, r);
+                fits = 0;
+            }
+            if (mp->show[m] && strncmp(r, mp->show[m], strlen(mp->show[m])))
+                named = 0;
+            if (mp->eng == ENGI_ACID && m == 4u)
+                strcpy(cut, r);
+        }
+    ok("macros: every engine's 8 knobs move their parameter", moved);
+    ok("macros: the popup's text fits beside the legend", fits);
+    ok("macros: the popup names what the knob does", named);
+    ok("macros: ACID's FILTER FREQ reads its cutoff", !strncmp(cut, "CUTOFF ", 7) && strstr(cut, "Hz"));
+    power();                                            /* ANALOG WAVE SUB: OSCILLATOR is the sub's level */
+    set_engine_of(&trk[1], ENGI_ANALOG);
+    trk[1].p[P_E0] = 6;
+    midi(0xB3, 1, 100);
+    midi(0xB3, 2, 100);
+    for (i = 0; i < 30u; i++)
+        blk();
+    lv_macro_text(1, 0, r);
+    lv_macro_text(1, 1, l);
+    ok("macros: ANALOG SUB: OSCILLATOR says SUB, OSC MOD DTN", !strncmp(r, "SUB ", 4) && !strncmp(l, "DTN ", 4));
+    power();                                            /* FM6's MODULATION: under a semitone of vibrato */
+    pit = trk[0].p[P_LD_PIT];
+    midi(0xB2, 71, 127);
+    for (i = 0; i < 30u; i++)
+        blk();
+    lv_macro_text(0, 2, r);
+    ok("macros: FM6's MODULATION: a little vibrato; AMP ENV reads CAR ENV",
+       trk[0].p[P_LD_PIT] > pit && (trk[0].p[P_LD_PIT] - pit) * 3 <= 16 && !strncmp(r, "CAR ENV ", 8));
+}
+
 /* ACID: one note (vel) on R, n blocks: the energy of the output's sample steps (brightness) per window */
 static int64_t acid_bright[4];
 static int32_t acid_peak;
@@ -1047,6 +1113,7 @@ int main(void)
     split_dac_test();
     engine_ui_test();
     engine_macro_test();
+    macro_map_test();
     acid_test();
     stop_test();
     splash_test();
