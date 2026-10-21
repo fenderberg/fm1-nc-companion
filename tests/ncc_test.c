@@ -30,6 +30,7 @@
  *   SPLIT DAC  one part with FLANGER and Juno chorus, no sends: the other side of the output after MASTER exactly 0;
  *              with sends, throws, THROW: their return on the other side too
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
+ *   NCC SOUNDS each of NCC's own sounds (ncc_presets.c) plays, none silent, none clipping
  *   SOUNDS     the library (ncc_library.c): every factory sound in a category; SELECT the category, ALGORITHM the engine
  *              (after a rest, past the empty ones, the sound kept if it fits), PRESETS through what fits and over the
  *              engines, a bank voice by its name, ACID slides, the engines stored; the Circuit's FILTER FREQ on PHASE,
@@ -496,15 +497,15 @@ static void juno_test(void)
     for (i = 0; i < 30u; i++)
         blk();
     k = 9;                                              /* HOOVER */
-    ncc_juno_load(t, k);
+    ncc_snd_load(t, k);
     for (i = 0; i < 3u; i++)
         blk();
     for (i = 0; i < 8u; i++)
-        okv &= t->p[P_E0 + i] == NCC_JUNO[k].e[i];
-    okv &= t->p[P_ED_FX] == NCC_JUNO[k].jx && t->p[P_ATK] == NCC_JUNO[k].env[0] && t->p[P_LD_SHP] == NCC_JUNO[k].lshp;
+        okv &= t->p[P_E0 + i] == NCC_SND[k].e[i];
+    okv &= t->p[P_ED_FX] == NCC_SND[k].jx && t->p[P_ATK] == NCC_SND[k].env[0] && t->p[P_LD_SHP] == NCC_SND[k].lshp;
     ok("juno: a Juno sound sets its values, chorus and drift", okv && t->eng_req == ENGI_ANALOG);
     ok("juno: .. and the macros go back to the middle", ncm.tgt[1][4] == 64u && ncm.cur[1][4] == NCM_MID);
-    ncc_juno_load(t, 1);                                /* JUNO PAD: POLY, drift 8 */
+    ncc_snd_load(t, 1);                                /* JUNO PAD: POLY, drift 8 */
     for (i = 0; i < 24u; i++) {
         uint32_t v;
         midi(0x93, 48 + i, 100); blk();
@@ -524,14 +525,21 @@ static void juno_test(void)
     midi(0x83, 50, 0); blk();
 }
 
+static uint32_t ncc_count(uint32_t e)                 /* NCC's own sounds of engine e (ncc_presets.c) */
+{
+    uint32_t k, n = 0;
+    for (k = 0; k < NCC_NSND; k++)
+        n += NCC_SND[k].eng == e;
+    return n;
+}
 static void ui_m2_test(void)
 {
     track_t *t = &trk[1];
     power();
     lv_press(B_OCTUP);
-    t_turn(EN_PRESET, -(int32_t)NCC_NJUNO);            /* from ANALOG's first preset back over the Juno list */
+    t_turn(EN_PRESET, -(int32_t)ncc_count(ENGI_ANALOG));   /* from ANALOG's first preset back over NCC's own */
     lv_frames(200);
-    ok("UI: PRESETS on R: the Juno sounds come first (JUNO STRINGS)", lv.juno[1] == 1u && t->p[P_ED_FX] == NCC_JUNO[0].jx);
+    ok("UI: PRESETS on R: the Juno sounds come first (JUNO STRINGS)", lv.juno[1] == 1u && t->p[P_ED_FX] == NCC_SND[0].jx);
     t_turn(EN_PRESET, 1);
     lv_frames(200);
     ok("UI: .. the next one (JUNO PAD)", lv.juno[1] == 2u);
@@ -545,7 +553,7 @@ static void ui_m2_test(void)
         t->p[P_ED_FX] = 0;
         project_load(0);
         ok("UI: SPLIT and the Juno chorus / drift come back with the project", saved && NCC_SPLIT() &&
-           t->p[P_ED_FX] == NCC_JUNO[1].jx);
+           t->p[P_ED_FX] == NCC_SND[1].jx);
     }
     fm1_in.buttons |= 1u << panel.btn[B_GLO];
     lv_press(B_SEQ);
@@ -825,6 +833,48 @@ static void screen_test(void)
 }
 
 /* ------------------------------------------------------- milestone 4 --- */
+/* every NCC sound plays: a chord (POLY) or a note (LEGATO) on R, its peak and loudness; none silent, none clipping */
+static void ncc_sounds_test(void)
+{
+    uint32_t k, b, i, okv = 1;
+    for (k = 0; k < NCC_NSND; k++) {
+        const ncc_snd_t *j = &NCC_SND[k];
+        int32_t peak = 0;
+        int64_t e = 0;
+        power();
+        fx_quiet();
+        ncc_snd_load(&trk[1], k);
+        lv_frame();
+        for (b = 0; b < 4u; b++)
+            blk();
+        midi(0x93, j->mono ? 36 : 60, 100);
+        if (!j->mono) {
+            midi(0x93, 64, 100);
+            midi(0x93, 67, 100);
+        }
+        for (b = 0; b < 700u; b++) {
+            if (b == 450u) {
+                midi(0x83, j->mono ? 36 : 60, 0);
+                midi(0x83, 64, 0);
+                midi(0x83, 67, 0);
+            }
+            blk();
+            for (i = 0; i < 2u * CTL; i++) {
+                int32_t x = blk_out[i] < 0 ? -blk_out[i] : blk_out[i];
+                if (x > peak)
+                    peak = x;
+                e += (int64_t)(blk_out[i] >> 4) * (blk_out[i] >> 4);
+            }
+        }
+        e /= 700 * 2 * CTL;
+        printf("ncc: sound %-13s %-5s peak %6d  rms %5d\n", j->name, ENGINES[j->eng]->name, peak,
+               (int32_t)(sqrt((double)e) * 16.0));
+        if (peak < 1500 || peak >= 32000)
+            okv = 0;
+    }
+    ok("NCC sounds: every one plays (a chord or a note), none silent, none clipping", okv);
+}
+
 /* a stub bank (FM6's voice bank, fm6_vbank.c, has no flash here): voice 0 "E.PIANO 1", 1 "STRINGS" */
 static int stub_bank(uint32_t k, uint8_t *pk)
 {
@@ -834,6 +884,11 @@ static int stub_bank(uint32_t k, uint8_t *pk)
         return 1;
     memcpy(pk + 118, N[k], 10);
     return 0;
+}
+static const char *snd_name(uint32_t part)            /* the part's sound: NCC's own, or the engine's preset */
+{
+    const track_t *t = &trk[part];
+    return lv.juno[part] ? NCC_SND[lv.juno[part] - 1u].name : ENGINES[eng_idx(t->eng_req)]->presets[t->preset].name;
 }
 static void engine_ui_test(void)
 {
@@ -847,13 +902,30 @@ static void engine_ui_test(void)
     }
     printf("ncc: library: %u sounds, BASS %u PAD %u LEAD %u KEYS %u PLUCK %u OTHER %u\n", nl.n, n[NC_BASS], n[NC_PAD],
            n[NC_LEAD], n[NC_KEYS], n[NC_PLUCK], n[NC_OTHER]);
-    ok("sounds: the library holds every factory sound of the five engines, each in a category (none OTHER)",
-       nl.n - user == 51u && n[NC_OTHER] == 0u && n[NC_BASS] == 13u && n[NC_PAD] == 10u && n[NC_LEAD] == 14u &&
-       n[NC_KEYS] == 6u && n[NC_PLUCK] == 8u);
+    ok("sounds: the library holds the five engines' factory sounds and NCC's own, each in a category (none OTHER)",
+       nl.n - user == 51u + NCC_NSND - 12u && n[NC_OTHER] == 0u && n[NC_BASS] == 18u && n[NC_PAD] == 15u &&
+       n[NC_LEAD] == 20u && n[NC_KEYS] == 13u && n[NC_PLUCK] == 15u);
     ok("sounds: names of other sounds: E.PIANO 1 KEYS, Strings 2 PAD, DEEP BASS BASS, POLY SYNTH KEYS, WEIRD OTHER",
        nl_cat("E.PIANO 1", ENGI_FM6) == NC_KEYS && nl_cat("Strings 2", ENGI_FM6) == NC_PAD &&
        nl_cat("DEEP BASS", ENGI_ACID) == NC_BASS && nl_cat("POLY SYNTH", ENGI_ANALOG) == NC_KEYS &&
        nl_cat("WEIRD", ENGI_TRIO) == NC_OTHER);
+    {                                                   /* the DX7 classics by their names: 8 KEYS, 6 of the rest each */
+        static const char *const DX[32] = {"E.PIANO 1", "E.PIANO 2", "E.PIANO 3", "PIANO   1", "SYN-PIANO", "CLAV    1",
+            "FUNK CLAV", "E.ORGAN 1", "BASS    1", "BASS    2", "SYN-BASS 1", "SYN-BASS 2", "E.BASS  1", "PLUCK BASS",
+            "STRINGS 1", "STRG ENS 1", "HIGH STRGS", "SYN-VOX", "CHIME-STRG", "VOICES", "SYN-LEAD 1", "BRASS   1",
+            "SYNBRASS 1", "LEAD BRASS", "HARMONICA1", "FLUTE   1", "TUB BELLS", "MARIMBA", "VIBE    1", "HARP    1", "KOTO",
+            "GLOKENSPL"};
+        static const uint8_t WANT[32] = {NC_KEYS, NC_KEYS, NC_KEYS, NC_KEYS, NC_KEYS, NC_KEYS, NC_KEYS, NC_KEYS,
+            NC_BASS, NC_BASS, NC_BASS, NC_BASS, NC_BASS, NC_BASS, NC_PAD, NC_PAD, NC_PAD, NC_PAD, NC_PAD, NC_PAD,
+            NC_LEAD, NC_LEAD, NC_LEAD, NC_LEAD, NC_LEAD, NC_LEAD, NC_PLUCK, NC_PLUCK, NC_PLUCK, NC_PLUCK, NC_PLUCK, NC_PLUCK};
+        uint32_t good = 1;
+        for (i = 0; i < 32u; i++)
+            if (nl_cat(DX[i], ENGI_FM6) != WANT[i]) {
+                printf("  %s: %s\n", DX[i], NC_NAME[nl_cat(DX[i], ENGI_FM6)]);
+                good = 0;
+            }
+        ok("sounds: 32 DX7 classics (E.PIANO 1 .. GLOKENSPL) each in the type it is", good);
+    }
     t_turn(EN_SELECT, 1);
     ok("sounds: SELECT on SOUND: nothing yet while turning, the pad shows it coming", lv.cpend == 1 && lv.cat[0] == NC_ALL);
     lv_frames(400);
@@ -863,28 +935,28 @@ static void engine_ui_test(void)
        !strcmp(lv.say, "L BASS / ALL"));
     t_turn(EN_ALGO, -1);
     lv_frames(400);
-    ok("sounds: ALGORITHM back from ALL: ACID, its first bass (ACID 303)", lv.ep[0] == 5u && t->eng_req == ENGI_ACID &&
-       t->preset == 0u);
+    ok("sounds: ALGORITHM back from ALL: ACID, its first bass (NCC's SOFT BASS)", lv.ep[0] == 5u &&
+       t->eng_req == ENGI_ACID && !strcmp(snd_name(0), "SOFT BASS"));
     ok("sounds: a new ACID sound slides (LEGATO, GLIDE in TIME mode)", t->p[P_VOICE] == V_LEGATO &&
        t->p[P_GLMODE] == 1 && t->p[P_GLIDE] == LV_ACID_GLIDE);
     t_turn(EN_PRESET, 1);
     lv_frames(200);
-    ok("sounds: PRESETS: the next ACID bass (SQUELCH)", t->eng_req == ENGI_ACID && t->preset == 1u);
+    ok("sounds: PRESETS: the next ACID bass (ACID 303, the engine's own)", t->eng_req == ENGI_ACID &&
+       !strcmp(snd_name(0), "ACID 303"));
     t_turn(EN_SELECT, 1);
     lv_frames(400);
-    ok("sounds: SELECT on: ACID has no PAD, so LEAD (SCREAM)", lv.cat[0] == NC_LEAD && t->eng_req == ENGI_ACID &&
-       !strcmp(ENGINES[ENGI_ACID]->presets[t->preset].name, "SCREAM"));
+    ok("sounds: SELECT on: ACID has no PAD, so LEAD (ACID LEAD)", lv.cat[0] == NC_LEAD && t->eng_req == ENGI_ACID &&
+       !strcmp(snd_name(0), "ACID LEAD"));
     t_turn(EN_ALGO, 1);
     lv_frames(400);
-    ok("sounds: ALGORITHM on: ALL engines, the lead kept", lv.ep[0] == 0u && t->eng_req == ENGI_ACID);
+    ok("sounds: ALGORITHM on: ALL engines, the lead kept", lv.ep[0] == 0u && !strcmp(snd_name(0), "ACID LEAD"));
+    t_turn(EN_PRESET, 3);
+    lv_frames(200);
+    ok("sounds: PRESETS over the engines: SQUELCH LEAD, SCREAM, HOOVERISH", t->eng_req == ENGI_ACID &&
+       !strcmp(snd_name(0), "HOOVERISH"));
     t_turn(EN_PRESET, 1);
     lv_frames(200);
-    ok("sounds: PRESETS over the engines: the next lead (HOOVERISH, then other engines')", t->eng_req == ENGI_ACID &&
-       !strcmp(ENGINES[ENGI_ACID]->presets[t->preset].name, "HOOVERISH"));
-    t_turn(EN_PRESET, 1);
-    lv_frames(200);
-    ok("sounds: .. round to FM6's (BRASS)", t->eng_req == ENGI_FM6 && !strcmp(ENGINES[ENGI_FM6]->presets[t->preset].name,
-       "BRASS"));
+    ok("sounds: .. round to FM6's (BRASS)", t->eng_req == ENGI_FM6 && !strcmp(snd_name(0), "BRASS"));
     fm6_bank_read = stub_bank;                          /* a bank of two voices: E.PIANO 1 among the KEYS */
     fm6_bank_used = 3u;
     lv.cat[0] = NC_KEYS;
@@ -1189,6 +1261,7 @@ int main(void)
     screen_test();
     split_dac_test();
     engine_ui_test();
+    ncc_sounds_test();
     engine_macro_test();
     macro_map_test();
     acid_test();

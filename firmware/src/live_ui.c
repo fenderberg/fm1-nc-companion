@@ -35,7 +35,6 @@
  *               bank, the user presets), loaded once the knob has rested LV_LOAD_MS, so turning through the list loads
  *               one sound, not each one passed. (The Juno chorus: FX > CHORUS, KNOB 3)
  *   ACID        a new ACID sound slides (GLIDE in TIME mode, eng_acid.c): LEGATO glides between overlapping notes */
-#include "ncc_presets.c"                                /* (the Juno sounds: ncc_juno_load) */
 
 #define LV_PARTS NCM_PARTS
 #define LV_LOAD_MS 150u
@@ -43,6 +42,7 @@
 #define LV_HOT_MS 1500u                 /* a knob ring stays lit after its turn */
 #define LV_ENG_MS 300u
 #define LV_ACID_GLIDE 24                /* a new ACID sound's slide (GLIDE, TIME mode) */
+#include "ncc_presets.c"                                /* (NCC's own sounds: ncc_snd_load) */
 
 static const uint8_t LV_ENG[LV_PARTS] = {ENGI_FM6, ENGI_ANALOG};   /* (a part with an engine not in LV_ENGS) */
 static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID};
@@ -179,7 +179,7 @@ static void lv_load_nth(uint32_t part, uint32_t c, uint32_t ep, uint32_t pos)
     if (i == nl.n)
         return;
     nl_load(i);
-    lv.juno[part] = (uint8_t)(nl.s[i].kind == NLK_JUNO ? nl.s[i].k + 1u : 0u);
+    lv.juno[part] = (uint8_t)(nl.s[i].kind == NLK_NCC ? nl.s[i].k + 1u : 0u);
     lv.jsig[part] = lv_snd(TSEL);
 }
 

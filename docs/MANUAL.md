@@ -78,15 +78,25 @@ KEYS, PLUCK**. You choose a sound by its role; the engine follows. On the **SOUN
   KEYS, "STRINGS" is PAD). Sounds whose name doesn't tell show up under **OTHER**.
 - The Juno chorus lives on **FX > CHORUS** (KNOB 3).
 
+There are 81 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK.
+
+### More FM sounds: load a DX7 bank
+
+FM6 plays real DX7 voices. Thousands of DX7 banks (`.syx`, 32 voices each) are around, for example the archive on
+[Dave Benson's DX7 page](https://homepages.abdn.ac.uk/d.j.benson/pages/html/dx7.html). To load one, connect the
+FM-1 by USB, open Felucca's [web editor](https://hugelton.github.io/Felucca/webapp/editor/) in Chrome or Edge and
+import the `.syx` in its FM6 section. The bank's 32 voices then show up in NCC's library under FM6, sorted into
+types by their names ("E.PIANO 1" is KEYS, "SYN-BASS 1" is BASS, "STRINGS 1" is PAD, "TUB BELLS" is PLUCK).
+
 The five engines:
 
 | Engine | Character | Example sounds |
 |---|---|---|
 | **FM6** | 6-operator FM in the style of the DX7: e-pianos, bells, basses, brass. Loads DX7 banks (via Felucca's web editor). | TINE EP, BELL, FM BASS, BRASS, PAD, MARIMBA |
-| **JUNO** | Analog-style poly synth with a Juno-style chorus and drift, plus a set of Juno sounds. | JUNO STRINGS, JUNO PAD, JUNO BRASS, POLY SYNTH, HOOVER |
-| **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | BRASS, ORGAN, STRING, RESO, BELL, WIRE |
-| **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | FAT BASS, ARP LEAD, SYNC LEAD, CHIP CHOIR |
-| **ACID** | A 303-style bass: saw or square, a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, RUBBER, DUB ACID |
+| **JUNO** | Analog-style poly synth with a Juno-style chorus and drift, plus a set of Juno sounds. | JUNO STRINGS, JUNO PAD, JUNO EP, FUNK CLAV, HOUSE KEYS, DREAM PAD, HOOVER |
+| **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | PD EP, DIGI PIANO, GLASS BELL, MALLET, PD BASS, FOLD LEAD |
+| **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | CHIP BASS, WOBBLE BASS, CHIP KEYS, TOY PIANO, 8BIT PAD, CHIP LEAD |
+| **ACID** | A 303-style bass: saw or square, a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, SOFT BASS, ACID LEAD, ACID PLUCK |
 
 ## The Circuit's 8 knobs
 

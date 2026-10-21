@@ -116,7 +116,7 @@ static void lv_draw_pad(uint32_t part, int32_t x)
     if (bank >= 0 && bank < (int32_t)FM6_NBANK && (nl_bank_names(), nl.bname[bank][0]))
         str_cpy(s, nl.bname[bank], sizeof s);           /* a bank voice: its own name */
     else if (jn)
-        str_cpy(s, NCC_JUNO[jn - 1u].name, sizeof s);
+        str_cpy(s, NCC_SND[jn - 1u].name, sizeof s);
     else if (t->eng_req == ENGI_ANALOG && jx >= 4u)
         str_cpy(s, "JUNO", sizeof s);                   /* (a Juno sound after a power-on: which one is not stored) */
     else

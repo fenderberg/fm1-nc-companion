@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* NCC (Novation Circuit Companion, FELUCCA_LIVEUI=1): the sound library. Every sound of NCC's five engines in one list
- * (LV_ENGS' order: FM6's presets and its voice bank, NCC's Juno sounds and ANALOG's presets, PHASE, TRIO, ACID; each
- * engine's user presets after its own), each with a category by what it is for: BASS, PAD, LEAD, KEYS, PLUCK (OTHER: a
+ * (LV_ENGS' order: per engine NCC's own sounds (ncc_presets.c), its presets, FM6's voice bank, then the engine's user
+ * presets), each with a category by what it is for: BASS, PAD, LEAD, KEYS, PLUCK (OTHER: a
  * user sound or a bank voice whose name does not tell). On SOUND, SELECT filters by category and ALGORITHM by engine
  * (each with ALL), PRESETS steps through what is left; a sound of another engine switches the part to it (live_ui.c).
  *
- * The category comes from the sound's name (nl_cat: a keyword at the start of a word, BASS / SUB / 303 / ACID ->
- * BASS, PAD / STR / CHOIR -> PAD, LEAD / HOOVER / BRASS -> LEAD, EP / KEY / ORGAN -> KEYS, PLUCK / BELL / MARIMBA ->
- * PLUCK ..), else the engine's own (ACID: BASS), else OTHER: one rule for the factory sounds (tests/ncc_test.c: none of
+ * The category comes from the sound's name (nl_cat: a keyword at the start of a word, BASS / SUB -> BASS, PAD / STR / CHOIR -> PAD, LEAD / HOOVER / BRASS -> LEAD, EP / KEY / ORGAN -> KEYS, PLUCK / BELL / MARIMBA ->
+ * PLUCK .., at last 303 / ACID -> BASS), else the engine's own (ACID: BASS), else OTHER: one rule for the factory sounds (tests/ncc_test.c: none of
  * them OTHER), the user presets and a loaded DX7 bank alike, and no table to keep in step with the engines.
  *
  * Main loop only. The list is built when it is used (nl_build: ~100 entries, from the presets in flash and the user
@@ -15,7 +14,7 @@
 
 enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_OTHER, NC_N };
 static const char *const NC_NAME[NC_N] = {"ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "OTHER"};
-enum { NLK_PRESET, NLK_JUNO, NLK_BANK, NLK_USER };
+enum { NLK_PRESET, NLK_NCC, NLK_BANK, NLK_USER };
 typedef struct {
     uint8_t kind, eng, k, cat;          /* NLK_*, ENGINES[] index, the preset / Juno sound / bank voice / user slot */
 } nl_snd_t;
@@ -26,16 +25,18 @@ static const struct {
     const char *kw;
     uint8_t cat;
 } NL_KW[] = {                           /* the first that starts a word of the name wins */
-    {"BASS", NC_BASS}, {"SUB", NC_BASS}, {"303", NC_BASS}, {"ACID", NC_BASS},
+    {"BASS", NC_BASS}, {"SUB", NC_BASS}, {"FRETLESS", NC_BASS},
     {"PAD", NC_PAD}, {"STR", NC_PAD}, {"CHOIR", NC_PAD}, {"SWEEP", NC_PAD}, {"WIND", NC_PAD}, {"ATMO", NC_PAD},
-    {"VOX", NC_PAD},
+    {"VOX", NC_PAD}, {"VOICE", NC_PAD},
     {"LEAD", NC_LEAD}, {"HOOVER", NC_LEAD}, {"SCREAM", NC_LEAD}, {"RAVE", NC_LEAD}, {"WIRE", NC_LEAD},
     {"SYNC", NC_LEAD}, {"SOLO", NC_LEAD}, {"BRASS", NC_LEAD}, {"BRS", NC_LEAD}, {"HORN", NC_LEAD}, {"RESO", NC_LEAD},
+    {"SYNBRASS", NC_LEAD}, {"SYNTHBRASS", NC_LEAD}, {"HARMONICA", NC_LEAD}, {"FLUTE", NC_LEAD},
     {"EP", NC_KEYS}, {"KEY", NC_KEYS}, {"TINE", NC_KEYS}, {"ORGAN", NC_KEYS}, {"POLY", NC_KEYS}, {"PIANO", NC_KEYS},
     {"RHODE", NC_KEYS}, {"CLAV", NC_KEYS},
     {"PLUCK", NC_PLUCK}, {"BELL", NC_PLUCK}, {"MARIMBA", NC_PLUCK}, {"CHIME", NC_PLUCK}, {"HARP", NC_PLUCK},
     {"MALLET", NC_PLUCK}, {"VIBE", NC_PLUCK}, {"GLOCK", NC_PLUCK}, {"KALIMBA", NC_PLUCK}, {"GUITAR", NC_PLUCK},
-    {"GTR", NC_PLUCK},
+    {"GTR", NC_PLUCK}, {"KOTO", NC_PLUCK}, {"GLOK", NC_PLUCK}, {"CELESTE", NC_PLUCK}, {"SITAR", NC_PLUCK},
+    {"303", NC_BASS}, {"ACID", NC_BASS},                /* (last: an ACID LEAD is a lead, an ACID PLUCK a pluck) */
 };
 
 static struct {
@@ -101,9 +102,9 @@ static void nl_build(void)
     for (i = 0; i < NELEM(LV_ENGS); i++) {
         uint32_t e = LV_ENGS[i];
         const engine_t *en = ENGINES[e];
-        if (e == ENGI_ANALOG)
-            for (k = 0; k < NCC_NJUNO; k++)
-                nl_add(NLK_JUNO, e, k, NCC_JUNO[k].name);
+        for (k = 0; k < NCC_NSND; k++)                  /* NCC's own sounds of the engine first (ncc_presets.c) */
+            if (NCC_SND[k].eng == e)
+                nl_add(NLK_NCC, e, k, NCC_SND[k].name);
         for (k = 0; k < en->npresets; k++)
             if (preset_orig(en, k) == k)
                 nl_add(NLK_PRESET, e, k, en->presets[k].name);
@@ -139,7 +140,7 @@ static int32_t nl_find(uint32_t part, uint32_t juno)
     uint32_t i, e = eng_idx(t->eng_req), u = user_of(t), kind, k;
     int32_t bank = e == ENGI_FM6 ? (int32_t)t->p[P_E7] - (int32_t)FM6_OWN - 1 : -1;
     if (juno)
-        kind = NLK_JUNO, k = juno - 1u;
+        kind = NLK_NCC, k = juno - 1u;
     else if (u < UP_SLOTS)
         kind = NLK_USER, k = u;
     else if (bank >= 0 && bank < (int32_t)FM6_NBANK)
@@ -157,8 +158,8 @@ static void nl_load(uint32_t i)
 {
     const nl_snd_t *s = &nl.s[i];
     track_t *t = TSEL;
-    if (s->kind == NLK_JUNO) {
-        ncc_juno_load(t, s->k);
+    if (s->kind == NLK_NCC) {
+        ncc_snd_load(t, s->k);
         return;
     }
     if (s->kind == NLK_USER) {
