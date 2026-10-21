@@ -308,6 +308,10 @@ static void web_frame(void)
 static float ring[RING * 2];
 static uint32_t ring_w, ring_r, web_samples_due;
 
+#if NCC_DEMO
+#include "ncc_demo.c"                    /* NC: NCC's local demo, a Circuit Tracks playing (tools/ncc_demo.sh) */
+#endif
+
 /* one millisecond of the device: the clock, the audio halves due by now, the main loop */
 static void web_ms(void)
 {
@@ -334,6 +338,9 @@ static void web_ms(void)
         lcd_fill(0, 0, 240, 240, T_BG);
         web_last_frame = fm1_ms - 15u;
     }
+#if NCC_DEMO
+    ncc_demo_ms();                                        /* NC: the demo's Circuit (clock, notes, macros) */
+#endif
     if (fm1_ms - web_last_frame >= 15u) {                /* main.c: a frame, then ui_input until 15 ms are over */
         web_last_frame = fm1_ms;
         web_frame();

@@ -32,6 +32,7 @@
  *              Circuit's FILTER FREQ on PHASE, TRIO, ACID
  *   ACID       it sounds, the filter envelope closes, RES 127 bounded, accent brighter and louder, slide on overlap
  *              only, saw / square
+ *   STOP       the Circuit's Stop (USB clock): the arp stops (latched chord dropped), the drone lets go
  *   SPLASH     NCC on the power-on screen, Felucca's version and credits kept, every line inside its square
  *   BPM 0      beat_samples counts it as 120
  * Built and run by tests/run_tests.sh. */
@@ -950,6 +951,58 @@ static void acid_test(void)
     }
 }
 
+/* ------------------------------------------------------- Stop --- */
+/* the Circuit's clock over USB: pulses (24 a quarter at 120 BPM: ~21 ms, ~29 blocks), fm1_ms with them */
+static void ext_pulses(uint32_t n)
+{
+    uint32_t i, b;
+    for (i = 0; i < n; i++) {
+        midi(0xF8, 0, 0);
+        for (b = 0; b < 29u; b++) {
+            if (b % 4u == 0u)
+                fm1_ms += 3u;
+            blk();
+        }
+    }
+}
+static void stop_test(void)
+{
+    track_t *l = &trk[0], *r = &trk[1];
+    uint32_t i;
+    power();
+    song.g[G_CLOCK] = 1;                                /* USB */
+    blk();
+    ext_pulses(4);
+    midi(0xFA, 0, 0);                                   /* Start */
+    ext_pulses(2);
+    ok("Stop: the Circuit's Start: playing", song.playing != 0u);
+    l->p[P_AMODE] = 1; l->p[P_AHOLD] = 1; l->p[P_ARATE] = 2;
+    midi(0x92, 60, 100); midi(0x92, 64, 100); blk();
+    midi(0x82, 60, 0); midi(0x82, 64, 0); blk();        /* latched */
+    ncd_want[1] = 1;
+    r->p[P_VOICE] = V_POLY;                             /* (SAW LEAD is LEGATO: one note) */
+    midi(0x93, 43, 100); midi(0x93, 50, 100); blk();
+    midi(0x83, 43, 0); midi(0x83, 50, 0);
+    ext_pulses(24);
+    ok("Stop: before it, L's latched arp plays, R drones", l->nheld == 2u && note_playing(r, 43) && note_playing(r, 50));
+    midi(0xFC, 0, 0);                                   /* Stop */
+    ext_pulses(1);
+    for (i = 0; i < 400u; i++)
+        blk();
+    ok("Stop: the Circuit's Stop: L's arp stops (its latched chord dropped, no arp note)", !song.playing && l->nheld == 0u &&
+       !l->arp_note && !gate_on(l));
+    ok("Stop: .. and R's drone lets go (Drone-hold itself stays on)", !note_playing(r, 43) && !note_playing(r, 50) &&
+       ncd_want[1] && ncd[1].n == 0u);
+    ext_pulses(24);
+    ok("Stop: the clock running on after it: the arp stays silent", !l->arp_note && !gate_on(l));
+    midi(0x93, 55, 100); blk(); midi(0x83, 55, 0);
+    for (i = 0; i < 40u; i++)
+        blk();
+    ok("Stop: Drone-hold still on: a new note drones again", note_playing(r, 55));
+    ncd_want[1] = 0;
+    blk();
+}
+
 static void splash_test(void)
 {
     uint32_t i, fit = 1;
@@ -995,6 +1048,7 @@ int main(void)
     engine_ui_test();
     engine_macro_test();
     acid_test();
+    stop_test();
     splash_test();
     bpm0_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");

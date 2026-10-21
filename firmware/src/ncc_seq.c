@@ -7,12 +7,13 @@
  * the clock's grid: the step (its RATE) the bar is in (ncc_bar: samples into the bar, seq.c beat_pos / beat_n, which
  * the external clock's Start puts at 0), so a 1/16 arp plays the 1/16s of the Circuit's bar. A note at most an eighth
  * of a step late still starts at once (played live a little late, not a step late). The transport's Start (playing
- * from 0 to 1) starts every held arp from its first step together with the bar. With no clock coming (seq.c
- * events_block) the arp runs on the tempo (BPM), so it plays without the Circuit too.
+ * from 0 to 1) starts every held arp from its first step together with the bar; its Stop (1 to 0: the Circuit's
+ * sequence stopped) stops them: the held and latched notes are dropped (HOLD too) and the sounding arp note ends.
+ * With no clock coming (seq.c events_block) the arp runs on the tempo (BPM), so it plays without the Circuit too.
  *
  * DRONE-HOLD (SEQ, per part). While on, a note's note-off is not let through: it rings on. More notes pile up (to the
- * voice cap, the engine's stealing as always); a note that drones played again lets that note go; Drone-hold off lets
- * every droning note go through its release. With the arp on, the arp holds the droning notes as it holds pressed
+ * voice cap, the engine's stealing as always); a note that drones played again lets that note go; Drone-hold off, or
+ * the transport's Stop (Drone-hold stays on for what comes next), lets every droning note go through its release. With the arp on, the arp holds the droning notes as it holds pressed
  * ones. The macros keep working on them. */
 
 #define NCD_N 16u                       /* droning notes per part */
@@ -69,23 +70,36 @@ static uint32_t ncc_arp_phase(const track_t *t)
     return ph < p / 8u ? 0xFFFFFFFu : ph;               /* a little late: at once */
 }
 
-/* events_block, before the arps step: Drone-hold off, HOLD off, the transport's Start, the bar's place */
+/* part's droning notes through their release (one the Circuit still holds: its own note-off) */
+static void ncd_release(uint32_t part)
+{
+    track_t *t = &trk[part];
+    uint32_t i;
+    for (i = 0; i < ncd[part].n; i++)
+        if (!midi_note_held(t, ncd[part].note[i])) {
+            arp_remove(t, ncd[part].note[i]);
+            trk_note_off(t, ncd[part].note[i]);
+        }
+    ncd[part].n = 0;
+}
+
+/* events_block, before the arps step: Drone-hold off, HOLD off, the transport's Start and Stop, the bar's place */
 static void ncc_seq_block(void)
 {
-    uint32_t part, i;
+    uint32_t part;
     ncc_bar = beat_n * beat_samples() + beat_pos;
     for (part = 0; part < NCM_PARTS; part++) {
         track_t *t = &trk[part];
         if (ncd[part].on != ncd_want[part]) {
             ncd[part].on = ncd_want[part];
-            if (!ncd[part].on) {                        /* every droning note through its release */
-                for (i = 0; i < ncd[part].n; i++)
-                    if (!midi_note_held(t, ncd[part].note[i])) {   /* (one the Circuit still holds: its note-off) */
-                        arp_remove(t, ncd[part].note[i]);
-                        trk_note_off(t, ncd[part].note[i]);
-                    }
-                ncd[part].n = 0;
-            }
+            if (!ncd[part].on)
+                ncd_release(part);                      /* every droning note through its release */
+        }
+        if (!song.playing && ncc_playing) {             /* Stop: the arp and the drone stop */
+            ncd_release(part);
+            t->nheld = 0;
+            if (t->arp_note || t->arp_ch[0])
+                arp_off(t);
         }
         if (ncd[part].hold && !t->p[P_AHOLD] && !t->arp_phys && !ncd[part].on)
             t->nheld = 0;                               /* HOLD off with no key down: the latched chord goes */

@@ -71,3 +71,8 @@ Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-M
       knallen eruit, overlappende noten glijden, losse noten niet. Knop 7 (Modulation) = slide-tijd.
 - [ ] ALGORITHM op PHASE/TRIO/ACID = chorus.
 - [ ] Uit/aan: de engines van L en R staan er weer.
+
+## Stop en de demo (21-10-2026)
+- [ ] Stop op de Circuit: de arp stopt meteen (ook met HOLD), de drone laat alle noten los; Drone-hold blijft aan.
+- [ ] Demo zonder Circuit: `sh tools/ncc_demo.sh` → Chrome opent, "Switch on": L speelt PAD-akkoorden, R een acid-lijn
+      met accenten en slides, de filterknop beweegt. Meespelen op de toetsen en aan de knoppen draaien kan.
