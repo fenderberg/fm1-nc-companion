@@ -11,12 +11,12 @@ static int favorite_has(uint32_t engine, uint32_t preset)
 {
     if (engine == NENGINES)
         return preset < UP_SLOTS && ((favorites.user >> preset) & 1u);
-    return engine < NENGINES && engine < 16u && preset < 256u &&
+    return engine < NENGINES && engine < 14u && preset < 256u &&   /* NC: (rows 14, 15: MIDI LEARN, the prefs) */
         ((favorites.factory[engine][preset / 8u] >> (preset % 8u)) & 1u);
 }
 static int favorite_set(uint32_t engine, uint32_t preset, int on)
 {
-    if (engine > NENGINES || (engine == NENGINES ? preset >= UP_SLOTS : engine >= 16u || preset >= 256u))
+    if (engine > NENGINES || (engine == NENGINES ? preset >= UP_SLOTS : engine >= 14u || preset >= 256u))   /* NC */
         return 0;
     if (favorite_has(engine, preset) == !!on) return 0;
     if (engine == NENGINES) {

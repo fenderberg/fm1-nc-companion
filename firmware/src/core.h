@@ -28,9 +28,16 @@
                                             * second core (mod.c, voice.c SPREAD, eng_formant.c): one each with two cores,
                                             * one for all with one, as up to 1.6 */
 #define C1_PI(t) ((uint32_t)((t) - trk) % C1_NP)   /* a part's copy */
+#ifndef FELUCCA_LIVEUI
+#define FELUCCA_LIVEUI 0                 /* NC: (felucca.c's default; the host tests may include this first) */
+#endif
+#if FELUCCA_LIVEUI
+#define NENGINES 15                      /* NC: NCC's ACID is 14 (eng_acid.c; 13 a reserved slot without SLICE) */
+#else
 #define NENGINES (13 + FELUCCA_SLICE)   /* SLICE (13) comes last: the other engines keep their numbers */
+#endif
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
-#define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
+#define NENG_SHOWN (NENGINES - !FELUCCA_FM4 - (FELUCCA_LIVEUI && !FELUCCA_SLICE))   /* (NC: its reserved 13) */   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 

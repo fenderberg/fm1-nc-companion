@@ -40,6 +40,9 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #if FELUCCA_SLICE
 #include "eng_slice.c"
 #endif
+#if FELUCCA_LIVEUI
+#include "eng_acid.c"           /* NC: ACID, NCC's 303 (engine 14) */
+#endif
 
 /* the editor protocol, user presets and projects store these indices: append, never reorder */
 static const engine_t *const ENGINES[NENGINES] = {
@@ -62,6 +65,11 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_FM6,                    /* 12 (ENGI_FM6) */
 #if FELUCCA_SLICE
     &ENG_SLICE,                  /* 13 (FELUCCA_SLICE=0 builds without it) */
+#elif FELUCCA_LIVEUI
+    &ENG_FM4_GONE,               /* 13: reserved (NC: ACID keeps its 14) */
+#endif
+#if FELUCCA_LIVEUI
+    &ENG_ACID,                   /* 14 (ENGI_ACID): NC, NCC's 303 (eng_acid.c) */
 #endif
 };
 
@@ -122,12 +130,18 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
 #if FELUCCA_SLICE
     13,                          /* SLICE */
 #endif
+#if FELUCCA_LIVEUI
+    14,                          /* ACID (NC) */
+#endif
     10,                          /* DRUM */
 };
 
 /* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), the n-th of them
  * eng_vis(n), e's place among them eng_rank(e), the next / previous one eng_step(e, dir) (wraps) */
-static int eng_ok(uint32_t e) { return e < NENGINES && (FELUCCA_FM4 || e != ENGI_DIGITAL); }
+static int eng_ok(uint32_t e)
+{
+    return e < NENGINES && (FELUCCA_FM4 || e != ENGI_DIGITAL) && (!FELUCCA_LIVEUI || FELUCCA_SLICE || e != 13u);   /* NC */
+}
 static uint32_t eng_vis(uint32_t n) { return ENGINE_ORDER[n % NENG_SHOWN]; }
 static uint32_t eng_rank(uint32_t e)
 {

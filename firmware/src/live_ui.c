@@ -7,6 +7,10 @@
  *               Tracks plays them, MIDI IN TRACK, L on channel 3 and R on 4 (its MIDI 1 / MIDI 2 tracks) unless the
  *               project has TRACK already; the clock from USB (with none coming, the arp runs on BPM: seq.c)
  *   pages       SOUND (HOME), ARP, FX: KNOB 1..4 set the focused part's (LV_KNOBS); SELECT turns to page 2 of ARP / FX
+ *   engines     on SOUND, SELECT picks the focused part's engine (LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID: the
+ *               ones the Circuit's knobs map onto, perf_layer.c NCM_MAP), switched once the knob has rested LV_ENG_MS
+ *               (its first sound; Felucca's fade). Stored with the project: a part keeps the engine it had; a project
+ *               opened in NCC the first time (MIDI IN not TRACK yet) starts with L FM6, R JUNO
  *   OCT- / OCT+ the focus: L / R (its LED: OCT+ has none in PANEL_DEFAULT, so R is OCT- dark); the 27 keys play the
  *               part in focus (song.sel)
  *   ARP         the arp on for the focused part (its last mode, UP at first) and the ARP page; on the ARP page with
@@ -21,16 +25,34 @@
  *   PRESETS     the focused part's sounds (on ANALOG first NCC's Juno sounds, ncc_presets.c; then the engine's presets,
  *               then its user presets), loaded once the knob has rested LV_LOAD_MS, so turning through the list loads
  *               one sound, not each one passed
- *   ALGORITHM   FM6: SLOT (F1..F8, OWN, the bank's voices; empty bank slots skipped as on the knobs); ANALOG: the
- *               Juno chorus, OFF / I / II / I+II (juno_chorus.c), as the buttons on a Juno */
+ *   ALGORITHM   FM6: SLOT (F1..F8, OWN, the bank's voices; empty bank slots skipped as on the knobs); the other engines:
+ *               the Juno chorus, OFF / I / II / I+II (juno_chorus.c), as the buttons on a Juno
+ *   ACID        a new ACID sound slides (GLIDE in TIME mode, eng_acid.c): LEGATO glides between overlapping notes */
 #include "ncc_presets.c"                                /* (the Juno sounds: ncc_juno_load) */
 
 #define LV_PARTS NCM_PARTS
 #define LV_LOAD_MS 150u
 #define LV_POP_MS 1000u
 #define LV_HOT_MS 1500u                 /* a knob ring stays lit after its turn */
+#define LV_ENG_MS 300u
+#define LV_ACID_GLIDE 24                /* a new ACID sound's slide (GLIDE, TIME mode) */
 
-static const uint8_t LV_ENG[LV_PARTS] = {ENGI_FM6, ENGI_ANALOG};
+static const uint8_t LV_ENG[LV_PARTS] = {ENGI_FM6, ENGI_ANALOG};   /* (a part with an engine not in LV_ENGS) */
+static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID};
+static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID"};
+static int32_t lv_eng_pos(uint32_t e)                  /* e's place in LV_ENGS, -1 none */
+{
+    uint32_t i;
+    for (i = 0; i < NELEM(LV_ENGS); i++)
+        if (LV_ENGS[i] == e)
+            return (int32_t)i;
+    return -1;
+}
+static const char *lv_eng_name(uint32_t e)
+{
+    int32_t i = lv_eng_pos(e);
+    return i >= 0 ? LV_ENG_NAME[i] : ENGINES[eng_idx(e)]->name;
+}
 static const char LV_NAME[LV_PARTS] = {'L', 'R'};
 
 enum { PG_SOUND, PG_ARP, PG_FX, PG_N };
@@ -61,6 +83,9 @@ static struct {
     uint32_t hot_ms;                    /* .. when, fm1_ms | 1 */
     uint8_t amode[LV_PARTS];            /* the arp's mode while off (ARP on brings it back) */
     int16_t pend;                       /* PRESETS detents not loaded yet */
+    int8_t epend;                       /* SELECT detents on SOUND: the engine not switched yet */
+    uint32_t epend_ms;                  /* the last of them, fm1_ms | 1 */
+    uint32_t snd[LV_PARTS];             /* the part's sound as last seen (a new ACID sound: its slide) */
     uint32_t pend_ms;                   /* the last of them, fm1_ms | 1 */
     uint32_t seen;                      /* the ncm_seen the foot shows */
     uint32_t pop_ms;                    /* the foot's popup since (fm1_ms | 1), 0 none */
@@ -103,15 +128,17 @@ static void lv_setup(void)
     uint32_t i;
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
-        if (i < LV_PARTS && t->eng_req != LV_ENG[i])
-            set_engine_of(t, LV_ENG[i]);
+        if (i < LV_PARTS && lv_eng_pos(t->eng_req) < 0)
+            set_engine_of(t, LV_ENG[i]);               /* (an engine NCC does not offer: the part's default) */
         track_defaults_steps(t);                        /* the Circuit plays: no pattern of ours starts with its clock */
         if (i >= LV_PARTS)
             t->p[P_MUTE] = 1;
         if (i < LV_PARTS)
             lv.amode[i] = (uint8_t)(t->p[P_AMODE] ? t->p[P_AMODE] : 1);   /* (UP) */
     }
-    if (song.g[G_ROUTE] != ROUTE_TRACK) {
+    if (song.g[G_ROUTE] != ROUTE_TRACK) {               /* a project NCC has not had yet: its parts, channels */
+        set_engine_of(&trk[0], LV_ENG[0]);
+        set_engine_of(&trk[1], LV_ENG[1]);
         song.g[G_ROUTE] = ROUTE_TRACK;
         mch_set(0, 2u);                                 /* channel 3: the Circuit's MIDI 1 */
         mch_set(1, 3u);                                 /* channel 4: its MIDI 2 */
@@ -159,11 +186,27 @@ static void lv_list_go(int32_t d)
         }
 }
 
+/* SELECT on SOUND: d engines on from the focused part's (LV_ENGS, round) */
+static void lv_engine_go(int32_t d)
+{
+    int32_t n = (int32_t)NELEM(LV_ENGS), i = lv_eng_pos(TSEL->eng_req);
+    uint32_t e = LV_ENGS[(uint32_t)((i < 0 ? 0 : i) + d % n + n) % (uint32_t)n];
+    if (e == TSEL->eng_req || song.sel >= LV_PARTS)
+        return;
+    set_engine_of(TSEL, e);                             /* its first sound, Felucca's fade */
+    lv.juno[song.sel] = 0;
+    lv_say(song.sel ? "R ENGINE " : "L ENGINE ", lv_eng_name(e));
+}
+
 static void lv_focus(uint32_t part)
 {
     if (lv.pend) {                                      /* a sound picked on the other part: loaded there first */
         lv_list_go(lv.pend);
         lv.pend = 0;
+    }
+    if (lv.epend) {                                     /* .. an engine too */
+        lv_engine_go(lv.epend);
+        lv.epend = 0;
     }
     track_select(part);
 }
@@ -366,13 +409,31 @@ static void live_input(void)
         const param_desc_t *d = param_desc_of(ENGI_FM6, P_E7);
         int32_t from = TSEL->p[P_E7], v = clamp(from + s, d->min, d->max);
         TSEL->p[P_E7] = (int16_t)enum_step(d, from, v);   /* (fm6_poll loads it) */
-    } else if (s && TSEL->eng_req == ENGI_ANALOG && song.sel < LV_PARTS) {   /* the Juno chorus, the drift kept */
+    } else if (s && song.sel < LV_PARTS) {             /* the other engines: the Juno chorus, the drift kept */
         int32_t x = clamp(TSEL->p[P_ED_FX], 0, 63), m = clamp((x & 3) + s, JC_OFF, JC_I_II);
         TSEL->p[P_ED_FX] = (int16_t)((x & ~3) | m);
         lv_say(song.sel ? "R CHORUS " : "L CHORUS ", JC_NAME[m]);
     }
     if ((s = panel_enc(EN_SELECT)) != 0 && (lv.page == PG_ARP || lv.page == PG_FX))
         lv.sub = s > 0 ? 1u : 0u;                       /* page 2 / back */
+    else if (s && lv.page == PG_SOUND && !lv.fx) {      /* the engine (after a rest) */
+        lv.epend = (int8_t)clamp(lv.epend + s, -8, 8);
+        lv.epend_ms = fm1_ms | 1u;
+    }
+    if (lv.epend && (fm1_ms | 1u) - lv.epend_ms >= LV_ENG_MS) {
+        lv_engine_go(lv.epend);
+        lv.epend = 0;
+    }
+    for (k = 0; k < LV_PARTS; k++) {                    /* a new ACID sound slides */
+        track_t *t = &trk[k];
+        uint32_t snd = lv_snd(t);
+        if (snd != lv.snd[k] && t->eng_req == ENGI_ACID) {
+            t->p[P_GLMODE] = 1;
+            if (!t->p[P_GLIDE])
+                t->p[P_GLIDE] = LV_ACID_GLIDE;
+        }
+        lv.snd[k] = snd;
+    }
     for (k = 0; k < 4u; k++)
         if ((s = panel_enc(EN_K1 + k)) != 0)
             lv_turn(k, s);

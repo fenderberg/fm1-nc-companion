@@ -25,6 +25,10 @@
  *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
  *   FX UI      the FX page's knobs (and page 2), FX held: PERFORM's keys and macros, ENV / LFO throws
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
+ *   ENGINES    SELECT on SOUND picks the part's engine (after a rest, round the list), ACID slides, stored; the
+ *              Circuit's FILTER FREQ on PHASE, TRIO, ACID
+ *   ACID       it sounds, the filter envelope closes, RES 127 bounded, accent brighter and louder, slide on overlap
+ *              only, saw / square
  *   SPLASH     NCC on the power-on screen, Felucca's version and credits kept, every line inside its square
  *   BPM 0      beat_samples counts it as 120
  * Built and run by tests/run_tests.sh. */
@@ -698,6 +702,161 @@ static void screen_test(void)
     }
 }
 
+/* ------------------------------------------------------- milestone 4 --- */
+static void engine_ui_test(void)
+{
+    track_t *t = &trk[0];
+    uint32_t i;
+    power();
+    t_turn(EN_SELECT, 4);                               /* FM6 -> JUNO PHASE TRIO ACID */
+    ok("engines: SELECT on SOUND: not switched while turning", t->eng_req == ENGI_FM6 && lv.epend == 4);
+    lv_frames(400);
+    ok("engines: after the rest: L is ACID, R untouched, the popup", t->eng_req == ENGI_ACID &&
+       trk[1].eng_req == ENGI_ANALOG && lv.say && !strcmp(lv.say, "L ENGINE ACID"));
+    ok("engines: a new ACID sound slides (LEGATO, GLIDE in TIME mode)", t->p[P_VOICE] == V_LEGATO && t->p[P_GLMODE] == 1 &&
+       t->p[P_GLIDE] == LV_ACID_GLIDE);
+    t_turn(EN_SELECT, 1);
+    lv_frames(400);
+    ok("engines: round the list (ACID -> FM6)", t->eng_req == ENGI_FM6);
+    t_turn(EN_SELECT, -1);
+    lv_frames(400);
+    ok("engines: back (FM6 -> ACID)", t->eng_req == ENGI_ACID);
+    lv_press(B_OCTUP);
+    t_turn(EN_SELECT, 2);
+    lv_frames(400);
+    ok("engines: R: JUNO -> TRIO", trk[1].eng_req == ENGI_TRIO);
+    t_turn(EN_ALGO, 2);
+    ok("engines: ALGORITHM on TRIO: the Juno chorus", trk[1].p[P_ED_FX] == JC_II);
+    (void)project_save(0);
+    t->eng_req = ENGI_FM6;
+    project_load(0);
+    for (i = 0; i < 3u; i++)
+        lv_frame();
+    ok("engines: the parts' engines come back with the project", trk[0].eng_req == ENGI_ACID && trk[1].eng_req == ENGI_TRIO);
+    lv_press(B_ARP);
+    t_turn(EN_SELECT, 1);
+    ok("engines: SELECT on ARP is its page 2, not the engine", lv.sub == 1u && !lv.epend);
+}
+
+static void engine_macro_test(void)
+{
+    static const struct { uint8_t eng, id; } WANT[] = {{ENGI_PHASE, P_E2}, {ENGI_TRIO, P_E5}, {ENGI_ACID, P_E1}};
+    uint32_t k, i, okv = 1;
+    for (k = 0; k < NELEM(WANT); k++) {
+        int32_t base;
+        power();
+        set_engine_of(&trk[1], WANT[k].eng);
+        for (i = 0; i < 5u; i++)
+            blk();
+        base = trk[1].p[WANT[k].id];
+        midi(0xB3, 12, 127);                            /* FILTER FREQ */
+        for (i = 0; i < 30u; i++)
+            blk();
+        okv &= trk[1].p[WANT[k].id] > base;
+    }
+    ok("engines: FILTER FREQ moves PHASE's DCW, TRIO's CUT, ACID's CUT", okv);
+}
+
+/* ACID: one note (vel) on R, n blocks: the energy of the output's sample steps (brightness) per window */
+static int64_t acid_bright[4];
+static int32_t acid_peak;
+static void acid_play(uint32_t note, uint32_t vel, uint32_t blocks)
+{
+    uint32_t b, i;
+    int32_t last = 0;
+    memset(acid_bright, 0, sizeof acid_bright);
+    acid_peak = 0;
+    midi(0x93, note, vel);
+    for (b = 0; b < blocks; b++) {
+        blk();
+        for (i = 0; i < CTL; i++) {
+            int32_t x = blk_out[2u * i], d = (x - last) >> 8;
+            acid_bright[(b * 4u) / blocks] += (int64_t)d * d;
+            if ((x < 0 ? -x : x) > acid_peak)
+                acid_peak = x < 0 ? -x : x;
+            last = x;
+        }
+    }
+    midi(0x83, note, 0);
+}
+static void acid_test(void)
+{
+    track_t *t = &trk[1];
+    int64_t b0, b3, soft, loud;
+    int32_t p_soft, p_acc, saw;
+    uint32_t i, glided = 0;
+    power();
+    fx_quiet();
+    set_engine_of(t, ENGI_ACID);
+    t->p[P_DLY] = t->p[P_REV] = t->p[P_CHOR] = 0;
+    for (i = 0; i < 4u; i++)
+        blk();
+    acid_play(36, 90, 600);
+    b0 = acid_bright[0];
+    b3 = acid_bright[3];
+    saw = acid_peak;
+    printf("ncc: ACID 303, C2: brightness first quarter %lld, last %lld, peak %d\n", (long long)b0, (long long)b3, (int)saw);
+    ok("ACID: it sounds, and the filter envelope closes (brighter at the start than at the end)", saw > 0 && b0 > b3 * 2);
+    t->p[P_E2] = 127;                                   /* RES all the way: squeals, never blows up */
+    t->p[P_E3] = 127;
+    t->p[P_E6] = 127;
+    for (i = 0; i < 40u; i++)
+        blk();
+    acid_play(48, 127, 400);
+    printf("ncc: ACID at RES 127, ENV 127, DRV 127: peak %d\n", (int)acid_peak);
+    ok("ACID: RES 127 stays bounded (no runaway)", acid_peak > 0 && acid_peak < (1 << 23));
+    power();
+    fx_quiet();
+    set_engine_of(t, ENGI_ACID);
+    lv_frame();                                         /* (the UI: a new ACID sound slides) */
+    t->p[P_DLY] = t->p[P_REV] = t->p[P_CHOR] = 0;
+    for (i = 0; i < 400u; i++)
+        blk();
+    acid_play(36, 80, 200);
+    soft = acid_bright[0];
+    p_soft = acid_peak;
+    for (i = 0; i < 400u; i++)
+        blk();
+    acid_play(36, 120, 200);
+    loud = acid_bright[0];
+    p_acc = acid_peak;
+    printf("ncc: ACID accent: brightness %lld -> %lld, peak %d -> %d\n", (long long)soft, (long long)loud, (int)p_soft,
+           (int)p_acc);
+    ok("ACID: an accent (velocity >= 100) opens the filter more and plays louder", loud > soft && p_acc > p_soft);
+    for (i = 0; i < 400u; i++)
+        blk();
+    midi(0x93, 36, 100); blk(); blk();
+    midi(0x93, 43, 100);                                /* overlapping: a slide */
+    for (i = 0; i < 6u; i++) {
+        blk();
+        glided |= t->v[0].pitch_cur != t->v[0].pitch16 && t->v[0].pitch_cur > 36 * 16 && t->v[0].pitch_cur < 43 * 16;
+    }
+    ok("ACID: an overlapping note slides (the pitch between the two)", glided);
+    midi(0x83, 36, 0); midi(0x83, 43, 0);
+    for (i = 0; i < 400u; i++)
+        blk();
+    midi(0x93, 36, 100); blk(); midi(0x83, 36, 0);
+    for (i = 0; i < 40u; i++)
+        blk();
+    midi(0x93, 43, 100); blk();
+    ok("ACID: a note after a gap does not slide", t->v[0].pitch_cur == t->v[0].pitch16);
+    midi(0x83, 43, 0);
+    {   /* saw and square differ */
+        int64_t sw, sq;
+        for (i = 0; i < 400u; i++)
+            blk();
+        t->p[P_E0] = 0;
+        acid_play(40, 90, 100);
+        sw = acid_bright[1];
+        for (i = 0; i < 400u; i++)
+            blk();
+        t->p[P_E0] = 1;
+        acid_play(40, 90, 100);
+        sq = acid_bright[1];
+        ok("ACID: WAVE saw and square sound different", sw != sq);
+    }
+}
+
 static void splash_test(void)
 {
     uint32_t i, fit = 1;
@@ -739,6 +898,9 @@ int main(void)
     drone_test();
     fx_ui_test();
     screen_test();
+    engine_ui_test();
+    engine_macro_test();
+    acid_test();
     splash_test();
     bpm0_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");

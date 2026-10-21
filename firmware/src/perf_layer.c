@@ -19,6 +19,8 @@
 #ifndef ENGI_ANALOG
 #define ENGI_ANALOG 0u                  /* engines.c ENGINES[] */
 #endif
+#define ENGI_PHASE 2u
+#define ENGI_TRIO 6u
 #define NCM_PARTS 2u                    /* tracks 1, 2 */
 #define NCM_N 8u                        /* knobs */
 #define NCM_DST 2u                      /* parameters a knob moves */
@@ -61,6 +63,36 @@ static const ncm_map_t NCM_MAP[] = {
         {{P_E5, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on the filter, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
+    }},
+    {ENGI_PHASE, {                                /* (CZ-style phase distortion: DCW is its filter) */
+        {{P_E0, 32}, {NCM_NONE, 0}},              /* OSCILLATOR   WAVE (steps) */
+        {{P_E4, 32}, {NCM_NONE, 0}},              /* OSC MOD      DTN, the second line's detune */
+        {{P_ATK, 32}, {P_REL, 32}},               /* AMP ENV      attack and release */
+        {{P_E3, 32}, {NCM_NONE, 0}},              /* FILTER ENV   ENV, the envelope on DCW */
+        {{P_E2, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  DCW */
+        {{P_E7, 32}, {NCM_NONE, 0}},              /* RESONANCE    FOLD */
+        {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on DCW, its rate */
+        {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
+    }},
+    {ENGI_TRIO, {                                 /* (SID-style: three oscillators, a multimode filter) */
+        {{P_E1, 16}, {NCM_NONE, 0}},              /* OSCILLATOR   INT2, osc 2's interval: +-12 semitones */
+        {{P_E7, 32}, {P_E3, 16}},                 /* OSC MOD      PW, a little DTN */
+        {{P_ATK, 32}, {P_REL, 32}},               /* AMP ENV      attack and release */
+        {{P_ED_FLT, 32}, {NCM_NONE, 0}},          /* FILTER ENV   ENV -> FLT */
+        {{P_E5, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  CUT */
+        {{P_E6, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
+        {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on the filter, its rate */
+        {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
+    }},
+    {ENGI_ACID, {                                 /* (NCC's 303, eng_acid.c) */
+        {{P_E0, 64}, {NCM_NONE, 0}},              /* OSCILLATOR   WAVE, saw <-> square */
+        {{P_E5, 32}, {NCM_NONE, 0}},              /* OSC MOD      ACC, what an accent does */
+        {{P_DEC, 32}, {P_REL, 32}},               /* AMP ENV      the VCA's decay and release */
+        {{P_E3, 32}, {P_E4, 16}},                 /* FILTER ENV   ENV MOD, a little DECAY */
+        {{P_E1, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  CUT */
+        {{P_E2, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
+        {{P_GLIDE, 32}, {NCM_NONE, 0}},           /* MODULATION   the slide's time */
+        {{P_E6, 32}, {P_DLY, 32}},                /* FX           drive, delay send */
     }},
 };
 

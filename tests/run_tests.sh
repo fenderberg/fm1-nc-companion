@@ -382,8 +382,8 @@ if [ -f build/gen/felucca_tables.h ]; then
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/regress" tests/regress.c -lm
     run "regression: golden renders, health, voices, CPU budget (2ND CORE OFF: one core)" "$OUT/regress" tests/golden.txt tests/cpu_baseline.txt
     $CC -O2 -w -DFELUCCA_LIVEUI=1 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_liveui" tests/regress.c -lm   # NC
-    run "regression, an NCC build (FELUCCA_LIVEUI=1: the macro layer at rest): the same golden renders and CPU budget" \
-        "$OUT/regress_liveui" tests/golden.txt tests/cpu_baseline.txt
+    run "regression, an NCC build (FELUCCA_LIVEUI=1): Felucca's golden renders unchanged, ACID's own (tests/ncc_golden.txt)" \
+        "$OUT/regress_liveui" tests/ncc_golden.txt tests/cpu_baseline.txt
     $CC -O2 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_cpu2_0" tests/regress.c -lm
     run "regression, a FELUCCA_CPU2=0 build (none of the second core): the same golden renders and CPU budget" \
         "$OUT/regress_cpu2_0" tests/golden.txt tests/cpu_baseline.txt

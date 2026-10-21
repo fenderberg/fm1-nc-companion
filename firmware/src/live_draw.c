@@ -95,7 +95,6 @@ static int32_t lv_badge(int32_t x, int32_t y, const char *s, uint16_t fill, uint
 static void lv_draw_pad(uint32_t part, int32_t x)
 {
     const track_t *t = &trk[part];
-    const engine_t *e = ENGINES[t->eng_req % NENGINES];
     uint32_t on = song.sel == part, ch = mch_get(part), jx = (uint32_t)clamp(t->p[P_ED_FX], 0, 63), jn = lv_juno(part);
     uint16_t fill = on ? LC_PDIM[part] : LC_PAD, hi = on ? LC_PART[part] : LC_LINE;
     int32_t bx;
@@ -110,7 +109,7 @@ static void lv_draw_pad(uint32_t part, int32_t x)
     } else
         str_cpy(s + 2, ch == MCH_OMNI ? "OMNI" : "OFF", 5);
     cv_text_on(x + 8, 5, &AF_S, s, on ? LC_TEXT : LC_DIM, fill);
-    cv_text_r(x + 96, 5, &AF_S, e->name, on ? LC_MID : LC_DIM, fill);
+    cv_text_r(x + 96, 5, &AF_S, lv_eng_name(t->eng_req), on ? LC_MID : LC_DIM, fill);
     cv_rect(x + 101, 9, 6, 6, midi_lit(part) ? LC_TEXT : LC_LINE);  /* MIDI IN on the part */
     if (jn)
         str_cpy(s, NCC_JUNO[jn - 1u].name, sizeof s);
@@ -127,11 +126,15 @@ static void lv_draw_pad(uint32_t part, int32_t x)
     if (ncd_want[part])
         (void)lv_badge(bx, 46, "DRONE", on ? LC_AMBER : LC_LINE, on ? LC_BG : LC_MID, fill);
     s[0] = 0;
-    if (on && lv.pend)
+    if (on && lv.epend) {                               /* SELECT turning: the engine it will switch to */
+        int32_t n = (int32_t)NELEM(LV_ENGS), i = lv_eng_pos(t->eng_req);
+        str_cpy(s, "ENGINE ", 8);
+        str_cpy(s + 7, LV_ENG_NAME[(uint32_t)((i < 0 ? 0 : i) + lv.epend % n + n) % (uint32_t)n], 8);
+    } else if (on && lv.pend)
         str_cpy(s, lv.pend > 0 ? "NEXT >" : "< PREV", 7);
     else if (t->eng_req == ENGI_FM6)
         str_cpy(s, N_FM6_PATCH[clamp(t->p[P_E7], 0, (int32_t)(FM6_OWN + FM6_NBANK))], 5);
-    else if (t->eng_req == ENGI_ANALOG) {
+    else {
         str_cpy(s, "CHORUS ", 8);
         str_cpy(s + 7, JC_NAME[jx & 3u], 6);
     }
@@ -144,6 +147,7 @@ static uint32_t lv_pad_sig(uint32_t part)
     uint32_t h = lv_hash(lv_snd(t), (uint32_t)t->p[P_E7] & 63u);
     h = lv_hash(h, (uint32_t)clamp(t->p[P_ED_FX], 0, 63) | (uint32_t)lv_juno(part) << 8);
     h = lv_hash(h, (t->p[P_AMODE] != 0) | (t->p[P_AHOLD] != 0) << 1 | ncd_want[part] << 2 | (uint32_t)midi_lit(part) << 3);
+    h = lv_hash(h, (uint32_t)(song.sel == part ? (uint8_t)lv.epend : 0u));
     return lv_hash(h, mch_get(part) | (song.sel == part) << 8 | (uint32_t)(song.sel == part && lv.pend) << 9);
 }
 
@@ -233,7 +237,7 @@ static void lv_draw_knobs(void)
 
 static void lv_draw_foot(void)
 {
-    static const char *const HINT[PG_N] = {"PRESETS: SOUND   ARP   FX", "SELECT: PAGE 2   REC: HOLD",
+    static const char *const HINT[PG_N] = {"SELECT: ENGINE   PRESETS: SOUND", "SELECT: PAGE 2   REC: HOLD",
                                            "HOLD FX + KEY: PERFORM"};
     uint32_t seen = ncm_seen, sig, part = song.sel % LV_PARTS, mp;
     char s[24];

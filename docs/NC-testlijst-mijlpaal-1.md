@@ -63,3 +63,12 @@ Circuit: MIDI 1 op kanaal 3, MIDI 2 op kanaal 4 (fabrieksinstelling), fabrieks-M
       reverb-grootte).
 - [ ] FX vasthouden + witte toets: het effect speelt (pad licht op), KNOB 1–4 = FILTER, CRUSH, THROW, DEPTH.
 - [ ] ENV vasthouden = delay-throw, LFO vasthouden = reverb-throw.
+
+## Mijlpaal 4 (engines, ACID)
+- [ ] SOUND-pagina, SELECT draaien: de pad toont "ENGINE …"; na loslaten wisselt het part (popup "L ENGINE …"):
+      FM6 → JUNO → PHASE → TRIO → ACID → FM6. Klikvrij?
+- [ ] Per engine: PRESETS bladert, de 8 Circuit-knoppen doen iets logisch (Filter Freq, Resonance …).
+- [ ] ACID: een acid-lijn vanaf de Circuit (MIDI 1 of 2): klinkt als een 303? Accenten (hoge velocity op de Circuit)
+      knallen eruit, overlappende noten glijden, losse noten niet. Knop 7 (Modulation) = slide-tijd.
+- [ ] ALGORITHM op PHASE/TRIO/ACID = chorus.
+- [ ] Uit/aan: de engines van L en R staan er weer.
