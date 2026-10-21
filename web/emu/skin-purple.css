@@ -1,0 +1,6 @@
+/* NC: the purple / pink FM-1 (web/emu/build.sh EMU_SKIN=purple; tools/ncc_demo.sh uses it) */
+:root { --bg: #cbbbe0; --body: #6a4c9c; --tray: #523a7e; --part: #7c5fae; --edge: #e39ad8; --label: #fdf0ff; }
+.face.key { fill: #34244f; stroke: #e39ad8; }
+.slit { fill: #4b3672; }
+@keyframes breath-slit { 0%, 100% { fill: #4b3672; } 50% { fill: #e8c8f0; } }
+@keyframes breath-slit-lo { 0%, 100% { fill: #4b3672; } 50% { fill: #b89ad0; } }

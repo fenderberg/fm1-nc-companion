@@ -1,43 +1,67 @@
-# Felucca
+# NCC: Novation Circuit Companion
+
+**Firmware that turns the M-VAVE FM-1 into a two-part synth for the Novation Circuit Tracks.**
 
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
-## Maintenance Notice
+![NCC running in the browser emulator, on a purple FM-1](docs/ncc-emulator.jpg)
 
-What began as a personal experiment grew far beyond my expectations. I’m grateful to everyone who contributed, supported the project, and made music with Felucca.
+## The idea
 
-I’ve decided to step back from active development to focus on creating new instruments and music.
+The Circuit Tracks has two synth tracks inside, plus two **MIDI tracks** and two **audio inputs**. That spare pair is
+an open invitation: plug in a second instrument and give each MIDI track its own sound. The FM-1 is small, cheap and
+runs [Felucca](https://github.com/hugelton/Felucca), a brilliant multi-engine firmware. But Felucca is a whole
+groovebox with a sequencer, songs, menus and a lot to learn.
 
-Felucca will remain available with occasional maintenance, but new features, issue responses, and pull request reviews are not guaranteed.
+NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
 
-Thank you for everything. I hope you’ll look forward to my next creations.
+- **Two parts, two tracks.** Part **L** listens to the Circuit's MIDI 1 track (channel 3), part **R** to MIDI 2
+  (channel 4). The Circuit plays the notes and sends the clock. The FM-1 has no sequencer of its own: the Circuit is
+  the boss.
+- **Two outputs, split by default.** L comes out on the left channel, R on the right. Use a Y-cable into the Circuit's
+  two audio inputs and mix, mute and effect each part separately on the Circuit itself.
+- **Your Circuit's knobs just work.** For every engine, the Circuit's 8 macro knobs (OSCILLATOR, OSC MOD, AMP ENV,
+  FILTER ENV, FILTER FREQ, RESONANCE, MODULATION, FX) are mapped to the parameters that match their labels. Every sound
+  is hands-on from the Circuit, with smooth (zipper-free) moves. The FM-1's screen shows what each knob does.
+- **Five synth engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
+  (Casio CZ-style phase distortion), TRIO (SID-style chip synth) and ACID (a 303 with accent and slide).
+- **Built for jamming.** OCT- / OCT+ switch the FM-1's keys and knobs between your two sounds in one press. An arp
+  locked to the Circuit's clock, with HOLD. A **Drone** button that keeps a pad ringing while you play over it. Effects
+  one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
+  throws.
 
-## Overview
+Less to learn, more to play: NCC gives you more jam with your Circuit Tracks, not more menus.
 
-Multi-engine synthesizer firmware for the M-VAVE FM-1, version 1.6.1. Connect the FM-1 to a computer by USB, open the
-[web installer](https://hugelton.github.io/Felucca/) in Chrome or Edge and press Install; no extra hardware is needed.
-Installing is at your own risk: M-VAVE's updater or the installer's **Return to official V15** takes you back.
-[Try it in your browser](https://hugelton.github.io/Felucca/webapp/try/), no FM-1 needed.
+## Get started
 
-- Install: [web installer](https://hugelton.github.io/Felucca/)
-- Edit: [web editor](https://hugelton.github.io/Felucca/webapp/editor/) ([Felucca-WebApp](https://github.com/hugelton/Felucca-WebApp))
-- Read: the manual and the release notes are in the [wiki](https://github.com/hugelton/Felucca/wiki/Home)
-- Build: [BUILDING.md](BUILDING.md)
-- Related: [Felucca-Engines](https://github.com/hugelton/Felucca-Engines) (the ANALOG, LOFI, TRIO, WHEEL and NOISE engines, MIT; still maintained) ·
-  [felucca-bsp](https://github.com/hugelton/felucca-bsp) (the FM-1 hardware layer)
+1. **Read the [manual](docs/MANUAL.md).** It's short.
+2. **Try it without hardware:** build and open the browser emulator with `sh tools/ncc_demo.sh` (needs Emscripten).
+   `DEMO=1 sh tools/ncc_demo.sh` adds a built-in "Circuit" that plays chords and an acid line.
+3. **Install it on your FM-1:** see [Installing](docs/MANUAL.md#installing). Back to stock any time with M-VAVE's
+   updater or Felucca's web installer (**Return to official V15**).
 
-## AI disclaimer
+Installing firmware is at your own risk.
 
-Felucca is developed with the assistance of AI coding agents (code, tests, documentation, translation, maintenance). The
-design, features, sound design and direction are the maintainer's or the community's, and no generative AI is used for music,
-icons or artwork. See [On AI-Assisted Development and Responsibility](https://github.com/hugelton/Felucca/discussions/166).
+## Status
 
-## Credits and licence
+Early but playable, tested on a real FM-1 with a Circuit Tracks. Feedback and ideas are welcome in the
+[issues](https://github.com/fenderberg/fm1-nc-companion/issues).
 
-Free software: [GPL-3.0-only](LICENSE); the Hügelton Sample Pack is CC0 1.0; the engines in `firmware/engines` are MIT
-([Felucca-Engines](https://github.com/hugelton/Felucca-Engines)); the bundled fonts and ported DSP keep their own licences
-([LICENSES/](LICENSES/), [LICENSING.md](LICENSING.md)). Thanks to everyone whose work and contributions are in it: [CREDITS.md](CREDITS.md).
+## Built on Felucca
 
-M-VAVE and FM-1 are trademarks of their respective owners. Felucca is not affiliated with or endorsed by them.
+NCC is a fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita (Hügelton Instruments). All of
+Felucca's engines, effects, audio and hardware support are what make NCC possible; NCC adds its own live interface,
+the Circuit macro layer, the Juno chorus, the split output and the ACID engine on top. Without the `FELUCCA_LIVEUI=1`
+build flag the code builds plain Felucca. Felucca's own README is in [README-Felucca.md](README-Felucca.md); building
+is described in [BUILDING.md](BUILDING.md) (NCC: `FELUCCA_LIVEUI=1 ./build.sh`).
 
-Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+Like Felucca, NCC is developed with the help of AI coding agents (Claude Code); the ideas, the sound and the direction
+are the author's.
+
+## Licence
+
+Free software: [GPL-3.0-only](LICENSE), as Felucca. The engines in `firmware/engines` are MIT, the bundled fonts and
+ported DSP keep their own licences ([LICENSES/](LICENSES/), [LICENSING.md](LICENSING.md), [CREDITS.md](CREDITS.md)).
+
+Novation and Circuit Tracks are trademarks of Focusrite Audio Engineering Ltd; M-VAVE and FM-1 are trademarks of their
+respective owners. NCC is not affiliated with or endorsed by any of them.

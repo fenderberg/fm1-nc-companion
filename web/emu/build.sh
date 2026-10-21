@@ -8,7 +8,8 @@
 # -ffp-contract=off: no fused multiply-adds, as the host build. EMU_OPT replaces -O2, EMU_CFLAGS adds flags
 # (EMU_CFLAGS=-msimd128: let the compiler vectorise; every browser with AudioWorklet has wasm SIMD).
 # The page shows the version (FELUCCA_VERSION) marked "(preview)" before its release; EMU_PREVIEW=0 drops the mark.
-# NC: EMU_OUT puts it elsewhere (default build/emu; tools/ncc_demo.sh: build/emu-demo), EMU_TITLE names the page.
+# NC: EMU_OUT puts it elsewhere (default build/emu; tools/ncc_demo.sh: build/emu-demo), EMU_TITLE names the page, EMU_SKIN
+# picks a colour (web/emu/skin-*.css).
 set -e
 cd "$(dirname "$0")/../.."
 [ -f build/gen/felucca_tables.h ] || { echo "emu: run ./build.sh once first (build/gen)"; exit 1; }
@@ -24,6 +25,10 @@ emcc ${EMU_OPT:--O2} -ffp-contract=off -std=gnu99 -w ${EMU_CFLAGS:-} \
 [ "${EMU_PREVIEW:-1}" = 0 ] && PREVIEW='' || PREVIEW=' (preview)'
 sed -e "s/@VERSION@/$VERSION/g" -e "s/@PREVIEW@/$PREVIEW/g" -e "s|<title>Felucca</title>|<title>${EMU_TITLE:-Felucca}</title>|" \
     web/emu/index.html > "$O/index.html"   # NC: EMU_TITLE
+if [ -n "${EMU_SKIN:-}" ]; then                         # NC: EMU_SKIN=purple: web/emu/skin-purple.css after the page's own style
+    awk -v f="web/emu/skin-$EMU_SKIN.css" '/<\/head>/ { print "<style>"; while ((getline l < f) > 0) print l; print "</style>" } { print }' \
+        "$O/index.html" > "$O/index.tmp" && mv "$O/index.tmp" "$O/index.html"
+fi
 cp web/emu/worklet.js "$O/"
 cp web/emu/fonts/DotGothic16-subset.woff web/emu/fonts/OFL.txt "$O/fonts/"
 echo "emu: $O ($(wc -c < "$O/felucca.wasm" | tr -d ' ') B wasm, $VERSION)"
