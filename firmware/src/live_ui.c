@@ -18,12 +18,13 @@
  *   REC         HOLD (latch) of the focused part's arp (P_AHOLD: a new chord after letting go replaces it, keys added
  *               while held add); off with no key down lets the latched chord go (ncc_seq.c). Its LED
  *   SEQ         Drone-hold of the focused part (ncc_seq.c). Its LED.   GLO + SEQ: SPLIT (the default) <-> STEREO
- *   FX          a tap opens the FX mode, another (or HOME, or ARP) closes it. In it the white keys are PERFORM's effects
- *               (perform.c; seq.c kb_lock: the layer locked open), each held while its key is, and SELECT turns its
- *               pages: PERFORM (the key map on the screen, KNOB 1..4 its macros FILTER CRUSH THROW DEPTH, back to 0 when
- *               the mode closes, but with FX LATCH), SENDS (the focused part's drive and sends), DELAY, REVERB, CHORUS
- *               (the bus's, and the part's Juno chorus and drift), INSERT (the part's: its type and A B C as the type
- *               names them)
+ *   FX          a tap opens the FX mode on its SENDS page, each tap after it the next page, the tap after the last
+ *               closes it (so do HOME and ARP); SELECT turns its pages too. In it the white keys are PERFORM's effects
+ *               (perform.c; seq.c kb_lock: the layer locked open), each held while its key is. Its pages: SENDS (the
+ *               focused part's drive and sends), DELAY, REVERB (the bus's; KNOB 4 the part's reverb send), CHORUS (the
+ *               bus's, and the part's Juno chorus and drift), INSERT (the part's: its type and A B C as the type names
+ *               them), PERFORM (the key map on the screen, KNOB 1..4 its macros FILTER CRUSH THROW DEPTH, back to 0
+ *               when the mode closes, but with FX LATCH)
  *   ENV / LFO   held: ECHO THROW / REV THROW (perf_layer.c ncm_throw), on every page
  *   HOME        the SOUND page
  *   PRESETS     the focused part's sounds (on ANALOG first NCC's Juno sounds, ncc_presets.c; then the engine's presets,
@@ -73,15 +74,16 @@ static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
     [PG_ARP] = {{{LK_AMODE, P_AMODE, "MODE"}, {LK_ARATE, P_ARATE, "RATE"}, {LK_TP, P_AOCT, "OCTAVES"},
                  {LK_TP, P_AGATE, "GATE"}},
                 {{LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, {LK_TP, P_AORDER, "ORDER"}, LK_EMPTY}},
-    [PG_FX] = {{{LK_PERF, 0, "FILTER"}, {LK_PERF, 1, "CRUSH"}, {LK_PERF, 2, "THROW"}, {LK_PERF, 3, "DEPTH"}},
-               {{LK_TP, P_DIST, "DRIVE"}, {LK_TP, P_CHOR, "CHORUS"}, {LK_TP, P_DLY, "DELAY"}, {LK_TP, P_REV, "REVERB"}},
+    [PG_FX] = {{{LK_TP, P_DIST, "DRIVE"}, {LK_TP, P_CHOR, "CHORUS"}, {LK_TP, P_DLY, "DELAY"}, {LK_TP, P_REV, "REVERB"}},
                {{LK_G, G_DTIME, "TIME"}, {LK_G, G_DFDBK, "FEEDBK"}, {LK_G, G_DCOLOR, "COLOR"}, {LK_G, G_DMIX, "MIX"}},
-               {{LK_G, G_RTYPE, "TYPE"}, {LK_G, G_RSIZE, "SIZE"}, {LK_G, G_RDAMP, "DAMP"}, LK_EMPTY},
+               {{LK_G, G_RTYPE, "TYPE"}, {LK_G, G_RSIZE, "SIZE"}, {LK_G, G_RDAMP, "DAMP"}, {LK_TP, P_REV, "SEND"}},
                {{LK_G, G_CRATE, "RATE"}, {LK_G, G_CDEPTH, "DEPTH"}, {LK_JUNO, 0, "JUNO"}, {LK_DRIFT, 0, "DRIFT"}},
-               {{LK_ITYPE, P_ITYPE, "TYPE"}, {LK_INS, P_IA, ""}, {LK_INS, P_IB, ""}, {LK_INS, P_IC, ""}}},
+               {{LK_ITYPE, P_ITYPE, "TYPE"}, {LK_INS, P_IA, ""}, {LK_INS, P_IB, ""}, {LK_INS, P_IC, ""}},
+               {{LK_PERF, 0, "FILTER"}, {LK_PERF, 1, "CRUSH"}, {LK_PERF, 2, "THROW"}, {LK_PERF, 3, "DEPTH"}}},
 };
 static const uint8_t LV_NSUB[PG_N] = {1, 2, 6};        /* the pages SELECT turns, per page */
-static const char *const LV_FX_PAGE[6] = {"PERFORM", "SENDS", "DELAY", "REVERB", "CHORUS", "INSERT"};
+static const char *const LV_FX_PAGE[6] = {"SENDS", "DELAY", "REVERB", "CHORUS", "INSERT", "PERFORM"};
+#define LV_FX_PERF 5u                   /* the FX mode's PERFORM page (the key map on the screen), its last */
 static const uint8_t LV_RATES[] = {0, 1, 4, 2, 5, 3};   /* RATE on KNOB 2: 1/4 1/8 8T 1/16 16T 1/32 (N_DIV) */
 
 static struct {
@@ -407,9 +409,11 @@ static void live_input(void)
     if (!lv.ok)
         lv_setup();
     kb_mask = perf_mask = fxb;                          /* (FX held works too, as in Felucca) */
-    if ((pressed >> panel.btn[B_FX]) & 1u) {            /* FX: the FX mode opens / closes */
-        if (lv.page == PG_FX)
+    if ((pressed >> panel.btn[B_FX]) & 1u) {            /* FX: the FX mode opens on SENDS, a tap the next page, */
+        if (lv.page == PG_FX && lv.sub + 1u >= LV_NSUB[PG_FX])   /* after the last (PERFORM) it closes */
             lv.page = lv.prev, lv.sub = 0;
+        else if (lv.page == PG_FX)
+            lv.sub++;
         else
             lv.prev = lv.page, lv.page = PG_FX, lv.sub = 0;
     }

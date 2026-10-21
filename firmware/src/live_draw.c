@@ -293,8 +293,8 @@ static void lv_draw_foot(void)
     cv_begin(240, 26, LC_BG);
     cv_rect(0, 0, 240, 1, LC_LINE);
     if (!lv.pop_ms)
-        cv_text_in(0, 6, 240, &AF_S, !lv.fx ? HINT[lv.page % PG_N] : lv.sub ? "SELECT: PAGES   FX: CLOSE" :
-                   "KEYS: EFFECTS   SELECT: PAGES", LC_DIM, LC_BG);
+        cv_text_in(0, 6, 240, &AF_S, !lv.fx ? HINT[lv.page % PG_N] : lv.sub == LV_FX_PERF ?
+                   "KEYS: EFFECTS   FX: CLOSE" : "FX / SELECT: PAGES   HOME: CLOSE", LC_DIM, LC_BG);
     else if (lv.say)
         cv_text_in(0, 4, 240, &AF_M, lv.say, LC_TEXT, LC_BG);
     else {                                              /* a macro: the Circuit's legend, then what it does here */
@@ -329,7 +329,7 @@ static void live_draw(void)
         memset(lv.sig, 0, sizeof lv.sig);
     }
     lv_draw_head();
-    if (lv.fx && !lv.sub)                               /* the FX mode's PERFORM page: the key map */
+    if (lv.fx && lv.sub == LV_FX_PERF)                  /* the FX mode's PERFORM page: the key map */
         lv_draw_perform();
     else {
         if (lv.sig[RG_STEPS] == 2u)

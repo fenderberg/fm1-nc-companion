@@ -23,8 +23,9 @@
  *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
  *   ARP GRID   a note mid-step starts the arp on the next step of the bar, a little late at once; no clock: BPM
  *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
- *   FX UI      FX a toggle: its mode (the keys PERFORM's, no button held), SELECT its pages PERFORM SENDS DELAY REVERB
- *              CHORUS INSERT (the insert's knobs named by its type), FX / HOME close it; ENV / LFO throws
+ *   FX UI      FX opens its mode on SENDS (the keys PERFORM's, no button held), FX taps and SELECT its pages SENDS DELAY
+ *              REVERB (+ R's send) CHORUS INSERT PERFORM (the insert's knobs named by its type), FX after the last /
+ *              HOME close it; ENV / LFO throws
  *   SPLIT DAC  one part with sends, throws, THROW, FLANGER, Juno chorus and the other's tail: the other side of the
  *              output after MASTER exactly 0
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
@@ -653,51 +654,54 @@ static void fx_ui_test(void)
     power();
     lv_press(B_OCTUP);
     lv_press(B_FX);
-    ok("FX UI: a tap on FX: the FX mode on its PERFORM page, the keys locked to it, its LED", lv.fx && lv.page == PG_FX &&
+    ok("FX UI: a tap on FX: the FX mode on its SENDS page, the keys locked to it, its LED", lv.fx && lv.page == PG_FX &&
        lv.sub == 0u && kb_lock == 2u && led_is(B_FX, 1));
     key_down(0); blk();
     ok("FX UI: FX mode, the first white key (no button held): its effect (REPEAT 1/8)", (perf_held >> perf_map[0]) & 1u);
-    t_turn(EN_K1, -10);
-    ok("FX UI: KNOB 1 on PERFORM: the FILTER macro", perf_k[0] < 0);
     key_up(0); blk();
     ok("FX UI: the key let go: the effect off", !((perf_held >> perf_map[0]) & 1u));
-    t_turn(EN_SELECT, 1);
     t_turn(EN_K1, 3); t_turn(EN_K2, 3); t_turn(EN_K3, 3); t_turn(EN_K4, 3);
-    ok("FX UI: SELECT: SENDS, KNOB 1..4 drive, chorus, delay, reverb of R", lv.sub == 1u && t->p[P_DIST] > 0 &&
-       t->p[P_CHOR] > 0 && t->p[P_DLY] > 0 && t->p[P_REV] > 0 && trk[0].p[P_DIST] == 0);
+    ok("FX UI: SENDS: KNOB 1..4 drive, chorus, delay, reverb of R", t->p[P_DIST] > 0 && t->p[P_CHOR] > 0 &&
+       t->p[P_DLY] > 0 && t->p[P_REV] > 0 && trk[0].p[P_DIST] == 0);
     i = (uint32_t)song.g[G_DTIME];
-    t_turn(EN_SELECT, 1);
+    lv_press(B_FX);
     t_turn(EN_K1, 1); t_turn(EN_K3, 5);
-    ok("FX UI: DELAY: KNOB 1 its time, KNOB 3 its colour", lv.sub == 2u && (uint32_t)song.g[G_DTIME] != i &&
-       song.g[G_DCOLOR] != GP[G_DCOLOR].def);
+    ok("FX UI: FX again: DELAY, KNOB 1 its time, KNOB 3 its colour", lv.fx && lv.sub == 1u &&
+       (uint32_t)song.g[G_DTIME] != i && song.g[G_DCOLOR] != GP[G_DCOLOR].def);
     t_turn(EN_SELECT, 1);
     i = (uint32_t)song.g[G_RTYPE];
-    t_turn(EN_K1, -1); t_turn(EN_K3, 5);
-    ok("FX UI: REVERB: KNOB 1 its type, KNOB 3 its damping", lv.sub == 3u && (uint32_t)song.g[G_RTYPE] != i &&
-       song.g[G_RDAMP] != GP[G_RDAMP].def);
-    t_turn(EN_SELECT, 1);
+    {
+        int32_t rev = t->p[P_REV];
+        t_turn(EN_K1, -1); t_turn(EN_K3, 5); t_turn(EN_K4, 3);
+        ok("FX UI: SELECT: REVERB, KNOB 1 its type, KNOB 3 its damping, KNOB 4 R's reverb send", lv.sub == 2u &&
+           (uint32_t)song.g[G_RTYPE] != i && song.g[G_RDAMP] != GP[G_RDAMP].def && t->p[P_REV] > rev);
+    }
+    lv_press(B_FX);
     t_turn(EN_K3, 2); t_turn(EN_K4, 3);
-    ok("FX UI: CHORUS: KNOB 3 R's Juno chorus (II), KNOB 4 its drift (3)", lv.sub == 4u && (t->p[P_ED_FX] & 3) == 2 &&
+    ok("FX UI: CHORUS: KNOB 3 R's Juno chorus (II), KNOB 4 its drift (3)", lv.sub == 3u && (t->p[P_ED_FX] & 3) == 2 &&
        ((t->p[P_ED_FX] >> 2) & 15) == 3);
     t_turn(EN_SELECT, 1);
     t_turn(EN_K1, 1);
     ok("FX UI: INSERT: KNOB 1 its type (SOFT), KNOB 2..4 named as the type names them (DRIVE TONE LEVEL)",
-       lv.sub == 5u && t->p[P_ITYPE] == 1 && !strcmp(lv_label(lv_knob(1)), "DRIVE") && !strcmp(lv_label(lv_knob(3)), "LEVEL"));
+       lv.sub == 4u && t->p[P_ITYPE] == 1 && !strcmp(lv_label(lv_knob(1)), "DRIVE") && !strcmp(lv_label(lv_knob(3)), "LEVEL"));
     i = (uint32_t)t->p[P_IA];
     t_turn(EN_K2, 4);
     ok("FX UI: .. KNOB 2 its DRIVE", (uint32_t)t->p[P_IA] != i);
-    t_turn(EN_SELECT, 3);
-    ok("FX UI: SELECT stops at the last page", lv.sub == 5u);
     lv_press(B_FX);
-    ok("FX UI: FX again: the mode closes (back to SOUND), the keys play, the macros back to 0", !lv.fx &&
+    t_turn(EN_K1, -10);
+    ok("FX UI: PERFORM, the last page: KNOB 1 the FILTER macro", lv.sub == LV_FX_PERF && perf_k[0] < 0);
+    t_turn(EN_SELECT, 3);
+    ok("FX UI: SELECT stops at the last page", lv.sub == LV_FX_PERF);
+    lv_press(B_FX);
+    ok("FX UI: FX on the last page: the mode closes (back to SOUND), the keys play, the macros back to 0", !lv.fx &&
        lv.page == PG_SOUND && kb_lock == 0u && perf_k[0] == 0 && led_is(B_FX, 0));
     key_down(white_key(3)); blk();
     ok("FX UI: closed: a key plays a note again", gate_on(t));
     key_up(white_key(3)); blk();
     lv_press(B_ARP);
-    lv_press(B_FX);
-    lv_press(B_FX);
-    ok("FX UI: opened from ARP, closed back to ARP", lv.page == PG_ARP);
+    for (i = 0; i <= LV_FX_PERF + 1u; i++)
+        lv_press(B_FX);
+    ok("FX UI: opened from ARP, tapped through, closed back to ARP", !lv.fx && lv.page == PG_ARP);
     lv_press(B_FX);
     lv_press(B_HOME);
     ok("FX UI: HOME closes it too", !lv.fx && lv.page == PG_SOUND && kb_lock == 0u);
