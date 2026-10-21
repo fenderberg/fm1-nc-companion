@@ -5,7 +5,7 @@ Status: ontwerp, 20 oktober 2026. Verkenning (stap 0) klaar, bouwen begint in Cl
 - v0.3: rolverdeling. **NC = noten + klankvorming (8 macro's). FM-1-paneel = sounds kiezen, arp bedienen, effecten.** Ontworpen voor een live jam.
 - v0.4: arp altijd vast aan de klok, met Arp-hold. Losse Drone-hold voor drones.
 - v0.5: basis gekozen: fork van Felucca, met eigen interface. Architectuur in lagen; live tweaken is de belangrijkste eis.
-- v0.7 (20-10-2026): naam **NCC**, identity FM-1_7XY; engines op **kanaal 3 en 4** (MIDI 1/2 van de NC); de 8 macro's volgen de **paneellabels van de Circuit Tracks** en het fabriekstemplate (CC 1 2 5 11 12 13 71 74); arp later.
+- v0.7 (20-10-2026): naam **NCC**, identity FM-1_7XY; engines op **kanaal 3 en 4** (MIDI 1/2 van de NC); de 8 macro's volgen de **paneellabels van de Circuit Tracks** en het fabriekstemplate (CC 1 2 5 11 71 74 12 13); arp later.
 - v0.6: **verkenning verwerkt** (zie `NC-companion-verkenning.md`): Felucca bevestigd, open vragen over code en FM6 beantwoord, split aangepast aan het geheugen, hergebruik per onderdeel aangegeven.
 
 ## Doel

@@ -3,8 +3,8 @@
  * emulator plays as if a Circuit Tracks were plugged in, so NCC is heard and seen without one. Over the emulated USB
  * MIDI (usb.c midi_enqueue, as web_midi's packets arrive) it sends what the Circuit would: the clock (24 a quarter,
  * 120 BPM) and Start, a chord part on channel 3 (L, FM6) and an acid bass line on channel 4 (R, ACID: accents at
- * velocity 120, slides as overlapping notes), and the Circuit's macros moving: R's FILTER FREQ (CC 12) and RESONANCE
- * (CC 13) in slow sweeps, L's MODULATION (CC 71) now and then. Four bars, round and round. The panel works as ever
+ * velocity 120, slides as overlapping notes), and the Circuit's macros moving: R's FILTER FREQ (CC 71) and RESONANCE
+ * (CC 74) in slow sweeps, L's MODULATION (CC 12) now and then. Four bars, round and round. The panel works as ever
  * (focus, PRESETS, ARP, FX ..): play along on the keys, turn the knobs.
  * Timing: the device's own millisecond (web_ms), the clock in microseconds (no drift), every note on a clock pulse. */
 
@@ -66,7 +66,7 @@ static void nd_step(uint32_t step)                      /* step (0..63) starts *
         nd.chord = (uint8_t)(bar + 1u);
     }
     if (step % 16u == 0u)                               /* L's MODULATION: up for bars 2 and 4 */
-        nd_send(0xB2, 71, bar & 1u ? 96u : 64u);
+        nd_send(0xB2, 12, bar & 1u ? 96u : 64u);
 }
 
 static void nd_gate(uint32_t step, uint32_t sub)       /* within step: sub pulses (0..5) in */
@@ -105,8 +105,8 @@ static void ncc_demo_ms(void)
             nd_gate(step, sub);
             if (!sub && step % 2u == 0u) {              /* R's FILTER FREQ and RESONANCE: slow triangles */
                 uint32_t ph = (nd.pulse / 12u) % 64u, tri = ph < 32u ? ph * 4u : (63u - ph) * 4u;
-                nd_send(0xB3, 12, 24u + tri * 3u / 4u);
-                nd_send(0xB3, 13, 60u + tri / 3u);
+                nd_send(0xB3, 71, 24u + tri * 3u / 4u);
+                nd_send(0xB3, 74, 60u + tri / 3u);
             }
         }
         nd.pulse++;

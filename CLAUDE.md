@@ -9,7 +9,7 @@
 Firmware that makes the FM-1 a live companion to a **Novation Circuit Tracks (NC)**:
 - The NC plays the notes (its two MIDI tracks) and sends the MIDI clock; its **8 macro knobs** shape the sound via CCs.
 - The FM-1 has **two parts**: L = FM6 (DX7-style, 6-op), R = ANALOG (to become Juno-style), on MIDI channels **3 and 4** by default (the NC's MIDI 1 / MIDI 2 tracks).
-- The 8 macros follow the NC's **panel legends** (Oscillator, Osc Mod, Amp Env, Filter Env, Filter Freq, Resonance, Modulation, FX) and its factory MIDI template (CC 1 2 5 11 12 13 71 74).
+- The 8 macros follow the NC's **panel legends** (Oscillator, Osc Mod, Amp Env, Filter Env, Filter Freq, Resonance, Modulation, FX) and its factory MIDI template (CC 1 2 5 11 71 74 12 13).
 - The FM-1's panel is for **live jamming**: choosing sounds, the arp (always locked to the clock, with Arp-hold), Drone-hold, and effects (incl. throws). **No sequencer.**
 - **Live tweaking without glitches is the most important requirement.** Engines must stay swappable.
 

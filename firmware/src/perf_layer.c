@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* NCC (Novation Circuit Companion, FELUCCA_LIVEUI=1): the macro layer. The Circuit Tracks' MIDI tracks send its 8
- * macro knobs as the CCs of their template; the factory template's are NCM_CC (1 2 5 11 12 13 71 74, knob 1..8). On
+ * macro knobs as the CCs of their template; the factory template's are NCM_CC (1 2 5 11 71 74 12 13, knob 1..8). On
  * the channel of an NCC part (tracks 1 and 2: L FM6, R ANALOG; MIDI IN TRACK, channels 3 / 4) they are the macros,
  * before Felucca's own meanings (midi_event: CC1 the wheel, CC11 EXPR, then CC5 GLIDE, the standard map, MIDI LEARN).
  * Each knob follows the Circuit's panel legend (NCM_NAME) with up to two parameters of the part's engine (NCM_MAP).
@@ -31,7 +31,7 @@
 #define NCM_LAZY 3u                     /* FM6's patch values: written while sliding every 4th block (and on arrival) */
 #define NCM_UNSET (-32768)
 
-static const uint8_t NCM_CC[NCM_N] = {1, 2, 5, 11, 12, 13, 71, 74};
+static const uint8_t NCM_CC[NCM_N] = {1, 2, 5, 11, 71, 74, 12, 13};   /* (as the Circuit sends them, on the device) */
 static const char *const NCM_NAME[NCM_N] = {"OSCILLATOR", "OSC MOD", "AMP ENV", "FILTER ENV", "FILTER FREQ",
                                             "RESONANCE", "MODULATION", "FX"};
 typedef struct {
@@ -227,7 +227,7 @@ static void ncm_block(void)
         if (!mp)
             continue;
         for (m = 0; m < NCM_N; m++) {
-            int32_t c = ncm.cur[part][m], d = ((int32_t)ncm.tgt[part][m] << 8) - c, s = d >> NCM_SLEW;
+            int32_t c0 = ncm.cur[part][m], c = c0, d = ((int32_t)ncm.tgt[part][m] << 8) - c, s = d >> NCM_SLEW;
             if (!d && c == NCM_MID)                         /* at rest in the middle: the sound's values (a write by */
                 continue;                                   /* anyone else meanwhile is the base when it moves: put) */
             c = s ? c + s : c + d;                          /* (the last 1/4 steps: there) */
@@ -241,14 +241,17 @@ static void ncm_block(void)
                 now = ncm_get(t, ds->id);
                 if (now == ncm.put[part][m][k] && !d)       /* a knob at rest off the middle, its value ours: done */
                     continue;
-                if (now != ncm.put[part][m][k])             /* written by someone else (or never by us): the base */
-                    ncm.base[part][m][k] = (int16_t)now;
                 ncm_range(t, ds->id, &lo, &hi);
-                v = ncm.base[part][m][k] + (((c - NCM_MID) * (hi - lo) * ds->a64) >> 20);   /* (64 << 8) * 64 */
+                if (now != ncm.put[part][m][k])             /* written by someone else (or never by us): that value */
+                    ncm.base[part][m][k] = (int16_t)(now - (((c0 - NCM_MID) * (hi - lo) * ds->a64) >> 20));   /* is */
+                v = ncm.base[part][m][k] + (((c - NCM_MID) * (hi - lo) * ds->a64) >> 20);   /* what the knob gives */
+                                                            /* now, the base below it ((64 << 8) * 64) */
                 v = clamp(v, lo, hi);
                 if (v != now) {
-                    if (!there && (ncm.n & NCM_LAZY) && ncm_lazy(t, ds->id))
-                        continue;                           /* (later: put stays what the patch has) */
+                    if (!there && (ncm.n & NCM_LAZY) && ncm_lazy(t, ds->id)) {
+                        ncm.put[part][m][k] = (int16_t)now; /* (later: the patch's value counts as ours, its base */
+                        continue;                           /* taken above) */
+                    }
                     ncm_set(t, ds->id, v);
                 }
                 ncm.put[part][m][k] = (int16_t)v;

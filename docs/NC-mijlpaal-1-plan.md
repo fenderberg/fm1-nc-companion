@@ -123,7 +123,7 @@ Opmerkingen:
 
 ## Stand van zaken (20-10-2026, eind van de dag)
 Gebouwd (branch `nc/setup`, lokaal, niet gepusht):
-- `firmware/src/perf_layer.c`: de macrolaag (CC 1 2 5 11 12 13 71 74 op part L/R, slew ±10 ms, relatief, reset bij
+- `firmware/src/perf_layer.c`: de macrolaag (CC 1 2 5 11 71 74 12 13 op part L/R, slew ±10 ms, relatief, reset bij
   nieuwe sound, snelle route als een knop stilstaat).
 - `firmware/src/live_ui.c`: focus (OCT−/OCT+), PRESETS met pauze, ALGORITHM = FM6-SLOT, scherm met twee kolommen,
   popup met het Circuit-label, opstart: FM6/ANALOG, TRACK op kanaal 3/4, tracks 3/4 stil, geen patronen.

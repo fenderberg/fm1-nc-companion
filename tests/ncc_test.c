@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Host test of NCC (FELUCCA_LIVEUI=1, milestone 1) with the real sources: the macro layer (src/perf_layer.c, the
- * Circuit Tracks' knobs on CC 1 2 5 11 12 13 71 74), FM6's AMP ENV (CEG), the live UI (src/live_ui.c) on the stub panel
+ * Circuit Tracks' knobs on CC 1 2 5 11 71 74 12 13), FM6's AMP ENV (CEG), the live UI (src/live_ui.c) on the stub panel
  * and display of tests/ui_test.c, MIDI IN TRACK on channels 3 / 4, the BPM guard of fx.c beat_samples.
  *   SETUP      the first pass: L FM6, R ANALOG, TRACK on channels 3 / 4, tracks 3 / 4 muted and deaf, no steps
  *   ROUTING    a note on channel 3 plays L, on 4 R, on 1 nothing
@@ -155,7 +155,7 @@ static void slew_test(void)
     base = t->p[P_E4];
     full = ((127 << 8) - (64 << 8)) * (hi - lo) * 32 >> 20;     /* the whole move (before the clamp) */
     want = clamp(base + full, lo, hi);
-    midi(0xB3, 12, 127);                                /* FILTER FREQ on R */
+    midi(0xB3, 71, 127);                                /* FILTER FREQ on R */
     prev = base;
     for (i = 0; i < 40u; i++) {
         blk();
@@ -171,8 +171,8 @@ static void slew_test(void)
     ok("slew: at most a third of the whole move in a block", maxstep * 3 <= full + 2);
     ok("slew: there within 14 blocks (10 ms)", there && there <= 14u);
     for (i = 0; i < 40u; i++)                           /* (the queue holds 64) */
-        midi(0xB3, 12, (i * 37u) & 127u);
-    midi(0xB3, 12, 64);
+        midi(0xB3, 71, (i * 37u) & 127u);
+    midi(0xB3, 71, 64);
     for (i = 0; i < 40u; i++)
         blk();
     ok("slew: 41 CCs in one block, the last one counts (64: the sound's value)", t->p[P_E4] == base);
@@ -184,7 +184,7 @@ static void relative_test(void)
     int32_t loaded;
     uint32_t i;
     power();
-    midi(0xB3, 13, 127);                                /* RESONANCE up */
+    midi(0xB3, 74, 127);                                /* RESONANCE up */
     for (i = 0; i < 30u; i++)
         blk();
     ok("relative: RESONANCE moved off the sound", t->p[P_E5] != ENGINES[ENGI_ANALOG]->presets[t->preset].e[5]);
@@ -198,11 +198,27 @@ static void relative_test(void)
     for (i = 0; i < 5u; i++)
         blk();
     ok("relative: a value written by something else is the new base", t->p[P_E4] == 10);
-    midi(0xB3, 12, 0);
+    midi(0xB3, 71, 0);
     for (i = 0; i < 30u; i++)
         blk();
     ok("relative: clamped to the range (CUT 10, turned all the way down: 0)", t->p[P_E4] == 0);
-    midi(0xB2, 12, 0);                                  /* FILTER FREQ on L: MLVL -64 .. 63 */
+    {                                                   /* the Circuit's FX up, then the panel turns DRIVE down */
+        int32_t up;
+        midi(0xB3, 13, 127);
+        for (i = 0; i < 30u; i++)
+            blk();
+        up = t->p[P_DIST];
+        t->p[P_DIST] = (int16_t)(up - 5);
+        for (i = 0; i < 30u; i++)
+            blk();
+        ok("relative: a knob off the middle: the panel's value stays (DRIVE turned down stays down)",
+           up > 0 && t->p[P_DIST] == up - 5);
+        midi(0xB3, 13, 64);
+        for (i = 0; i < 30u; i++)
+            blk();
+        ok("relative: .. the knob back to the middle: below it by the knob's turn", t->p[P_DIST] < up - 5);
+    }
+    midi(0xB2, 71, 0);                                  /* FILTER FREQ on L: MLVL -64 .. 63 */
     for (i = 0; i < 30u; i++)
         blk();
     ok("relative: FM6's MLVL down by half its range, inside -64 .. 63", trk[0].p[P_E2] < -50 && trk[0].p[P_E2] >= -64);
@@ -289,7 +305,7 @@ static int32_t step_max(int how, uint32_t b0, uint32_t b1)
     midi(0x93, 48, 100);
     for (b = 0; b < b1; b++) {
         if (b == 40u && how == 1)
-            midi(0xB3, 12, 127);
+            midi(0xB3, 71, 127);
         if (b == 40u && how == 2)
             trk[1].p[P_E4] = (int16_t)top;
         blk();
@@ -332,7 +348,7 @@ static void ui_test_ncc(void)
     t_turn(EN_ALGO, 1);
     lv_frame();
     ok("UI: ALGORITHM steps FM6's SLOT", (uint32_t)trk[0].p[P_E7] == i + 1u && fm6_slot[0] == i + 1u);
-    midi(0xB3, 74, 100); blk();
+    midi(0xB3, 13, 100); blk();
     lv_frame();
     ok("UI: the popup shows the knob (R FX 100)", lv.pop_ms != 0u && (ncm_seen & 0xFFFFFFu) == (1u << 16 | 7u << 8 | 100u));
     lv_frames(1100);
@@ -462,7 +478,7 @@ static void juno_test(void)
     track_t *t = &trk[1];
     uint32_t i, k, okv = 1, drift = 0, wild = 0;
     power();
-    midi(0xB3, 12, 127);
+    midi(0xB3, 71, 127);
     for (i = 0; i < 30u; i++)
         blk();
     k = 9;                                              /* HOOVER */
@@ -849,7 +865,7 @@ static void engine_macro_test(void)
         for (i = 0; i < 5u; i++)
             blk();
         base = trk[1].p[WANT[k].id];
-        midi(0xB3, 12, 127);                            /* FILTER FREQ */
+        midi(0xB3, 71, 127);                            /* FILTER FREQ */
         for (i = 0; i < 30u; i++)
             blk();
         okv &= trk[1].p[WANT[k].id] > base;
@@ -913,7 +929,7 @@ static void macro_map_test(void)
     ok("macros: ANALOG SUB: OSCILLATOR says SUB, OSC MOD DTN", !strncmp(r, "SUB ", 4) && !strncmp(l, "DTN ", 4));
     power();                                            /* FM6's MODULATION: under a semitone of vibrato */
     pit = trk[0].p[P_LD_PIT];
-    midi(0xB2, 71, 127);
+    midi(0xB2, 12, 127);
     for (i = 0; i < 30u; i++)
         blk();
     lv_macro_text(0, 2, r);

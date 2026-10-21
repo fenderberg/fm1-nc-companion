@@ -315,7 +315,7 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "DRUM grid stress (#211, ASan / UBSan): random grid editing, locks, undo, engines over a playing synth, the ISR anywhere" \
         "$OUT/drumfuzz" 1 6 1500
     run "DRUM grid stress (#211) with a SONG playing" "$OUT/drumfuzz" 101 3 1500 song
-    # NC: NCC (FELUCCA_LIVEUI=1): the Circuit Tracks' macros (slew, relative to the sound, CC 1 2 5 11 12 13 71 74 on
+    # NC: NCC (FELUCCA_LIVEUI=1): the Circuit Tracks' macros (slew, relative to the sound, CC 1 2 5 11 71 74 12 13 on
     # parts 1 / 2), FM6's AMP ENV, the live UI, MIDI IN TRACK on channels 3 / 4, the BPM 0 guard (tests/ncc_test.c)
     $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/ncc_test" tests/ncc_test.c -lm
     run "NCC: macro layer (slew, relative, own CCs), CEG, live UI (focus, PRESETS, popup), TRACK 3 / 4, BPM 0" "$OUT/ncc_test"
