@@ -173,6 +173,7 @@ static const preset_t LOOP_PRESETS[] = {
     {"FOUR FLOOR BEAT", {3, 0, 0, 127, 0, 0, 0, 0}, {0, 0, 127, 6}, 0, 1, FX(0, 0, 0, 5)},
     {"ELECTRO BEAT", {4, 0, 0, 110, 0, 0, 10, 0}, {0, 0, 127, 6}, 0, 1, FX(0, 0, 10, 5)},
     {"IDM GLITCH BEAT", {5, 0, 20, 100, 10, 0, 30, 20}, {0, 0, 127, 6}, 0, 1, FX(10, 0, 20, 15)},
+    {"AMEN-ISH BREAK", {6, 0, 0, 127, 0, 0, 0, 0}, {0, 0, 127, 6}, 0, 1, FX(0, 0, 0, 10)},
 };
 _Static_assert(NELEM(LOOP_PRESETS) == NLOOP, "a preset per loop (tools/gen_loops.py)");
 

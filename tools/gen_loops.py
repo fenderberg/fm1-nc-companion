@@ -21,7 +21,7 @@ WAVDIR = SRC / "build" / "genwav-loops"     # (its own: gen_samples.py renders b
 RATE, BPM, STEPS = 11025, 120, 32
 
 # (32nd, role, gain); the open hat is choked by the next hat. Names: what they are (ncc_library.c: BEAT)
-K, S, H, O, C, R, T, L, B = "kick", "snare", "chh", "ohh", "clap", "rim", "tomhi", "tomlo", "cowbell"
+K, S, H, O, C, R, T, L, B, D = "kick", "snare", "chh", "ohh", "clap", "rim", "tomhi", "tomlo", "cowbell", "ride"
 LOOPS = [
     ("JUNGLE BREAK", 0.10, [(0, K, 1), (0, H, .5), (4, H, .35), (8, S, 1), (8, H, .45), (12, H, .3), (14, S, .35),
                            (18, K, .8), (20, K, .7), (20, H, .4), (24, S, 1), (24, H, .45), (28, H, .3), (30, S, .5)]),
@@ -38,6 +38,10 @@ LOOPS = [
                               (13, R, .35), (16, T, .4), (17, T, .3), (19, K, .75), (22, S, .5), (23, S, .3),
                               (24, S, .9), (26, H, .3), (27, H, .25), (28, L, .4), (29, R, .4), (30, S, .25),
                               (31, S, .35)]),
+    # the classic break's first bar, played anew on Felucca's drums (the rhythm only: no recording of anyone's):
+    # kick 1 and 1-and, snare 2, its ghosts, kick 3-and twice, snare 4 and the last 16th, a ride on the 8ths
+    ("AMEN-ISH BREAK", 0.06, [(0, K, 1), (4, K, .85), (8, S, 1), (14, S, .55), (18, S, .5), (20, K, .9), (22, K, .75),
+                              (24, S, 1), (30, S, .6)] + [(i, D, .4 if i % 8 else .5) for i in range(0, 32, 4)]),
 ]
 
 

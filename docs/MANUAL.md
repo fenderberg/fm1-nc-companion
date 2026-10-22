@@ -79,7 +79,7 @@ KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. On the 
   KEYS, "STRINGS" is PAD). Sounds whose name doesn't tell show up under **OTHER**.
 - The Juno chorus lives on **FX > CHORUS** (KNOB 3).
 
-There are 87 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK, 6 BEAT (drum loops).
+There are 88 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK, 7 BEAT (drum loops).
 
 ### More FM sounds: load a DX7 bank
 
@@ -98,7 +98,7 @@ The six engines:
 | **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | PD EP, DIGI PIANO, GLASS BELL, MALLET, PD BASS, FOLD LEAD |
 | **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | CHIP BASS, WOBBLE BASS, CHIP KEYS, TOY PIANO, 8BIT PAD, CHIP LEAD |
 | **ACID** | A 303-style bass: saw or square, a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, SOFT BASS, ACID LEAD, ACID PLUCK |
-| **LOOP** | Lo-fi one-bar drum loops that always fit the bar, with IDM-style glitch tricks on the knobs. See [Drum loops](#drum-loops-loop). | JUNGLE BREAK, BOOM BAP BEAT, TWO STEP BEAT, FOUR FLOOR BEAT, ELECTRO BEAT, IDM GLITCH BEAT |
+| **LOOP** | Lo-fi one-bar drum loops that always fit the bar, with IDM-style glitch tricks on the knobs. See [Drum loops](#drum-loops-loop). | JUNGLE BREAK, AMEN-ISH BREAK, BOOM BAP BEAT, TWO STEP BEAT, FOUR FLOOR BEAT, ELECTRO BEAT, IDM GLITCH BEAT |
 
 ## Drum loops (LOOP)
 
@@ -112,7 +112,8 @@ The LOOP engine plays one-bar drum loops in time with the Circuit. Pick one with
   it. The Circuit's scale and key don't matter. So the Circuit's step sequencer becomes the loop's rhythm: one long
   note plays the whole bar; short notes on a few steps chop a new groove out of it. Velocity sets the level.
   **HOLD** or **Drone** keep it open.
-- **Lo-fi on purpose:** 11 kHz, 8 bits. The built-in loops are made from Felucca's own drum sounds.
+- **Lo-fi on purpose:** 11 kHz, 8 bits. The built-in loops are made from Felucca's own drum sounds. AMEN-ISH BREAK
+  plays the famous break's rhythm on those sounds; the original recording is not included (it is copyrighted).
 
 The Circuit's knobs on a loop:
 
