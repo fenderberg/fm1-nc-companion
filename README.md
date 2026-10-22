@@ -40,7 +40,9 @@ Less to learn, more to play: NCC gives you more jam with your Circuit Tracks, no
 1. **Read the [manual](docs/MANUAL.md).** It's short.
 2. **Try it without hardware:** build and open the browser emulator with `sh tools/ncc_demo.sh` (needs Emscripten).
    `DEMO=1 sh tools/ncc_demo.sh` adds a built-in "Circuit" that plays chords and an acid line.
-3. **Install it on your FM-1:** see [Installing](docs/MANUAL.md#installing). Back to stock any time with M-VAVE's
+3. **Manage it from your computer:** `sh tools/ncc_manager.sh` opens the [NCC Manager](docs/MANUAL.md#ncc-manager-web-page):
+   sounds on L/R, your own sounds, DX7 banks, drum loops, backups and settings over USB.
+4. **Install it on your FM-1:** see [Installing](docs/MANUAL.md#installing). Back to stock any time with M-VAVE's
    updater or Felucca's web installer (**Return to official V15**).
 
 Installing firmware is at your own risk.

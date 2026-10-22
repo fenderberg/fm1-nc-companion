@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- NC: the NCC Manager: NCC's sounds, the user's sounds, DX7 banks, drum loops, backups and settings, over USB-MIDI
+     (Web MIDI with SysEx: Chrome or Edge, from localhost or https). tools/ncc_manager.sh builds and serves it; the
+     protocol code is Felucca editor's own (web/editor.html PROTO-BEGIN..END, copied in as proto.js by the script),
+     NCC's commands 96..100 are firmware/src/editor_ncc.c. ?mock=1: a simulated FM-1 with NCC, no device needed. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NCC Manager</title>
+<style>
+:root { --bg: #cbbbe0; --panel: #6a4c9c; --tray: #523a7e; --card: #7c5fae; --edge: #e39ad8; --text: #fdf0ff;
+        --dim: #d9c8ee; --ink: #2a1d40; --l: #4aa3ff; --r: #ff6fb5; --ok: #5fe08a; --warn: #ffcf5a; --bad: #ff6b6b;
+        color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+             font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+         background: var(--panel); color: var(--text); border-radius: 18px; padding: 14px 18px; }
+header h1 { margin: 0; font-size: 20px; letter-spacing: .02em; }
+header small { color: var(--dim); }
+#status { flex: 1 1 260px; color: var(--dim); }
+button { font: inherit; border: 1px solid var(--edge); background: var(--card); color: var(--text); border-radius: 9px;
+         padding: 6px 12px; cursor: pointer; }
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:disabled { opacity: .45; cursor: default; }
+button.l { background: var(--l); border-color: var(--l); color: #06203d; }
+button.r { background: var(--r); border-color: var(--r); color: #3d0623; }
+button.danger { border-color: var(--bad); }
+nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+nav button { background: var(--tray); }
+nav button[aria-selected="true"] { background: var(--edge); color: var(--ink); }
+section { background: var(--panel); color: var(--text); border-radius: 18px; padding: 16px 18px; }
+section[hidden] { display: none; }
+h2 { margin: 0 0 10px; font-size: 17px; }
+p.hint { color: var(--dim); margin: 0 0 12px; }
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.part { background: var(--tray); border-radius: 14px; padding: 12px 14px; border: 2px solid var(--l); }
+.part.R { border-color: var(--r); }
+.part .tag { font-weight: 700; }
+.part .name { font-size: 22px; font-weight: 700; margin: 4px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.chips button { padding: 3px 10px; background: var(--tray); }
+.chips button[aria-pressed="true"] { background: var(--edge); color: var(--ink); }
+input[type=search], input[type=text], input[type=number], select { font: inherit; border: 1px solid var(--edge);
+  background: var(--tray); color: var(--text); border-radius: 8px; padding: 5px 8px; }
+table { width: 100%; border-collapse: collapse; }
+td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,.12); }
+th { color: var(--dim); font-weight: 600; }
+td.act { white-space: nowrap; text-align: right; }
+td.act button { padding: 2px 9px; }
+.list { max-height: 520px; overflow: auto; background: var(--tray); border-radius: 12px; padding: 4px 8px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0; }
+.badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 6px; background: var(--card); color: var(--text); }
+progress { width: 220px; }
+.msg { margin-top: 10px; min-height: 1.4em; }
+.msg.bad { color: #ffd0d0; } .msg.ok { color: #d0ffe0; }
+.drop { border: 2px dashed var(--edge); border-radius: 12px; padding: 18px; text-align: center; color: var(--dim); }
+.drop.over { background: var(--tray); }
+footer { color: #4b3a63; font-size: 12px; margin-top: 18px; }
+@media (max-width: 560px) { header h1 { font-size: 18px; } td.act button { padding: 2px 6px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>NCC Manager</h1><small>Novation Circuit Companion for the M-VAVE FM-1</small></div>
+    <div id="status">Not connected. Connect the FM-1 by USB and press Connect (Chrome or Edge).</div>
+    <button id="connect">Connect</button>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="parts" aria-selected="true">Parts</button>
+    <button data-tab="sounds">Sounds</button>
+    <button data-tab="mine">My sounds</button>
+    <button data-tab="dx7">DX7 bank</button>
+    <button data-tab="loops">Loops</button>
+    <button data-tab="backup">Backup</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <section id="parts">
+    <h2>What the parts play</h2>
+    <p class="hint">Part L follows the Circuit's MIDI 1 track, part R its MIDI 2. Pick sounds on the Sounds tab.</p>
+    <div class="parts" id="partcards"></div>
+    <div class="row"><button id="partsRefresh">Refresh</button></div>
+  </section>
+
+  <section id="sounds" hidden>
+    <h2>Sounds</h2>
+    <p class="hint">Every sound NCC has, by type and engine. Put one on part L or R.</p>
+    <div class="chips" id="typeChips"></div>
+    <div class="chips" id="engChips"></div>
+    <div class="row"><input type="search" id="soundSearch" placeholder="Search by name" aria-label="Search sounds"></div>
+    <div class="list"><table><thead><tr><th>Sound</th><th>Type</th><th>Engine</th><th></th></tr></thead>
+      <tbody id="soundRows"></tbody></table></div>
+  </section>
+
+  <section id="mine" hidden>
+    <h2>My sounds</h2>
+    <p class="hint">The 32 user preset slots. Store what L or R plays now, load it back, rename, erase, or keep them
+      in a file.</p>
+    <div class="row">
+      <label>Store <select id="storePart"><option value="0">L</option><option value="1">R</option></select></label>
+      <label>in slot <select id="storeSlot"></select></label>
+      <label>as <input type="text" id="storeName" maxlength="12" placeholder="NAME" size="12"></label>
+      <button id="storeBtn">Store</button>
+    </div>
+    <div class="list"><table><thead><tr><th>#</th><th>Name</th><th>Engine</th><th></th></tr></thead>
+      <tbody id="mineRows"></tbody></table></div>
+    <div class="row"><button id="mineExport">Save all to a file</button>
+      <label><button id="mineImportBtn">Load a file into the slots</button>
+        <input type="file" id="mineImport" accept=".json,application/json" hidden></label></div>
+  </section>
+
+  <section id="dx7" hidden>
+    <h2>DX7 bank (FM6)</h2>
+    <p class="hint">FM6 plays real DX7 voices. Send a 32-voice bank (.syx) and its voices appear in the Sounds list
+      under FM6, sorted by their names.</p>
+    <div class="row"><strong>On the FM-1:</strong> <span id="bankNow">-</span></div>
+    <div class="drop" id="dxDrop">Drop a .syx file here, or <button id="dxPick">choose one</button>
+      <input type="file" id="dxFile" accept=".syx,.SYX" hidden></div>
+    <div id="dxPreview"></div>
+    <div class="row"><label>Bank name <input type="text" id="dxName" maxlength="10" size="10"></label>
+      <button id="dxSend" disabled>Send to the FM-1</button><progress id="dxProg" max="1" value="0" hidden></progress></div>
+  </section>
+
+  <section id="loops" hidden>
+    <h2>Drum loops</h2>
+    <p class="hint">Your own one-bar drum loops (WAV) for the LOOP engine, in the three user sample slots. Give each
+      file its tempo: the first bar is kept. About three loops fit a slot.</p>
+    <div class="row" id="slotInfo"></div>
+    <div class="drop" id="lpDrop">Drop WAV files here, or <button id="lpPick">choose them</button>
+      <input type="file" id="lpFile" accept=".wav,audio/wav" multiple hidden></div>
+    <div class="list"><table><thead><tr><th>Loop</th><th>BPM</th><th>Length</th><th></th></tr></thead>
+      <tbody id="lpRows"></tbody></table></div>
+    <div class="row"><label>Slot <select id="lpSlot"><option value="0">USR1</option><option value="1">USR2</option>
+      <option value="2">USR3</option></select></label>
+      <label>Name <input type="text" id="lpName" maxlength="8" size="8" value="LOOPS"></label>
+      <button id="lpSend" disabled>Send to the slot</button><progress id="lpProg" max="1" value="0" hidden></progress>
+      <span id="lpSize"></span></div>
+  </section>
+
+  <section id="backup" hidden>
+    <h2>Backup</h2>
+    <p class="hint">Everything on the FM-1 in one file: projects, settings, your sounds, the DX7 bank and the samples.
+      Stop the Circuit first.</p>
+    <div class="row"><button id="bkSave">Save a backup</button>
+      <button id="bkLoadBtn" class="danger">Restore a backup…</button>
+      <input type="file" id="bkLoad" accept=".json,application/json" hidden>
+      <progress id="bkProg" max="1" value="0" hidden></progress></div>
+  </section>
+
+  <section id="settings" hidden>
+    <h2>Settings</h2>
+    <table>
+      <tr><td>Part L listens on</td><td><select id="chL"></select></td></tr>
+      <tr><td>Part R listens on</td><td><select id="chR"></select></td></tr>
+      <tr><td>Output</td><td><select id="split"><option value="1">SPLIT (L left, R right)</option>
+        <option value="0">STEREO</option></select></td></tr>
+      <tr><td>Clock</td><td><select id="clock"><option value="1">USB (the Circuit)</option><option value="0">Internal
+        (BPM)</option><option value="2">TRS MIDI</option></select></td></tr>
+      <tr><td>Tempo now</td><td id="bpm">-</td></tr>
+    </table>
+  </section>
+
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  <footer>NCC, a fork of Felucca by Leo Kuroshita (Hügelton Instruments). GPL-3.0. M-VAVE, FM-1, Novation and Circuit
+    Tracks are trademarks of their respective owners.</footer>
+</main>
+<script src="proto.js"></script>
+<script src="manager.js"></script>
+</body>
+</html>

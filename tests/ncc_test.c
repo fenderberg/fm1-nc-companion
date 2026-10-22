@@ -35,6 +35,8 @@
  *   USER LOOPS a user slot's zones as LOOP sounds (the library, BEAT, the slot's name), decoded in the main loop into
  *              the part's buffer, in time on the beats at 120 and 90 BPM, SHUF on them, an absent zone silent, an
  *              upload decoded again, an emptied slot gone
+ *   EDITOR     the editor protocol's NCC commands (editor_ncc.c): INFO, the library page by page, a sound on a part,
+ *              the parts, the settings (SPLIT / STEREO, channel, filters), bad arguments
  *   NCC SOUNDS each of NCC's own sounds (ncc_presets.c) plays, none silent, none clipping
  *   SOUNDS     the library (ncc_library.c): every factory sound in a category; SELECT the category, ALGORITHM the engine
  *              (after a rest, past the empty ones, the sound kept if it fits), PRESETS through what fits and over the
@@ -57,6 +59,20 @@
 
 static int bad;
 static void ok(const char *what, int c) { bad += check(what, c); }
+
+/* the editor's NCC commands (editor_ncc.c) on their own: its reply bytes into ed_out (editor.c's helpers, here) */
+static uint8_t ed_out[664];
+static uint32_t ed_n;
+static void ed_b(uint32_t v) { if (ed_n < sizeof ed_out) ed_out[ed_n++] = (uint8_t)(v & 127u); }
+static void ed_str(const char *s, uint32_t max)
+{
+    uint32_t i;
+    for (i = 0; s[i] && i < max; i++)
+        ed_b((uint8_t)s[i]);
+    ed_b(0);
+}
+static int32_t ed_rv(const uint8_t *p) { return (int32_t)(p[0] | p[1] << 7) - 8192; }
+#include "../firmware/src/editor_ncc.c"
 
 static void lv_frame(void)
 {
@@ -1092,6 +1108,73 @@ static void user_loop_test(void)
     ok("user loops: the slot emptied: silent, no loop in the library", !lu[1].ready && !lu_name(0, b));
 }
 
+/* the NCC commands: one request -> ed_out / ed_n */
+static uint32_t ncc_req(uint32_t cmd, const uint8_t *a, uint32_t n)
+{
+    ed_n = 0;
+    return ed_ncc_handle(cmd, a, n) ? ed_n : 0u;
+}
+static void editor_ncc_test(void)
+{
+    uint8_t q[4];
+    uint32_t total, got = 0, start, i, at, loopi = 0, found = 0;
+    power();
+    nl_build();
+    ok("editor NCC: INFO says NCC, the types (BEAT among them), the six engines",
+       ncc_req(ED_NCC_INFO, 0, 0) > 0 && !strcmp((const char *)ed_out, "NCC") && memmem(ed_out, ed_n, "BEAT", 5) &&
+       memmem(ed_out, ed_n, "LOOP", 5));
+    for (start = 0;; start += 16u) {                    /* the library, 16 at a time */
+        q[0] = (uint8_t)((start + 8192u) & 127u);
+        q[1] = (uint8_t)((start + 8192u) >> 7);
+        q[2] = 16;
+        ncc_req(ED_NCC_LIB, q, 3);
+        total = (uint32_t)(ed_out[3] | ed_out[4] << 7) - 8192u;
+        for (i = 0, at = 5; i < ed_out[2]; i++, got++) {
+            if (ed_out[at + 1] == ENGI_LOOP && !found)
+                loopi = start + i, found = 1;
+            at += 3;
+            while (ed_out[at++])
+                ;
+        }
+        if (start + 16u >= total)
+            break;
+    }
+    ok("editor NCC: LIB pages through the whole library", total == nl.n && got == nl.n && found);
+    q[0] = 1;
+    q[1] = (uint8_t)((loopi + 8192u) & 127u);
+    q[2] = (uint8_t)((loopi + 8192u) >> 7);
+    ok("editor NCC: LOAD a loop on R: R plays LOOP, L untouched, the focus kept",
+       ncc_req(ED_NCC_LOAD, q, 3) == 2u && ed_out[1] == 0 && trk[1].eng_req == ENGI_LOOP && trk[0].eng_req == ENGI_FM6 &&
+       song.sel == 0u);
+    ncc_req(ED_NCC_PARTS, 0, 0);
+    {
+        uint32_t a0 = 1, e0, e1;
+        e0 = (uint32_t)(ed_out[a0] | ed_out[a0 + 1] << 7) - 8192u;
+        a0 += 6;
+        while (ed_out[a0++])
+            ;
+        e1 = (uint32_t)(ed_out[a0] | ed_out[a0 + 1] << 7) - 8192u;
+        ok("editor NCC: PARTS: R on that loop (its entry, LOOP, channel 4, its name)", ed_out[0] == 2u && e1 == loopi &&
+           ed_out[a0 + 5] == ENGI_LOOP && ed_out[a0 + 4] == 3u && !strcmp((const char *)ed_out + a0 + 6, NLOOP_NAME[0]) &&
+           e0 < nl.n);
+    }
+    q[0] = 1; q[1] = 0;
+    ncc_req(ED_NCC_SET, q, 2);
+    ok("editor NCC: SET STEREO", !NCC_SPLIT() && ed_out[1] == 0);
+    q[1] = 1;
+    ncc_req(ED_NCC_SET, q, 2);
+    ok("editor NCC: SET SPLIT", NCC_SPLIT() && ed_out[1] == 0);
+    q[0] = 0; q[1] = 0; q[2] = 9;
+    ncc_req(ED_NCC_SET, q, 3);
+    ok("editor NCC: SET L's channel to 10", mch_get(0) == 9u && ed_out[1] == 0);
+    q[0] = 3; q[1] = 1; q[2] = NC_BEAT; q[3] = 6;
+    ncc_req(ED_NCC_SET, q, 4);
+    ok("editor NCC: SET R's filters (BEAT / LOOP), its sound kept", lv.cat[1] == NC_BEAT && lv.ep[1] == 6u &&
+       trk[1].eng_req == ENGI_LOOP);
+    q[0] = 0; q[1] = 5; q[2] = 0;
+    ok("editor NCC: bad arguments answer rc 1", ncc_req(ED_NCC_SET, q, 3) == 2u && ed_out[1] == 1);
+}
+
 /* every NCC sound plays: a chord (POLY) or a note (LEGATO) on R, its peak and loudness; none silent, none clipping */
 static void ncc_sounds_test(void)
 {
@@ -1522,6 +1605,7 @@ int main(void)
     engine_ui_test();
     ncc_sounds_test();
     loop_test();
+    editor_ncc_test();
     user_loop_test();
     engine_macro_test();
     macro_map_test();

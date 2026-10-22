@@ -16,6 +16,7 @@ The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and g
 - [Effects (FX)](#effects-fx)
 - [Split or stereo](#split-or-stereo)
 - [Button cheat sheet](#button-cheat-sheet)
+- [NCC Manager (web page)](#ncc-manager-web-page)
 - [Installing](#installing)
 - [Tips](#tips)
 
@@ -226,6 +227,28 @@ effect lasts as long as you hold its key. The PERFORM page shows which key does 
 | Keys | Play the part in focus (with FX open: PERFORM effects) |
 
 Your parts, engines, sounds and effect settings are kept by Felucca's autosave.
+
+## NCC Manager (web page)
+
+A web page to manage the FM-1 from your computer, over USB (Chrome or Edge). Start it with:
+
+```bash
+sh tools/ncc_manager.sh
+```
+
+It opens on `localhost` (Web MIDI only works there or on https). Press **Connect**. The tabs:
+
+- **Parts:** what L and R play, their channel and filters.
+- **Sounds:** the whole library by type and engine, with a search box. **L** / **R** puts a sound on that part.
+- **My sounds:** the 32 user preset slots. Store what L or R plays now, load, rename, erase, and save all of them to
+  a file (or load such a file back).
+- **DX7 bank:** drop a 32-voice `.syx`, see its voices and their types, and send it to FM6.
+- **Loops:** drop WAV drum loops, set each one's tempo (guessed from its length) and listen to the bar that will be
+  kept; then send them to one of the three user sample slots (about three loops per slot). They appear under BEAT.
+- **Backup:** everything on the FM-1 in one file, and back.
+- **Settings:** L's and R's MIDI channel, SPLIT or STEREO, the clock source.
+
+No FM-1 at hand? `http://localhost:8768/?mock=1` simulates one.
 
 ## Installing
 

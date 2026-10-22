@@ -354,6 +354,9 @@ static int ed_flash_stop(void)
 #include "editor_menu.c"
 #include "editor_learn.c"                    /* 1.5: MIDI LEARN's map (cmds 78, 79) */
 #include "editor_palette.c"                  /* 1.6: CUSTOM, the user's palette (cmds 80, 81) */
+#if FELUCCA_LIVEUI
+#include "editor_ncc.c"                      /* NC: NCC's library, parts and settings (cmds 96..100) */
+#endif
 
 /* MOTION's reply: the records of track k as (step, id, v14), a lock's id without its MOTION_LOCK bit (a 7-bit SysEx
  * byte); kinds (1.1: the ops 5..7): then one byte per record, in the same order, 0 automation, 1 lock. The query and
@@ -445,6 +448,9 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
     if (ed_menu_handle(cmd, a, na)) { ed_send(); return; }
     if (ed_learn_handle(cmd, a, na)) { ed_send(); return; }
     if (ed_palette_handle(cmd, a, na)) { ed_send(); return; }
+#if FELUCCA_LIVEUI
+    if (ed_ncc_handle(cmd, a, na)) { ed_send(); return; }   /* NC */
+#endif
     switch (cmd) {
     case ED_MOTION: {
         track_t *t = &trk[a[0]]; uint32_t rc = 0;
