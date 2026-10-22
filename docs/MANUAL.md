@@ -9,6 +9,7 @@ The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and g
 - [The two parts](#the-two-parts)
 - [The screen](#the-screen)
 - [Sounds and engines](#sounds-and-engines)
+- [Drum loops (LOOP)](#drum-loops-loop)
 - [The Circuit's 8 knobs](#the-circuits-8-knobs)
 - [Arp and HOLD](#arp-and-hold)
 - [Drone](#drone)
@@ -59,8 +60,8 @@ The FM-1 has two parts, **L** (blue) and **R** (pink). Each has its own engine, 
 
 ## Sounds and engines
 
-NCC puts the sounds of all five engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
-KEYS, PLUCK**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**):
+NCC puts the sounds of all six engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
+KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**):
 
 | Control | What it does |
 |---|---|
@@ -78,7 +79,7 @@ KEYS, PLUCK**. You choose a sound by its role; the engine follows. On the **SOUN
   KEYS, "STRINGS" is PAD). Sounds whose name doesn't tell show up under **OTHER**.
 - The Juno chorus lives on **FX > CHORUS** (KNOB 3).
 
-There are 81 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK.
+There are 87 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK, 6 BEAT (drum loops).
 
 ### More FM sounds: load a DX7 bank
 
@@ -88,7 +89,7 @@ FM-1 by USB, open Felucca's [web editor](https://hugelton.github.io/Felucca/weba
 import the `.syx` in its FM6 section. The bank's 32 voices then show up in NCC's library under FM6, sorted into
 types by their names ("E.PIANO 1" is KEYS, "SYN-BASS 1" is BASS, "STRINGS 1" is PAD, "TUB BELLS" is PLUCK).
 
-The five engines:
+The six engines:
 
 | Engine | Character | Example sounds |
 |---|---|---|
@@ -97,6 +98,34 @@ The five engines:
 | **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | PD EP, DIGI PIANO, GLASS BELL, MALLET, PD BASS, FOLD LEAD |
 | **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | CHIP BASS, WOBBLE BASS, CHIP KEYS, TOY PIANO, 8BIT PAD, CHIP LEAD |
 | **ACID** | A 303-style bass: saw or square, a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, SOFT BASS, ACID LEAD, ACID PLUCK |
+| **LOOP** | Lo-fi one-bar drum loops that always fit the bar, with IDM-style glitch tricks on the knobs. See [Drum loops](#drum-loops-loop). | JUNGLE BREAK, BOOM BAP BEAT, TWO STEP BEAT, FOUR FLOOR BEAT, ELECTRO BEAT, IDM GLITCH BEAT |
+
+## Drum loops (LOOP)
+
+The LOOP engine plays one-bar drum loops in time with the Circuit. Pick one with SELECT on **BEAT** (or ALGORITHM on
+**LOOP**); each loop is its own sound.
+
+- **Always in the bar.** The loop is cut into 16 slices, and each one starts on its 16th of the Circuit's clock. At
+  any tempo it stays exactly one bar long, without changing pitch (a slower tempo leaves a little air after each
+  slice, a faster one cuts them short).
+- **A note is a gate.** Any note, at any pitch, opens the loop **where the bar is right now**, and the note-off closes
+  it. The Circuit's scale and key don't matter. So the Circuit's step sequencer becomes the loop's rhythm: one long
+  note plays the whole bar; short notes on a few steps chop a new groove out of it. Velocity sets the level.
+  **HOLD** or **Drone** keep it open.
+- **Lo-fi on purpose:** 11 kHz, 8 bits. The built-in loops are made from Felucca's own drum sounds.
+
+The Circuit's knobs on a loop:
+
+| Circuit knob | LOOP |
+|---|---|
+| 1 OSCILLATOR | **Pitch**: the slices faster or slower (±12 semitones), still one per 16th |
+| 2 OSC MOD | **Shuffle**: each slice's chance to be another slice of the bar |
+| 3 AMP ENV | **Gate**: how much of each slice plays, down to blips |
+| 4 FILTER ENV | **Reverse**: each slice's chance to play backwards |
+| 5 FILTER FREQ | **DJ filter**: left a low-pass, right a high-pass |
+| 6 RESONANCE | **Crush**: fewer bits, a lower sample rate |
+| 7 MODULATION | **Stutter**: first random ratchets (2–4 hits in a 16th), further up a beat repeat of 1/8, 1/16, 1/32, 1/64 |
+| 8 FX | Drive + delay send |
 
 ## The Circuit's 8 knobs
 

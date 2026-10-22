@@ -42,6 +42,7 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #endif
 #if FELUCCA_LIVEUI
 #include "eng_acid.c"           /* NC: ACID, NCC's 303 (engine 14) */
+#include "eng_loop.c"           /* NC: LOOP, NCC's drum loops (engine 15) */
 #endif
 
 /* the editor protocol, user presets and projects store these indices: append, never reorder */
@@ -70,6 +71,7 @@ static const engine_t *const ENGINES[NENGINES] = {
 #endif
 #if FELUCCA_LIVEUI
     &ENG_ACID,                   /* 14 (ENGI_ACID): NC, NCC's 303 (eng_acid.c) */
+    &ENG_LOOP,                   /* 15 (ENGI_LOOP): NC, NCC's drum loops (eng_loop.c) */
 #endif
 };
 
@@ -131,7 +133,7 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
     13,                          /* SLICE */
 #endif
 #if FELUCCA_LIVEUI
-    14,                          /* ACID (NC) */
+    14,                          /* ACID (NC; LOOP, 15, is not shown here: core.h NENG_SHOWN) */
 #endif
     10,                          /* DRUM */
 };

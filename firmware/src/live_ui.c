@@ -45,8 +45,8 @@
 #include "ncc_presets.c"                                /* (NCC's own sounds: ncc_snd_load) */
 
 static const uint8_t LV_ENG[LV_PARTS] = {ENGI_FM6, ENGI_ANALOG};   /* (a part with an engine not in LV_ENGS) */
-static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID};
-static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID"};
+static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID, ENGI_LOOP};
+static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID", "LOOP"};
 static int32_t lv_eng_pos(uint32_t e)                  /* e's place in LV_ENGS, -1 none */
 {
     uint32_t i;

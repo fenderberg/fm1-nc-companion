@@ -12,8 +12,8 @@
  * Main loop only. The list is built when it is used (nl_build: ~100 entries, from the presets in flash and the user
  * presets' RAM mirror); the bank voices' names are read from flash once per bank (nl.bsig). */
 
-enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_OTHER, NC_N };
-static const char *const NC_NAME[NC_N] = {"ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "OTHER"};
+enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_BEAT, NC_OTHER, NC_N };
+static const char *const NC_NAME[NC_N] = {"ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"};
 enum { NLK_PRESET, NLK_NCC, NLK_BANK, NLK_USER };
 typedef struct {
     uint8_t kind, eng, k, cat;          /* NLK_*, ENGINES[] index, the preset / Juno sound / bank voice / user slot */
@@ -25,6 +25,7 @@ static const struct {
     const char *kw;
     uint8_t cat;
 } NL_KW[] = {                           /* the first that starts a word of the name wins */
+    {"BEAT", NC_BEAT}, {"BREAK", NC_BEAT}, {"LOOP", NC_BEAT}, {"DRUM", NC_BEAT}, {"GROOVE", NC_BEAT},
     {"BASS", NC_BASS}, {"SUB", NC_BASS}, {"FRETLESS", NC_BASS},
     {"PAD", NC_PAD}, {"STR", NC_PAD}, {"CHOIR", NC_PAD}, {"SWEEP", NC_PAD}, {"WIND", NC_PAD}, {"ATMO", NC_PAD},
     {"VOX", NC_PAD}, {"VOICE", NC_PAD},
@@ -63,7 +64,7 @@ static uint32_t nl_cat(const char *s, uint32_t e)
             if (!kw[j])
                 return NL_KW[r].cat;
         }
-    return e == ENGI_ACID ? NC_BASS : NC_OTHER;
+    return e == ENGI_LOOP ? NC_BEAT : e == ENGI_ACID ? NC_BASS : NC_OTHER;
 }
 
 /* the names of the bank's voices (once per bank: a flash read each) */

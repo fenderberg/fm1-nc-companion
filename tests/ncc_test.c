@@ -30,6 +30,8 @@
  *   SPLIT DAC  one part with FLANGER and Juno chorus, no sends: the other side of the output after MASTER exactly 0;
  *              with sends, throws, THROW: their return on the other side too
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
+ *   LOOP       NCC's drum loop engine: a note of any pitch opens it, in time where the bar is (mid-bar too), a bar at
+ *              90 BPM; SHUF REV STUT CRSH PTCH FILT change it; every loop plays, none clipping
  *   NCC SOUNDS each of NCC's own sounds (ncc_presets.c) plays, none silent, none clipping
  *   SOUNDS     the library (ncc_library.c): every factory sound in a category; SELECT the category, ALGORITHM the engine
  *              (after a rest, past the empty ones, the sound kept if it fits), PRESETS through what fits and over the
@@ -833,6 +835,143 @@ static void screen_test(void)
 }
 
 /* ------------------------------------------------------- milestone 4 --- */
+/* LOOP: R plays loop preset lp with p's E values changed by set (id, value pairs, -1 ends), a note (pitch) opened
+ * at sample `from` of a bar for `len` samples; out: the right output of a bar and a half (from the bar's start) */
+static int32_t loop_out[132300];
+static void loop_play(uint32_t lp, const int16_t *set, uint32_t note, uint32_t from, uint32_t len, uint32_t bpm)
+{
+    uint32_t b, i, at, nb = 132300u / CTL + 2u;
+    power();
+    fx_quiet();
+    song.g[G_BPM] = (int16_t)bpm;
+    set_engine_of(&trk[1], ENGI_LOOP);
+    apply_preset_to(&trk[1], lp);
+    trk[1].p[P_DLY] = trk[1].p[P_REV] = trk[1].p[P_CHOR] = trk[1].p[P_DIST] = 0;
+    for (; set && set[0] >= 0; set += 2)
+        trk[1].p[set[0]] = set[1];
+    lv_frame();
+    memset(loop_out, 0, sizeof loop_out);
+    while (ncc_bar % (4u * beat_samples()) > CTL)       /* (to the start of a bar) */
+        blk();
+    at = ncc_bar % (4u * beat_samples());               /* (kept by the bar's place: every run alike) */
+    for (b = 0; b < nb; b++, at += CTL) {
+        if (from + CTL > at && from <= at)
+            midi(0x93, note, 100);
+        if (from + len + CTL > at && from + len <= at)
+            midi(0x83, note, 0);
+        blk();
+        for (i = 0; i < CTL; i++)
+            if (at + i < 132300u)
+                loop_out[at + i] = blk_out[2u * i + 1u];
+    }
+}
+static int64_t loop_energy(uint32_t from, uint32_t to)
+{
+    int64_t e = 0;
+    for (; from < to; from++)
+        e += (int64_t)(loop_out[from] >> 4) * (loop_out[from] >> 4);
+    return e;
+}
+static uint64_t loop_hash(uint32_t from, uint32_t to)
+{
+    uint64_t h = 1469598103934665603ull;
+    for (; from < to; from++)
+        h = (h ^ (uint32_t)loop_out[from]) * 1099511628211ull;
+    return h;
+}
+/* the share (of 1000) of the bar's samples that are not as ref's (beyond two runs' small MASTER differences) */
+static uint32_t loop_unlike(const int32_t *ref, uint32_t bar)
+{
+    uint32_t i, far = 0;
+    for (i = 64; i < bar; i++) {
+        int32_t d = loop_out[i] - ref[i];
+        far += (d < 0 ? -d : d) > ((ref[i] < 0 ? -ref[i] : ref[i]) >> 3) + 1024;
+    }
+    return far * 1000u / (bar - 64u);
+}
+/* the energy of (out - ref) against ref's, per 1000 */
+static uint32_t loop_err(const int32_t *ref, uint32_t bar)
+{
+    int64_t e = 0, r = 0;
+    uint32_t i;
+    for (i = 64; i < bar; i++) {
+        int32_t d = (loop_out[i] - ref[i]) >> 4, q = ref[i] >> 4;
+        e += (int64_t)d * d;
+        r += (int64_t)q * q;
+    }
+    return r ? (uint32_t)(e * 1000 / r) : 0u;
+}
+static void loop_test(void)
+{
+    static int32_t ref[132300];
+    static const int16_t SHUF[] = {P_E2, 127, -1}, REV[] = {P_E4, 127, -1}, STUT[] = {P_E7, 100, -1},
+                         CRSH[] = {P_E6, 110, -1}, FILT[] = {P_E5, -60, -1}, PTCH[] = {P_E1, 7, -1};
+    uint32_t bar = 88200u, i, near = 0, n = 0;
+    int64_t e0, ehi0 = 0, ehi1 = 0;
+    loop_play(0, 0, 60, 0, 0, 120);
+    ok("LOOP: no note, no sound", loop_energy(0, 132300) == 0);
+    loop_play(0, 0, 60, 0, bar + bar / 2, 120);
+    e0 = loop_energy(0, bar);
+    memcpy(ref, loop_out, sizeof ref);
+    ok("LOOP: a note opens it (JUNGLE BREAK, a bar)", e0 > 0);
+    loop_play(0, 0, 37, 0, bar + bar / 2, 120);
+    for (i = 64; i < bar; i++) {                        /* (as alike as two runs of one note: MASTER's state) */
+        int32_t d = loop_out[i] - ref[i];
+        near += (d < 0 ? -d : d) <= ((ref[i] < 0 ? -ref[i] : ref[i]) >> 3) + 1024;
+        n++;
+    }
+    ok("LOOP: any note, any pitch: the same loop (the Circuit's scale does not matter)", near * 100u >= n * 99u);
+    near = n = 0;
+    loop_play(0, 0, 60, bar / 2 + 1000, bar, 120);      /* opened mid-bar: the second half as it is in the bar */
+    for (i = bar / 2 + 1200; i < bar; i++) {
+        int32_t d = loop_out[i] - ref[i];
+        near += (d < 0 ? -d : d) <= ((ref[i] < 0 ? -ref[i] : ref[i]) >> 3) + 64;
+        n++;
+    }
+    printf("ncc: LOOP: opened mid-bar, %u of %u samples as the full bar's\n", near, n);
+    ok("LOOP: a note mid-bar plays the loop where the bar is (in time, no waiting)", near * 10u >= n * 9u &&
+       loop_energy(0, bar / 2 + 1000) == 0);
+    loop_play(0, 0, 60, 0, bar * 2u, 90);                /* 90 BPM: a bar is 117600 samples, the loop still fits */
+    {
+        int64_t a = loop_energy(0, 117600u / 4u), b2 = loop_energy(117600u, 132300u);
+        ok("LOOP: at 90 BPM the bar still starts with the loop's start (its first hit again at the next bar)",
+           a > 0 && b2 > 0);
+    }
+    loop_play(0, SHUF, 60, 0, bar, 120);
+    ok("LOOP: SHUF 127 shuffles the slices", loop_unlike(ref, bar) > 100u && loop_energy(0, bar) > 0);
+    loop_play(0, REV, 60, 0, bar, 120);
+    ok("LOOP: REV 127 plays slices backwards", loop_unlike(ref, bar) > 100u && loop_energy(0, bar) > 0);
+    loop_play(0, STUT, 60, 0, bar, 120);
+    ok("LOOP: STUT 100 (beat repeat 1/32) repeats", loop_unlike(ref, bar) > 100u && loop_energy(0, bar) > 0);
+    loop_play(0, CRSH, 60, 0, bar, 120);
+    printf("ncc: LOOP: CRSH 110, error energy %u / 1000\n", loop_err(ref, bar));
+    ok("LOOP: CRSH crushes", loop_err(ref, bar) > 50u && loop_energy(0, bar) > 0);
+    loop_play(0, PTCH, 60, 0, bar, 120);
+    ok("LOOP: PTCH +7 plays the slices faster", loop_unlike(ref, bar) > 100u && loop_energy(0, bar) > 0);
+    for (i = 1; i < bar; i++) {
+        int32_t d = ref[i] - ref[i - 1];
+        ehi0 += (int64_t)(d >> 4) * (d >> 4);
+    }
+    loop_play(0, FILT, 60, 0, bar, 120);
+    for (i = 1; i < bar; i++) {
+        int32_t d = loop_out[i] - loop_out[i - 1];
+        ehi1 += (int64_t)(d >> 4) * (d >> 4);
+    }
+    ok("LOOP: FILT -60 (the low-pass) takes the highs off", ehi1 * 4 < ehi0 && loop_energy(0, bar) > 0);
+    {
+        uint32_t k, peakok = 1;
+        for (k = 0; k < NLOOP; k++) {
+            int32_t pk = 0;
+            loop_play(k, 0, 60, 0, bar, 120);
+            for (i = 0; i < bar; i++)
+                pk = loop_out[i] > pk ? loop_out[i] : -loop_out[i] > pk ? -loop_out[i] : pk;
+            printf("ncc: LOOP %-16s peak %d\n", NLOOP_NAME[k], pk);
+            peakok &= pk > 2000 && pk < 32000;
+        }
+        ok("LOOP: every loop plays, none clipping", peakok);
+    }
+}
+
 /* every NCC sound plays: a chord (POLY) or a note (LEGATO) on R, its peak and loudness; none silent, none clipping */
 static void ncc_sounds_test(void)
 {
@@ -900,11 +1039,11 @@ static void engine_ui_test(void)
         n[nl.s[i].cat]++;
         user += nl.s[i].kind == NLK_USER;
     }
-    printf("ncc: library: %u sounds, BASS %u PAD %u LEAD %u KEYS %u PLUCK %u OTHER %u\n", nl.n, n[NC_BASS], n[NC_PAD],
-           n[NC_LEAD], n[NC_KEYS], n[NC_PLUCK], n[NC_OTHER]);
+    printf("ncc: library: %u sounds, BASS %u PAD %u LEAD %u KEYS %u PLUCK %u BEAT %u OTHER %u\n", nl.n, n[NC_BASS],
+           n[NC_PAD], n[NC_LEAD], n[NC_KEYS], n[NC_PLUCK], n[NC_BEAT], n[NC_OTHER]);
     ok("sounds: the library holds the five engines' factory sounds and NCC's own, each in a category (none OTHER)",
-       nl.n - user == 51u + NCC_NSND - 12u && n[NC_OTHER] == 0u && n[NC_BASS] == 18u && n[NC_PAD] == 15u &&
-       n[NC_LEAD] == 20u && n[NC_KEYS] == 13u && n[NC_PLUCK] == 15u);
+       nl.n - user == 51u + NCC_NSND - 12u + NLOOP && n[NC_OTHER] == 0u && n[NC_BASS] == 18u && n[NC_PAD] == 15u &&
+       n[NC_LEAD] == 20u && n[NC_KEYS] == 13u && n[NC_PLUCK] == 15u && n[NC_BEAT] == NLOOP);
     ok("sounds: names of other sounds: E.PIANO 1 KEYS, Strings 2 PAD, DEEP BASS BASS, POLY SYNTH KEYS, WEIRD OTHER",
        nl_cat("E.PIANO 1", ENGI_FM6) == NC_KEYS && nl_cat("Strings 2", ENGI_FM6) == NC_PAD &&
        nl_cat("DEEP BASS", ENGI_ACID) == NC_BASS && nl_cat("POLY SYNTH", ENGI_ANALOG) == NC_KEYS &&
@@ -1262,6 +1401,7 @@ int main(void)
     split_dac_test();
     engine_ui_test();
     ncc_sounds_test();
+    loop_test();
     engine_macro_test();
     macro_map_test();
     acid_test();

@@ -887,6 +887,7 @@ static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67
 #endif
 #if FELUCCA_LIVEUI
                                              90,                 /* NC: ACID (one voice, the ladder) */
+                                             60,                 /* NC: LOOP (one voice, a read, the SVF) */
 #endif
 };
 #endif

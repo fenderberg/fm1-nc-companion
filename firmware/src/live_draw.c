@@ -254,7 +254,7 @@ static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
     id = mp->d[m][0].id;
     v = ncm_get(t, id);
     d = id == NCM_CEG ? 0 : track_desc(t, id);
-    str_cpy(s, mp->show[m] ? mp->show[m] : d ? d->label : "", 9);
+    str_cpy(s, mp->show[m] ? mp->show[m] : d ? d->label : "", 11);
     n = str_len(s);
     s[n++] = ' ';
     if (!d) {                                           /* FM6's CEG: the offset, + slower */

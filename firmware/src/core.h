@@ -32,12 +32,13 @@
 #define FELUCCA_LIVEUI 0                 /* NC: (felucca.c's default; the host tests may include this first) */
 #endif
 #if FELUCCA_LIVEUI
-#define NENGINES 15                      /* NC: NCC's ACID is 14 (eng_acid.c; 13 a reserved slot without SLICE) */
+#define NENGINES 16                      /* NC: NCC's ACID is 14, LOOP 15 (eng_acid.c, eng_loop.c; 13 a reserved slot without SLICE) */
 #else
 #define NENGINES (13 + FELUCCA_SLICE)   /* SLICE (13) comes last: the other engines keep their numbers */
 #endif
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
-#define NENG_SHOWN (NENGINES - !FELUCCA_FM4 - (FELUCCA_LIVEUI && !FELUCCA_SLICE))   /* (NC: its reserved 13) */   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
+#define NENG_SHOWN (NENGINES - !FELUCCA_FM4 - (FELUCCA_LIVEUI && !FELUCCA_SLICE) - FELUCCA_LIVEUI)   /* (NC: its reserved 13;
+                                                 * LOOP, 15, only in NCC's own list: the EDIT layer has 16 white keys) */   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 

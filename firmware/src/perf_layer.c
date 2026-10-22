@@ -106,6 +106,18 @@ static const ncm_map_t NCM_MAP[] = {
     },
         {"WAVE", "ACCENT", "DEC+REL", "ENV MOD", "CUTOFF", "RESO", "SLIDE", "DRIVE"},
     },
+    {ENGI_LOOP, {                                 /* (NCC's drum loops, eng_loop.c: IDM tricks on the knobs) */
+        {{P_E1, 64}, {NCM_NONE, 0}},              /* OSCILLATOR   PTCH, the slices' speed: +-12 semitones */
+        {{P_E2, 64}, {NCM_NONE, 0}},              /* OSC MOD      SHUF, the beat shuffle */
+        {{P_E3, 64}, {NCM_NONE, 0}},              /* AMP ENV      GATE, how much of each slice */
+        {{P_E4, 64}, {NCM_NONE, 0}},              /* FILTER ENV   REV, the slices backwards */
+        {{P_E5, 64}, {NCM_NONE, 0}},              /* FILTER FREQ  FILT, the DJ filter */
+        {{P_E6, 64}, {NCM_NONE, 0}},              /* RESONANCE    CRSH, bit and rate crush */
+        {{P_E7, 64}, {NCM_NONE, 0}},              /* MODULATION   STUT, ratchets, then beat repeat */
+        {{P_DIST, 32}, {P_DLY, 32}},              /* FX           drive, delay send */
+    },
+        {"PITCH", "SHUFFLE", "GATE", "REVERSE", "DJ FILTER", "CRUSH", "STUTTER", "DRIVE"},
+    },
 };
 
 static struct {
