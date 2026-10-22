@@ -438,6 +438,7 @@ static void live_input(void)
     midi_take();                                        /* what ui_input keeps up besides the panel */
     midi_pc_poll();
     fm6_poll();
+    loop_user_poll();                                   /* (LOOP: a user loop picked, decoded a piece a pass) */
 #if !FELUCCA_FM4
     for (k = 0; k < NTRK; k++)
         if (trk[k].eng_req == ENGI_DIGITAL)

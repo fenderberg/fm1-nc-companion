@@ -16,6 +16,11 @@
  *   CRSH  bit and rate crush (16 down to 3 bits, a held sample for 1 .. 24 samples)
  *   STUT  1 .. 63: each 16th's chance of a ratchet (2, 3 or 4 hits of its slice); 64 .. 127: beat repeat, the slice
  *         caught when it began repeats every 1/8, 1/16, 1/32, 1/64 (the higher, the faster)
+ * YOUR OWN LOOPS: each zone of a user sample slot (USR1..3, uploaded with the web editor, IMA ADPCM: eng_sample.c,
+ * SLICE's material slc_usr, eng_slice.c) is a one-bar loop: LOOP values NLOOP + slot * 16 + zone (the library lists
+ * them as sounds, ncc_library.c). Picked on a part, it is decoded in the main loop (loop_user_poll, LU_STEP samples a
+ * call: never in the audio ISR) into the part's own buffer as 8 bits, every k-th sample averaged so a bar fits in
+ * LU_MAX (a bar at 120 BPM: ~7 kHz, lo-fi like the built-in ones); it plays like them once ready (silent until then).
  * One voice (LEGATO: overlapping notes keep it open). Integers only: the position in Q16 source samples, the speed a
  * table, the filter Simper's SVF with Q16 coefficients (one divide a block, 32 bits), 64-bit products only.
  * State: per voice ph[0] the read position, ph[1] the slice's end (backwards: its start), s[0] the 16th / sub-hit,
@@ -23,10 +28,18 @@
  * + 1 (beat repeat), s[7] the hits in this 16th; per part the random state and the crush's held sample. */
 
 #include "ncc_loops.h"                  /* (build/gen: tools/gen_loops.py) */
+#if !FELUCCA_SLICE
+#error "LOOP: its user loops are SLICE's material (eng_slice.c slc_usr): build with FELUCCA_SLICE=1"
+#endif
 
 #define ENGI_LOOP 15u                   /* engines.c ENGINES[] (append-only) */
 #define LP_SLICES 16u
 #define LP_FADE 48                      /* samples of a slice's fade in / out (~1 ms) */
+
+#define LU_PARTS 2u                     /* (NCC's parts L, R) */
+#define LU_N (SMP_USER_SLOTS * SLC_SEGS)  /* user loops: a slot's zones */
+#define LU_MAX 16384u                   /* a user loop's samples in RAM at most (8 bits) */
+#define LU_STEP 4096u                   /* source samples decoded per main loop call */
 
 static uint32_t ncc_bar;                /* (ncc_seq.c: samples into the bar at this block's start) */
 static uint32_t beat_samples(void);     /* (fx.c) */
@@ -37,6 +50,118 @@ typedef struct {
     uint32_t hold_n;
 } loop_part_t;
 ENG_MEM_FITS("LOOP", sizeof(loop_part_t));
+
+/* a user loop in RAM, per part: the main loop writes it (ready 0 meanwhile), the audio ISR reads it once ready */
+static int8_t lu_buf[LU_PARTS][LU_MAX] __attribute__((section(".pool")));
+static struct {
+    volatile uint8_t ready;             /* 1: buf / len / rate hold user loop u (the ISR plays it) */
+    uint8_t u;                          /* the user loop it holds */
+    uint32_t len, rate;                 /* samples in buf, their rate (Hz) */
+    uint32_t sig;                       /* what it was decoded from: u + 1 | smp_user_gen << 8 (0: nothing) */
+    uint32_t at, end, k, na;            /* decoding: the source position, its end, the samples averaged, so far */
+    int32_t acc;                        /* .. their sum */
+    slc_dec_t d;
+} lu[LU_PARTS];
+
+/* the loop a part plays: *d its samples, *len, *rate (Hz); 0 = none (a user loop not ready, an empty zone) */
+static int loop_src(const track_t *t, const int8_t **d, uint32_t *len, uint32_t *rate)
+{
+    uint32_t e0 = (uint32_t)clamp(t->p[P_E0], 0, NLOOP + LU_N - 1), part = (uint32_t)(t - trk);
+    if (e0 < NLOOP) {
+        *d = NLOOP_DATA + NLOOP_OFF[e0];
+        *len = NLOOP_OFF[e0 + 1] - NLOOP_OFF[e0];
+        *rate = NLOOP_RATE;
+        return 1;
+    }
+    if (part >= LU_PARTS || !lu[part].ready || lu[part].u != e0 - NLOOP || lu[part].len < LP_SLICES)
+        return 0;
+    *d = lu_buf[part];
+    *len = lu[part].len;
+    *rate = lu[part].rate;
+    return 1;
+}
+
+/* user loop u's material: the slot's slice source *s and its zone, 0 = none (an empty slot, no such zone) */
+static const slc_seg_t *lu_seg(uint32_t u, const slc_src_t **s)
+{
+    *s = u < LU_N ? slc_get(u / SLC_SEGS + 1u) : 0;
+    return *s && u % SLC_SEGS < (*s)->nseg ? &(*s)->seg[u % SLC_SEGS] : 0;
+}
+
+/* user loop u's name (b holds 16): the slot's name (its upload's; "USR1" without one), the zone's number when the
+ * slot holds more than one loop; 0 = no such loop (main loop: the header read from flash) */
+static int lu_name(uint32_t u, char *b)
+{
+    const slc_src_t *s;
+    const smp_user_hdr_t *h;
+    uint32_t i, n = 0, z = u % SLC_SEGS + 1u;
+    if (!lu_seg(u, &s))
+        return 0;
+    h = (const smp_user_hdr_t *)smp_user_xip(u / SLC_SEGS);
+    for (i = 0; i < 8u && h->name[i] > ' ' && h->name[i] < 127; i++)
+        b[n++] = h->name[i] >= 'a' && h->name[i] <= 'z' ? (char)(h->name[i] - 32) : h->name[i];
+    if (!n) {
+        str_cpy(b, SMP_ALL_NAMES[SMP_NSETS + u / SLC_SEGS], 6);
+        n = str_len(b);
+    }
+    if (s->nseg > 1u) {                                 /* " 3" */
+        b[n++] = ' ';
+        if (z >= 10u)
+            b[n++] = (char)('0' + z / 10u);
+        b[n++] = (char)('0' + z % 10u);
+    }
+    b[n] = 0;
+    return 1;
+}
+
+/* main loop (live_ui.c, every pass): a part on a user loop gets it decoded, LU_STEP source samples a call */
+static void loop_user_poll(void)
+{
+    uint32_t part;
+    for (part = 0; part < LU_PARTS; part++) {
+        const track_t *t = &trk[part];
+        const slc_src_t *s;
+        const slc_seg_t *g;
+        uint32_t u, sig, i;
+        if (t->eng_req != ENGI_LOOP || t->p[P_E0] < (int16_t)NLOOP)
+            continue;
+        u = (uint32_t)clamp(t->p[P_E0], NLOOP, NLOOP + LU_N - 1) - NLOOP;
+        sig = (u + 1u) | smp_user_gen << 8;
+        g = lu_seg(u, &s);
+        if (lu[part].sig != sig) {                      /* another loop (or the slot uploaded again): from its start */
+            lu[part].ready = 0;
+            RING_PUBLISH();
+            lu[part].sig = sig;
+            lu[part].u = (uint8_t)u;
+            lu[part].len = 0;
+            if (!g || !g->n)
+                continue;                               /* (no such zone: silent) */
+            lu[part].k = (g->n + LU_MAX - 1u) / LU_MAX;
+            lu[part].at = g->at;
+            lu[part].end = g->at + g->n;
+            lu[part].acc = 0;
+            lu[part].na = 0;
+            lu[part].rate = ((s->rate >> 4) * 44100u >> 12) / lu[part].k;   /* (rate: / 44100 in Q16) */
+            slc_dec_at(&lu[part].d, g->at, (uint32_t)(g - s->seg) << 24);   /* a zone's data starts from 0 / 0 */
+        }
+        if (lu[part].ready || !g || lu[part].at >= lu[part].end)
+            continue;
+        for (i = 0; i < LU_STEP && lu[part].at < lu[part].end; i++, lu[part].at++) {
+            lu[part].acc += slc_dec_next(s, &lu[part].d);
+            if (++lu[part].na == lu[part].k) {          /* k samples averaged into one, 8 bits */
+                int32_t x = lu[part].acc / (int32_t)lu[part].k;
+                if (lu[part].len < LU_MAX)
+                    lu_buf[part][lu[part].len++] = (int8_t)clamp((x + 128) >> 8, -127, 127);
+                lu[part].acc = 0;
+                lu[part].na = 0;
+            }
+        }
+        if (lu[part].at >= lu[part].end) {
+            RING_PUBLISH();
+            lu[part].ready = 1;
+        }
+    }
+}
 
 static loop_part_t *loop_part(track_t *t) { return (loop_part_t *)ENG_MEM((uint32_t)(t - trk) % NPART); }
 
@@ -68,8 +193,11 @@ static void loop_hit(track_t *t, voice_t *v, uint32_t k, uint32_t j, uint32_t of
 {
     const int16_t *p = t->p;
     loop_part_t *a = loop_part(t);
-    uint32_t lp = (uint32_t)p[P_E0] % NLOOP, len = NLOOP_OFF[lp + 1] - NLOOP_OFF[lp], sl = len / LP_SLICES;
-    uint32_t src = k, stut = (uint32_t)clamp(p[P_E7], 0, 127), rev, span = sl;
+    const int8_t *d;
+    uint32_t len = 0, rate, sl, src = k, stut = (uint32_t)clamp(p[P_E7], 0, 127), rev, span;
+    if (!loop_src(t, &d, &len, &rate))
+        len = 0;
+    span = sl = len / LP_SLICES;
     if (stut >= 64u) {                                  /* beat repeat: the slice caught when the repeat began */
         if (!v->s[6])
             v->s[6] = (int32_t)k + 1;
@@ -99,15 +227,15 @@ static void loop_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
 {
     const int16_t *p = t->p;
     loop_part_t *a = loop_part(t);
-    uint32_t lp = (uint32_t)p[P_E0] % NLOOP, base = NLOOP_OFF[lp], len = NLOOP_OFF[lp + 1] - base;
+    const int8_t *d = NLOOP_DATA;
+    uint32_t len = 0, rate = NLOOP_RATE, have = (uint32_t)loop_src(t, &d, &len, &rate);
     uint32_t bar = 4u * beat_samples(), i, stut = (uint32_t)clamp(p[P_E7], 0, 127), unit, sub, grp, k, pos, inc;
     uint32_t crush = (uint32_t)clamp(p[P_E6], 0, 127), hold = 1u + crush * 23u / 127u, bits = 16u - crush * 13u / 127u;
     int32_t f = clamp(p[P_E5], -64, 63), ic1 = v->s[4], ic2 = v->s[5], a1 = 0, a2 = 0, a3 = 0, kq = 5000, g;
-    const int8_t *d = NLOOP_DATA + base;
     if (bar < 4u * LP_SLICES * 16u)
         bar = 4u * LP_SLICES * 16u;
     unit = bar / LP_SLICES;
-    inc = (((uint32_t)NLOOP_RATE << 16) / FS * LP_SEMI[clamp(p[P_E1], -12, 12) + 12]) >> 16;   /* (<= 2^31: 32 bits) */
+    inc = ((rate << 16) / FS * LP_SEMI[clamp(p[P_E1], -12, 12) + 12]) >> 16;   /* (rate <= 22050: 32 bits) */
     if (f) {                                            /* FILT: the SVF's coefficients (Simper), a divide a block */
         g = SVF_G[f < 0 ? clamp(127 + 2 * f, 0, 127) : clamp(2 * f, 0, 127)];
         a1 = (int32_t)((1u << 28) / (4096u + (uint32_t)((g * (g + kq)) >> 12)));
@@ -136,7 +264,7 @@ static void loop_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
             v->s[0] = (int32_t)(k << 4 | j);
             loop_hit(t, v, k, j, off, hl, inc);
         }
-        if (v->s[1] > 0 && (v->s[2] ? v->ph[0] >= v->ph[1] && v->ph[0] < len << 16 : v->ph[0] < v->ph[1])) {
+        if (have && v->s[1] > 0 && (v->ph[0] >> 16) < len && (v->s[2] ? v->ph[0] >= v->ph[1] && v->ph[0] < len << 16 : v->ph[0] < v->ph[1])) {
             uint32_t ix = v->ph[0] >> 16, fr = v->ph[0] & 0xFFFFu, ix2 = ix + 1u < len ? ix + 1u : 0u;
             x = ((int32_t)d[ix] * (int32_t)(65536u - fr) + (int32_t)d[ix2] * (int32_t)fr) >> 8;   /* 16 bits */
             v->ph[0] = v->s[2] ? v->ph[0] - inc : v->ph[0] + inc;
@@ -177,11 +305,16 @@ static const preset_t LOOP_PRESETS[] = {
 };
 _Static_assert(NELEM(LOOP_PRESETS) == NLOOP, "a preset per loop (tools/gen_loops.py)");
 
+/* LOOP's values: the built-in loops, then USR1 1 .. USR3 16 (a user slot's zones) */
+#define LU_NAMES(s) s " 1", s " 2", s " 3", s " 4", s " 5", s " 6", s " 7", s " 8", s " 9", s " 10", s " 11", \
+                    s " 12", s " 13", s " 14", s " 15", s " 16"
+static const char *const N_LOOP[NLOOP + LU_N + 1] = {NLOOP_NAMES, LU_NAMES("USR1"), LU_NAMES("USR2"), LU_NAMES("USR3"), 0};
+
 static const engine_t ENG_LOOP = {
     .name = "LOOP",
     .page_title = {"LOOP", "FX"},
     .edit = {
-        {"LOOP", F_ENUM, 0, NLOOP - 1, 0, NLOOP_NAME, 0},
+        {"LOOP", F_ENUM, 0, NLOOP + LU_N - 1, 0, N_LOOP, 0},
         {"PTCH", F_INT, -12, 12, 0, 0, "st"},
         {"SHUF", F_PCT, 0, 127, 0, 0, 0},
         {"GATE", F_PCT, 0, 127, 127, 0, 0},

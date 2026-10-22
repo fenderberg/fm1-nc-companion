@@ -115,6 +115,20 @@ The LOOP engine plays one-bar drum loops in time with the Circuit. Pick one with
 - **Lo-fi on purpose:** 11 kHz, 8 bits. The built-in loops are made from Felucca's own drum sounds. AMEN-ISH BREAK
   plays the famous break's rhythm on those sounds; the original recording is not included (it is copyrighted).
 
+### Your own loops
+
+You can play your own one-bar drum loops (your copy of the Amen break, say) the same way, with all the knobs below:
+
+1. Cut each loop to **exactly one bar** (any tempo) and save it as a WAV.
+2. Connect the FM-1 by USB, open Felucca's [web editor](https://hugelton.github.io/Felucca/webapp/editor/) in Chrome
+   or Edge and upload the WAVs into a **user sample slot** (USR1, USR2 or USR3). Give the slot a name, e.g. `AMEN`.
+   Every sample (zone) in the slot becomes one loop; a slot holds about 7 seconds of audio in total.
+3. In NCC, set SELECT to **BEAT** (or ALGORITHM to **LOOP**): your loops are in the list, named after the slot
+   (`AMEN`, or `AMEN 1`, `AMEN 2` .. when the slot holds more than one), next to the built-in ones.
+
+When you pick one, NCC prepares it in a split second (silent meanwhile) and keeps it lo-fi like the built-in loops
+(8 bits, about 7 kHz for a bar at 120 BPM). Your loops stay on your FM-1; they are not part of NCC.
+
 The Circuit's knobs on a loop:
 
 | Circuit knob | LOOP |

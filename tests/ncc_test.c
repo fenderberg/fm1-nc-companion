@@ -32,6 +32,9 @@
  *   SCREEN     the head's block in the focused part's colour; the labels fit their cells
  *   LOOP       NCC's drum loop engine: a note of any pitch opens it, in time where the bar is (mid-bar too), a bar at
  *              90 BPM; SHUF REV STUT CRSH PTCH FILT change it; every loop plays, none clipping
+ *   USER LOOPS a user slot's zones as LOOP sounds (the library, BEAT, the slot's name), decoded in the main loop into
+ *              the part's buffer, in time on the beats at 120 and 90 BPM, SHUF on them, an absent zone silent, an
+ *              upload decoded again, an emptied slot gone
  *   NCC SOUNDS each of NCC's own sounds (ncc_presets.c) plays, none silent, none clipping
  *   SOUNDS     the library (ncc_library.c): every factory sound in a category; SELECT the category, ALGORITHM the engine
  *              (after a rest, past the empty ones, the sound kept if it fits), PRESETS through what fits and over the
@@ -849,6 +852,8 @@ static void loop_play(uint32_t lp, const int16_t *set, uint32_t note, uint32_t f
     trk[1].p[P_DLY] = trk[1].p[P_REV] = trk[1].p[P_CHOR] = trk[1].p[P_DIST] = 0;
     for (; set && set[0] >= 0; set += 2)
         trk[1].p[set[0]] = set[1];
+    for (i = 0; i < 24u; i++)
+        loop_user_poll();                               /* (a user loop: decoded, as the main loop would) */
     lv_frame();
     memset(loop_out, 0, sizeof loop_out);
     while (ncc_bar % (4u * beat_samples()) > CTL)       /* (to the start of a bar) */
@@ -970,6 +975,121 @@ static void loop_test(void)
         }
         ok("LOOP: every loop plays, none clipping", peakok);
     }
+}
+
+/* a user slot of loops for LOOP: zone z (of nz) a bar at 22050 Hz (120 BPM: 44100 samples) with a click (a 300-sample
+ * burst) every (z ? 16th : quarter); named name. IMA ADPCM as the web editor uploads it */
+static void ulp_ima(const int16_t *x, uint32_t n, uint8_t *out)
+{
+    int32_t pred = 0, idx = 0;
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        int32_t diff = x[i] - pred, st = IMA_STEP[idx], vd = st >> 3;
+        uint32_t code = 0;
+        if (diff < 0) {
+            code = 8;
+            diff = -diff;
+        }
+        if (diff >= st) {
+            code |= 4;
+            diff -= st;
+            vd += st;
+        }
+        if (diff >= st >> 1) {
+            code |= 2;
+            diff -= st >> 1;
+            vd += st >> 1;
+        }
+        if (diff >= st >> 2) {
+            code |= 1;
+            vd += st >> 2;
+        }
+        pred = clamp(pred + ((code & 8) ? -vd : vd), -32768, 32767);
+        idx = clamp(idx + IMA_IDX[code & 7], 0, 88);
+        if (i & 1)
+            out[i >> 1] |= (uint8_t)(code << 4);
+        else
+            out[i >> 1] = (uint8_t)code;
+    }
+}
+static void ulp_slot(uint32_t k, const char *name, uint32_t nz)
+{
+    static int16_t x[44100];
+    smp_user_hdr_t *h = (smp_user_hdr_t *)((uint8_t *)host_slots + k * SMP_USER_SIZE);
+    uint8_t *d = (uint8_t *)h + SMP_USER_DATA;
+    uint32_t n = 44100u, z, i;
+    memset(h, 0, SMP_USER_SIZE);
+    h->magic = SMP_USER_MAGIC;
+    h->version = 1;
+    h->nz = (uint8_t)nz;
+    memcpy(h->name, name, strlen(name) < 8 ? strlen(name) : 8);
+    for (z = 0; z < nz; z++) {
+        uint32_t every = z ? n / 16u : n / 4u;
+        for (i = 0; i < n; i++) {
+            uint32_t t = i % every;
+            x[i] = (int16_t)(t < 300u ? ((t & 8u) ? 20000 : -20000) * (int32_t)(300u - t) / 300 : 0);
+        }
+        ulp_ima(x, n, d + z * (n / 2u));
+        h->zone[z].off = z * (n / 2u);
+        h->zone[z].n = n;
+        h->zone[z].le = n - 1u;
+        h->zone[z].rate = 32768u;                       /* 22050 / 44100, Q16 */
+        h->zone[z].root16 = 60 * 16;
+        h->zone[z].hi = 127;
+    }
+    h->data_len = nz * (n / 2u);
+    smp_user_scan(k);
+}
+/* the share (of 1000) of the bar's energy in the 1/32 after each of its first 'per' points (per a bar) */
+static uint32_t ulp_onbeat(uint32_t bar, uint32_t per)
+{
+    int64_t on = 0, all = loop_energy(64, bar) + 1;
+    uint32_t j;
+    for (j = 0; j < per; j++)
+        on += loop_energy(j * bar / per + (j ? 0u : 64u), j * bar / per + bar / 32u);
+    return (uint32_t)(on * 1000 / all);
+}
+static void user_loop_test(void)
+{
+    static const int16_t U0[] = {P_E0, NLOOP, -1}, U1[] = {P_E0, NLOOP + 1, -1}, U9[] = {P_E0, NLOOP + 9, -1},
+                         U0S[] = {P_E0, NLOOP, P_E2, 127, -1};
+    uint32_t i, n = 0, bar = 88200u, on;
+    char b[16];
+    ulp_slot(0, "amen", 2);
+    nl_build();
+    for (i = 0; i < nl.n; i++)
+        n += nl.s[i].kind == NLK_ULOOP && nl.s[i].cat == NC_BEAT;
+    ok("user loops: a slot of two loops: two sounds in the library, BEAT, named after the slot (AMEN 1, AMEN 2)",
+       n == 2u && lu_name(0, b) && !strcmp(b, "AMEN 1") && lu_name(1, b) && !strcmp(b, "AMEN 2") && !lu_name(2, b));
+    loop_play(0, U0, 60, 0, bar + bar / 2, 120);
+    printf("ncc: user loop: %u samples at %u Hz, ready %u\n", lu[1].len, lu[1].rate, lu[1].ready);
+    ok("user loops: decoded in the main loop into R's buffer (a bar of 22.05 kHz: every 3rd sample, 7350 Hz)",
+       lu[1].ready && lu[1].len == 14700u && lu[1].rate == 7350u);
+    on = ulp_onbeat(bar, 4);
+    printf("ncc: user loop AMEN 1: %u / 1000 of the energy right after the beats\n", on);
+    ok("user loops: AMEN 1 plays its clicks on the Circuit's beats (in time, a note as the gate)",
+       loop_energy(0, bar) > 0 && on > 800u);
+    loop_play(0, U1, 37, 0, bar + bar / 2, 120);
+    on = ulp_onbeat(bar, 16);
+    ok("user loops: AMEN 2 (the slot's second zone) on every 16th, any note", loop_energy(0, bar) > 0 && on > 800u);
+    loop_play(0, U0, 60, 0, bar * 2u, 90);
+    ok("user loops: at 90 BPM its clicks still on the beats", ulp_onbeat(117600u, 4) > 800u);
+    loop_play(0, U0S, 60, 0, bar + bar / 2, 120);
+    ok("user loops: SHUF 127 moves its slices off the beats", ulp_onbeat(bar, 4) < 700u && loop_energy(0, bar) > 0);
+    loop_play(0, U9, 60, 0, bar, 120);
+    ok("user loops: a zone the slot does not have: silent", loop_energy(0, bar) == 0 && !lu[1].ready);
+    ((smp_user_hdr_t *)host_slots)->crc ^= 1u;          /* uploaded again: decoded again */
+    smp_user_scan(0);
+    trk[1].p[P_E0] = (int16_t)NLOOP;
+    loop_user_poll();
+    n = lu[1].ready;
+    for (i = 0; i < 24u; i++)
+        loop_user_poll();
+    ok("user loops: the slot uploaded again: decoded again (silent meanwhile)", !n && lu[1].ready);
+    memset(host_slots, 0, sizeof host_slots);           /* (the other tests: empty slots) */
+    smp_user_scan(0);
+    loop_user_poll();
+    ok("user loops: the slot emptied: silent, no loop in the library", !lu[1].ready && !lu_name(0, b));
 }
 
 /* every NCC sound plays: a chord (POLY) or a note (LEGATO) on R, its peak and loudness; none silent, none clipping */
@@ -1402,6 +1522,7 @@ int main(void)
     engine_ui_test();
     ncc_sounds_test();
     loop_test();
+    user_loop_test();
     engine_macro_test();
     macro_map_test();
     acid_test();

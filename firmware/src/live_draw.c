@@ -115,6 +115,8 @@ static void lv_draw_pad(uint32_t part, int32_t x)
     cv_rect(x + 101, 9, 6, 6, midi_lit(part) ? LC_TEXT : LC_LINE);  /* MIDI IN on the part */
     if (bank >= 0 && bank < (int32_t)FM6_NBANK && (nl_bank_names(), nl.bname[bank][0]))
         str_cpy(s, nl.bname[bank], sizeof s);           /* a bank voice: its own name */
+    else if (t->eng_req == ENGI_LOOP && t->p[P_E0] >= (int16_t)NLOOP && user_of(t) >= UP_SLOTS)
+        (void)(lu_name((uint32_t)(t->p[P_E0] - (int16_t)NLOOP), s) || (str_cpy(s, "NO LOOP", sizeof s), 0));   /* own */
     else if (jn)
         str_cpy(s, NCC_SND[jn - 1u].name, sizeof s);
     else if (t->eng_req == ENGI_ANALOG && jx >= 4u)
@@ -145,7 +147,7 @@ static void lv_draw_pad(uint32_t part, int32_t x)
 static uint32_t lv_pad_sig(uint32_t part)
 {
     const track_t *t = &trk[part];
-    uint32_t h = lv_hash(lv_snd(t), (uint32_t)t->p[P_E7] & 63u);
+    uint32_t h = lv_hash(lv_snd(t), ((uint32_t)t->p[P_E7] & 63u) | (uint32_t)(uint16_t)t->p[P_E0] << 8);   /* (LOOP: E0) */
     h = lv_hash(h, (uint32_t)clamp(t->p[P_ED_FX], 0, 63) | (uint32_t)lv_juno(part) << 8);
     h = lv_hash(h, (t->p[P_AMODE] != 0) | (t->p[P_AHOLD] != 0) << 1 | ncd_want[part] << 2 | (uint32_t)midi_lit(part) << 3);
     h = lv_hash(h, song.sel == part ? (uint32_t)(uint8_t)lv.cpend | (uint32_t)(uint8_t)lv.apend << 8 : 0u);

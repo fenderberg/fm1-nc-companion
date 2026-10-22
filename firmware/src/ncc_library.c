@@ -14,11 +14,12 @@
 
 enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_BEAT, NC_OTHER, NC_N };
 static const char *const NC_NAME[NC_N] = {"ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"};
-enum { NLK_PRESET, NLK_NCC, NLK_BANK, NLK_USER };
+enum { NLK_PRESET, NLK_NCC, NLK_BANK, NLK_USER, NLK_ULOOP };
 typedef struct {
-    uint8_t kind, eng, k, cat;          /* NLK_*, ENGINES[] index, the preset / Juno sound / bank voice / user slot */
+    uint8_t kind, eng, k, cat;          /* NLK_*, ENGINES[] index, the preset / NCC sound / bank voice / user slot /
+                                         * user loop (LOOP: slot * 16 + zone, eng_loop.c) */
 } nl_snd_t;
-#define NL_MAX 128u                     /* (factory 51 + bank 32 + user presets of these engines) */
+#define NL_MAX 192u                     /* (factory 88 + bank 32 + user loops 48 + user presets of these engines) */
 #define NL_NAME 11u                     /* a bank voice's name: 10 ASCII + 0 */
 
 static const struct {
@@ -113,6 +114,10 @@ static void nl_build(void)
             for (k = 0; k < FM6_NBANK; k++)
                 if ((fm6_bank_used >> k) & 1u)
                     nl_add(NLK_BANK, e, k, nl.bname[k]);
+        if (e == ENGI_LOOP)                             /* the user slots' loops, a zone each */
+            for (k = 0; k < LU_N; k++)
+                if (lu_name(k, b))
+                    nl_add(NLK_ULOOP, e, k, b);
         for (k = 0; k < UP_SLOTS; k++)
             if (up_used(k) && up_engine(k) == e) {
                 up_name(k, b);
@@ -146,6 +151,8 @@ static int32_t nl_find(uint32_t part, uint32_t juno)
         kind = NLK_USER, k = u;
     else if (bank >= 0 && bank < (int32_t)FM6_NBANK)
         kind = NLK_BANK, k = (uint32_t)bank;
+    else if (e == ENGI_LOOP && t->p[P_E0] >= (int16_t)NLOOP)
+        kind = NLK_ULOOP, k = (uint32_t)clamp(t->p[P_E0] - (int16_t)NLOOP, 0, LU_N - 1);
     else
         kind = NLK_PRESET, k = ENGINES[e]->npresets ? preset_orig(ENGINES[e], t->preset % ENGINES[e]->npresets) : 0u;
     for (i = 0; i < nl.n; i++)
@@ -172,6 +179,11 @@ static void nl_load(uint32_t i)
     if (s->kind == NLK_BANK) {                          /* FM6's preset 0 (the patch as it is), the bank voice */
         apply_preset_to(t, 0);
         t->p[P_E7] = (int16_t)(FM6_OWN + 1u + s->k);
+    } else if (s->kind == NLK_ULOOP) {                  /* LOOP's preset 0 (its knobs at rest), the user loop */
+        apply_preset_to(t, 0);
+        t->p[P_E0] = (int16_t)(NLOOP + s->k);
+        if ((uint32_t)(t - trk) < NCM_PARTS)
+            ncm_gen[t - trk]++;                         /* (the macros back to the middle: perf_layer.c) */
     } else
         apply_preset_to(t, s->k);
 }
