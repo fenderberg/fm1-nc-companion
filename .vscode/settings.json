@@ -1,0 +1,8 @@
+{
+  "files.associations": { "*.c": "c", "*.h": "c" },
+  "C_Cpp.default.cStandard": "gnu99",
+  "editor.rulers": [120],
+  "files.trimTrailingWhitespace": true,
+  "files.exclude": { "build": false },
+  "search.exclude": { "build/**": true, "firmware/engines/**": false }
+}

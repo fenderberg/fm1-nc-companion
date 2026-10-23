@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "NCC: test (host tests + regression)", "type": "shell", "command": "sh tools/ncc_dev.sh test",
+      "group": { "kind": "test", "isDefault": true }, "problemMatcher": [] },
+    { "label": "NCC: generate build/gen", "type": "shell", "command": "sh tools/ncc_dev.sh gen", "problemMatcher": [] },
+    { "label": "NCC: build firmware", "type": "shell", "command": "sh tools/ncc_dev.sh build",
+      "group": { "kind": "build", "isDefault": true }, "problemMatcher": [] },
+    { "label": "NCC: emulator (demo Circuit)", "type": "shell", "command": "sh tools/ncc_dev.sh emu demo",
+      "isBackground": true, "problemMatcher": [] },
+    { "label": "NCC: emulator", "type": "shell", "command": "sh tools/ncc_dev.sh emu", "isBackground": true,
+      "problemMatcher": [] },
+    { "label": "NCC: manager", "type": "shell", "command": "sh tools/ncc_dev.sh manager", "isBackground": true,
+      "problemMatcher": [] },
+    { "label": "NCC: FM-1 info", "type": "shell", "command": "sh tools/ncc_dev.sh info", "problemMatcher": [] },
+    { "label": "NCC: flash FM-1 (only with Remco's OK)", "type": "shell", "command": "sh tools/ncc_dev.sh flash",
+      "problemMatcher": [] },
+    { "label": "NCC: release build", "type": "shell", "command": "sh tools/ncc_dev.sh release ${input:version}",
+      "problemMatcher": [] },
+    { "label": "NCC: site (local)", "type": "shell", "command": "sh tools/ncc_dev.sh site ${input:version}",
+      "isBackground": true, "problemMatcher": [] },
+    { "label": "NCC: publish site (only with Remco's OK)", "type": "shell", "command": "sh tools/ncc_dev.sh publish-site",
+      "problemMatcher": [] }
+  ],
+  "inputs": [
+    { "id": "version", "type": "promptString", "description": "Version (X.Y, e.g. 0.4)" }
+  ]
+}

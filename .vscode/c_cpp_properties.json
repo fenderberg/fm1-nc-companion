@@ -1,0 +1,13 @@
+{
+  "configurations": [
+    {
+      "name": "NCC (host, FELUCCA_LIVEUI=1)",
+      "includePath": ["${workspaceFolder}/firmware/src", "${workspaceFolder}/firmware/engines/src",
+                      "${workspaceFolder}/build/gen", "${workspaceFolder}/firmware/hal"],
+      "defines": ["FELUCCA_LIVEUI=1"],
+      "cStandard": "gnu99",
+      "intelliSenseMode": "macos-clang-arm64"
+    }
+  ],
+  "version": 4
+}

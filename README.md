@@ -57,6 +57,12 @@ Installing firmware is at your own risk.
 Early but playable, tested on a real FM-1 with a Circuit Tracks. Feedback and ideas are welcome in the
 [issues](https://github.com/fenderberg/fm1-nc-companion/issues).
 
+## Working on NCC
+
+Start with [AGENTS.md](AGENTS.md) (the rules, a map of the code, the commands; for people and AI assistants alike) and
+[docs/HANDOFF.md](docs/HANDOFF.md) (where the work stands). Every chore goes through `sh tools/ncc_dev.sh` (test,
+build, emulator, manager, release, site); in VS Code they are tasks (Terminal → Run Task).
+
 ## Built on Felucca
 
 NCC is a fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita (Hügelton Instruments). All of
