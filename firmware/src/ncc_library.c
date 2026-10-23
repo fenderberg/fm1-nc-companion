@@ -44,7 +44,9 @@ static const struct {
 static struct {
     uint32_t n;                         /* entries in s (nl_build) */
     nl_snd_t s[NL_MAX];
-    uint32_t bsig;                      /* the bank whose names bname holds (fm6_bank_used + 1; 0: none read) */
+    uint32_t bsig;                      /* the bank whose names bname holds (its fm6_bank_used; a full bank is
+                                         * 0xFFFFFFFF, so not + 1 as before 0.3: it wrapped to 'read') */
+    uint8_t bok;                        /* bname holds them (every voice read) */
     char bname[FM6_NBANK][NL_NAME];
 } nl;
 
@@ -72,20 +74,25 @@ static uint32_t nl_cat(const char *s, uint32_t e)
 static void nl_bank_names(void)
 {
     uint8_t pk[FM6_PACKED];
-    uint32_t k, i;
-    if (nl.bsig == fm6_bank_used + 1u)
+    uint32_t k, i, ok = 1;
+    if (nl.bok && nl.bsig == fm6_bank_used)
         return;
-    nl.bsig = fm6_bank_used + 1u;
+    nl.bsig = fm6_bank_used;
     for (k = 0; k < FM6_NBANK; k++) {
         nl.bname[k][0] = 0;
-        if (!((fm6_bank_used >> k) & 1u) || !fm6_bank_read || fm6_bank_read(k, pk))
+        if (!((fm6_bank_used >> k) & 1u))
             continue;
+        if (!fm6_bank_read || fm6_bank_read(k, pk)) {   /* (not readable yet: again next time) */
+            ok = 0;
+            continue;
+        }
         for (i = 0; i < 10u; i++)
             nl.bname[k][i] = (char)(pk[118 + i] >= 32u && pk[118 + i] < 127u ? pk[118 + i] : ' ');
         for (i = 10u; i && nl.bname[k][i - 1u] == ' '; i--)
             ;
         nl.bname[k][i] = 0;
     }
+    nl.bok = (uint8_t)ok;
 }
 
 static void nl_add(uint32_t kind, uint32_t e, uint32_t k, const char *name)

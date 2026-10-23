@@ -1233,6 +1233,31 @@ static const char *snd_name(uint32_t part)            /* the part's sound: NCC's
     const track_t *t = &trk[part];
     return lv.juno[part] ? NCC_SND[lv.juno[part] - 1u].name : ENGINES[eng_idx(t->eng_req)]->presets[t->preset].name;
 }
+/* a full bank (32 voices: fm6_bank_used 0xFFFFFFFF) after a power-on: its names read (before 0.3 the cache's key,
+ * used + 1, wrapped to 0 and said "read") */
+static int stub_bank32(uint32_t k, uint8_t *pk)
+{
+    memset(pk, 0, FM6_PACKED);
+    memcpy(pk + 118, k & 1u ? "SYN-BASS 1" : "E.PIANO 1 ", 10);
+    return 0;
+}
+static void full_bank_test(void)
+{
+    uint32_t i, named = 0, keys = 0;
+    memset(&nl, 0, sizeof nl);                          /* (as at power-on) */
+    fm6_bank_read = stub_bank32;
+    fm6_bank_used = 0xFFFFFFFFu;
+    nl_build();
+    for (i = 0; i < nl.n; i++)
+        if (nl.s[i].kind == NLK_BANK) {
+            named += nl.bname[nl.s[i].k][0] != 0;
+            keys += nl.s[i].cat == NC_KEYS;
+        }
+    ok("sounds: a full DX7 bank (32 voices) after a power-on: every voice named and typed", named == 32u && keys == 16u);
+    fm6_bank_read = 0;
+    fm6_bank_used = 0;
+    nl.bok = 0;
+}
 static void engine_ui_test(void)
 {
     track_t *t = &trk[0];
@@ -1310,7 +1335,7 @@ static void engine_ui_test(void)
        t->eng_req == ENGI_FM6 && t->p[P_E7] == (int16_t)(FM6_OWN + 1u) && !strcmp(nl.bname[0], "E.PIANO 1"));
     fm6_bank_read = 0;
     fm6_bank_used = 0;
-    nl.bsig = 0;
+    nl.bok = 0;
     lv_press(B_OCTUP);
     t_turn(EN_ALGO, 4);
     lv_frames(400);
@@ -1670,6 +1695,7 @@ int main(void)
     screen_test();
     split_dac_test();
     engine_ui_test();
+    full_bank_test();
     ncc_sounds_test();
     loop_test();
     editor_ncc_test();
