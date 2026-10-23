@@ -37,13 +37,18 @@ Less to learn, more to play: NCC gives you more jam with your Circuit Tracks, no
 
 ## Get started
 
-1. **Read the [manual](docs/MANUAL.md).** It's short.
-2. **Try it without hardware:** build and open the browser emulator with `sh tools/ncc_demo.sh` (needs Emscripten).
-   `DEMO=1 sh tools/ncc_demo.sh` adds a built-in "Circuit" that plays chords and an acid line.
-3. **Manage it from your computer:** `sh tools/ncc_manager.sh` opens the [NCC Manager](docs/MANUAL.md#ncc-manager-web-page):
-   sounds on L/R, your own sounds, DX7 banks, drum loops, backups and settings over USB.
-4. **Install it on your FM-1:** see [Installing](docs/MANUAL.md#installing). Back to stock any time with M-VAVE's
-   updater or Felucca's web installer (**Return to official V15**).
+Everything is on **[fenderberg.github.io/fm1-nc-companion](https://fenderberg.github.io/fm1-nc-companion/)** (Chrome or Edge):
+
+1. **[Try it](https://fenderberg.github.io/fm1-nc-companion/webapp/try/)** in your browser, with a built-in "Circuit"
+   playing: no FM-1 needed.
+2. **[Install](https://fenderberg.github.io/fm1-nc-companion/webapp/installer/)** it: connect the FM-1 by USB and press
+   Install. Back to stock any time on the same page (**Return to official V15**) or with M-VAVE's updater.
+3. **[Manage](https://fenderberg.github.io/fm1-nc-companion/webapp/manager/)** it from your computer: sounds on L/R,
+   your own sounds, DX7 banks, drum loops, backups and settings over USB.
+4. **Read the [manual](docs/MANUAL.md).** It's short.
+
+Locally: `sh tools/ncc_demo.sh` (the emulator), `sh tools/ncc_manager.sh` (the manager), and see
+[Installing](docs/MANUAL.md#installing) for the command-line installer.
 
 Installing firmware is at your own risk.
 
