@@ -347,10 +347,21 @@ async function lpFiles(files) {
     try {
       const w = parseWav(await f.arrayBuffer());
       const s = Float64Array.from(resample(w.x, w.sr, SMP.RATE));
-      ui.loops.push({ name: f.name.replace(/\.wav$/i, "").toUpperCase().slice(0, 12), raw: s, bpm: guessBpm(s.length) });
+      ui.loops.push({ name: f.name.replace(/\.wav$/i, "").toUpperCase().slice(0, 12), raw: s, bpm: guessBpm(s.length),
+        start: leadIn(s) });
     } catch (e) { say(`${f.name}: ${e.message}`, "bad"); }
   }
   renderLoops();
+}
+/* the silence before the first hit (a DAW's export often has some): at most 50 ms, 2 ms kept before the hit, so the
+   loop's bar starts on its first beat (LOOP plays a bar from the Circuit's bar start) */
+function leadIn(x) {
+  let pk = 0;
+  for (const v of x) pk = Math.max(pk, Math.abs(v));
+  const max = Math.round(SMP.RATE * 0.05), keep = Math.round(SMP.RATE * 0.002);
+  let i = 0;
+  while (i < max && i < x.length && Math.abs(x[i]) < pk * 0.02) i++;
+  return i >= max ? 0 : Math.max(0, i - keep);
 }
 /* the tempo at which the file is 1, 2 or 4 bars (the one in 70..180 BPM) */
 function guessBpm(n) {
@@ -362,7 +373,8 @@ function guessBpm(n) {
 }
 /* one bar of loop l at its BPM, as int16 at SMP.RATE (editor's takeSample: a 2 ms fade at the cut, normalized) */
 function lpBar(l) {
-  return takeSample(l.raw, 0, Math.min(l.raw.length, Math.round(SMP.RATE * 60 * 4 / Math.max(40, l.bpm))));
+  const a = l.start || 0;
+  return takeSample(l.raw, a, Math.min(l.raw.length, a + Math.round(SMP.RATE * 60 * 4 / Math.max(40, l.bpm))));
 }
 function lpBuilt() {
   if (!ui.loops.length) return null;
@@ -379,7 +391,7 @@ function renderLoops() {
   ui.loops.forEach((l, k) => {
     const bpm = el("input", { type: "number", min: 40, max: 300, step: 0.1, value: l.bpm, style: "width:6em",
       onchange: () => { l.bpm = +bpm.value || 120; renderLoops(); } });
-    rows.append(el("tr", {}, el("td", { textContent: l.name }), el("td", {}, bpm),
+    rows.append(el("tr", {}, el("td", { textContent: l.name + (l.start ? `  (${Math.round(l.start / SMP.RATE * 1000)} ms silence cut)` : "") }), el("td", {}, bpm),
       el("td", { textContent: `${(lpBar(l).length / SMP.RATE).toFixed(2)} s` }),
       el("td", { className: "act" }, el("button", { textContent: "▶", title: "Listen to the bar", onclick: () => play(lpBar(l)) }), " ",
         el("button", { className: "danger", textContent: "✕", onclick: () => { ui.loops.splice(k, 1); renderLoops(); } }))));

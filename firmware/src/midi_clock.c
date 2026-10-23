@@ -15,6 +15,9 @@ static __attribute__((noinline)) void midi_clock_transport(uint32_t status, uint
         midi_clock.have_pulse = midi_clock.tempo_valid = 0;
         midi_clock.interval_ms = 0;
         midi_clock.start_ms = ms;
+#if FELUCCA_LIVEUI
+        ncc_pulse = ncc_since = 0;                 /* NC: the bar from here, in pulses (ncc_seq.c) */
+#endif
         seq_start();
     } else if (status == 0xFBu) {                  /* Continue: preserve the step */
         midi_clock.pos = midi_clock.rendered;
@@ -73,7 +76,13 @@ static __attribute__((noinline)) void midi_clock_pulse(uint32_t ms)
             q = beat_samples() + midi_clock.rem;
             midi_clock.pos += q / 24u;
             midi_clock.rem = q % 24u;
+#if FELUCCA_LIVEUI
+            ncc_pulse++;                           /* NC: (ncc_seq.c: the bar in pulses) */
+#endif
         }
+#if FELUCCA_LIVEUI
+        ncc_since = 0;
+#endif
         midi_clock.have_pulse = 1;
     }
     midi_clock.pulse_samples = beat_samples() / 24u;

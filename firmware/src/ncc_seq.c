@@ -4,8 +4,10 @@
  * main loop writes (ncd_want, live_ui.c).
  *
  * THE ARP ON THE GRID. Felucca's arp starts at the first note and counts from there; NCC's starts on the next step of
- * the clock's grid: the step (its RATE) the bar is in (ncc_bar: samples into the bar, seq.c beat_pos / beat_n, which
- * the external clock's Start puts at 0), so a 1/16 arp plays the 1/16s of the Circuit's bar. A note at most an eighth
+ * the clock's grid: the step (its RATE) the bar is in (ncc_bar: samples into the bar), so a 1/16 arp plays the 1/16s of
+ * the Circuit's bar. On the external clock the bar is counted in its pulses from its Start (24 a beat, 96 a bar: where
+ * the Circuit's bar is, whatever the tempo's measurement does between them; before 0.3 it was seq.c's beat_pos in
+ * samples at the measured tempo, which drifted off the Circuit's bar), else in samples at the BPM (beat_n, beat_pos). A note at most an eighth
  * of a step late still starts at once (played live a little late, not a step late). The transport's Start (playing
  * from 0 to 1) starts every held arp from its first step together with the bar; its Stop (1 to 0: the Circuit's
  * sequence stopped) stops them: the held and latched notes are dropped (HOLD too) and the sounding arp note ends.
@@ -24,6 +26,8 @@ static struct {
     uint8_t hold;                       /* P_AHOLD as last seen (HOLD off: the latched notes go) */
 } ncd[NCM_PARTS];
 static uint32_t ncc_bar;                /* samples into the bar (at this block's start) */
+static uint32_t ncc_pulse, ncc_since;   /* the external clock's pulses since its Start (the first is 0), the samples the
+                                         * sequencer ran since the last one (midi_clock.c sets them, ncc_seq_block adds) */
 static uint8_t ncc_playing;             /* song.playing as last seen */
 
 static int ncd_find(uint32_t part, uint32_t note)
@@ -84,10 +88,14 @@ static void ncd_release(uint32_t part)
 }
 
 /* events_block, before the arps step: Drone-hold off, HOLD off, the transport's Start and Stop, the bar's place */
-static void ncc_seq_block(void)
+static void ncc_seq_block(uint32_t clock_mode, uint32_t seq_n)
 {
-    uint32_t part;
-    ncc_bar = beat_n * beat_samples() + beat_pos;
+    uint32_t part, ps = beat_samples() / 24u;
+    if (clock_mode && song.playing && ps) {             /* the pulse the bar is at, and how far past it */
+        ncc_bar = (ncc_pulse % 96u) * ps + (ncc_since < ps ? ncc_since : ps - 1u);
+        ncc_since += seq_n;
+    } else
+        ncc_bar = beat_n * beat_samples() + beat_pos;
     for (part = 0; part < NCM_PARTS; part++) {
         track_t *t = &trk[part];
         if (ncd[part].on != ncd_want[part]) {

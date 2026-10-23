@@ -1428,7 +1428,7 @@ static void events_block(uint32_t n)
 #if FELUCCA_LIVEUI
     if (clock_mode && !(midi_clock.have_pulse && fm1_ms - midi_clock.last_ms < 300u))
         clock_mode = 0;                               /* NC: no clock coming: the arp on the tempo (BPM) */
-    ncc_seq_block();                                  /* NC: Drone-hold, HOLD off, Start (ncc_seq.c) */
+    ncc_seq_block(clock_mode, seq_n);                 /* NC: Drone-hold, HOLD off, Start, the bar (ncc_seq.c) */
 #endif
     for (i = 0; i < NPART; i++)
         arp_step(&trk[i], clock_mode ? seq_n : n, clock_mode && song.playing ? seq_n : n);

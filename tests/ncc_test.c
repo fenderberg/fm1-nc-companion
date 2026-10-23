@@ -46,6 +46,7 @@
  *              parameter has now, fits beside the legend; ANALOG SUB / SYNC named so; FM6's vibrato a little
  *   ACID       it sounds, the filter envelope closes, RES 127 bounded, accent brighter and louder, slide on overlap
  *              only, saw / square
+ *   BAR LOCK   on the external clock NCC's bar is the Circuit's, counted in its pulses: 16 bars of jittery pulses, no drift
  *   STOP       the Circuit's Stop (USB clock): the arp stops (latched chord dropped), the drone lets go
  *   SPLASH     NCC on the power-on screen, Felucca's version and credits kept, every line inside its square
  *   BPM 0      beat_samples counts it as 120
@@ -1522,6 +1523,37 @@ static void ext_pulses(uint32_t n)
         }
     }
 }
+/* the bar on the external clock: 16 bars of pulses whose USB times jitter (the tempo's measurement wobbles), the
+ * Circuit's every bar start (pulse 0, 96, 192 ..) is NCC's bar start too: ncc_bar near 0, no drift */
+static void bar_lock_test(void)
+{
+    uint32_t k, b, worst = 0, bar, rnd = 12345u;
+    power();
+    song.g[G_CLOCK] = 1;
+    blk();
+    ext_pulses(8);
+    midi(0xFA, 0, 0);                                   /* Start */
+    for (k = 0; k < 16u * 96u; k++) {
+        midi(0xF8, 0, 0);
+        for (b = 0; b < 29u; b++) {
+            if (b % 4u == 0u) {
+                rnd = rnd * 1103515245u + 12345u;
+                fm1_ms += 2u + (rnd >> 16) % 3u;        /* 2 .. 4 ms: USB's jitter on the pulses' times */
+            }
+            blk();
+            if (b == 0u && k % 96u == 0u && k) {
+                uint32_t d;
+                bar = 4u * beat_samples();
+                d = ncc_bar % bar;
+                d = d < bar / 2u ? d : bar - d;
+                worst = d > worst ? d : worst;
+            }
+        }
+    }
+    printf("ncc: bar lock: the worst bar start %u samples off over 16 bars (a 1/16 is %u)\n", worst, 4u * beat_samples() / 16u);
+    ok("bar lock: on the external clock every bar of the Circuit starts NCC's bar (no drift over 16 bars)",
+       worst < 4u * beat_samples() / 64u);
+}
 static void stop_test(void)
 {
     track_t *l = &trk[0], *r = &trk[1];
@@ -1647,6 +1679,7 @@ int main(void)
     macro_map_test();
     acid_test();
     stop_test();
+    bar_lock_test();
     splash_test();
     bpm0_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");
