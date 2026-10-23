@@ -1281,6 +1281,9 @@ static void engine_ui_test(void)
        nl_cat("E.PIANO 1", ENGI_FM6) == NC_KEYS && nl_cat("Strings 2", ENGI_FM6) == NC_PAD &&
        nl_cat("DEEP BASS", ENGI_ACID) == NC_BASS && nl_cat("POLY SYNTH", ENGI_ANALOG) == NC_KEYS &&
        nl_cat("WEIRD", ENGI_TRIO) == NC_OTHER);
+    ok("sounds: a long keyword inside a word: GrandPiano and Glidepiano KEYS, SynthOrgan KEYS, (but no EP in DEEP)",
+       nl_cat("GrandPiano", ENGI_FM6) == NC_KEYS && nl_cat("Glidepiano", ENGI_FM6) == NC_KEYS &&
+       nl_cat("SynthOrgan", ENGI_FM6) == NC_KEYS && nl_cat("DEEP", ENGI_FM6) == NC_OTHER);
     {                                                   /* the DX7 classics by their names: 8 KEYS, 6 of the rest each */
         static const char *const DX[32] = {"E.PIANO 1", "E.PIANO 2", "E.PIANO 3", "PIANO   1", "SYN-PIANO", "CLAV    1",
             "FUNK CLAV", "E.ORGAN 1", "BASS    1", "BASS    2", "SYN-BASS 1", "SYN-BASS 2", "E.BASS  1", "PLUCK BASS",

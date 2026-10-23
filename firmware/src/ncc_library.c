@@ -5,7 +5,7 @@
  * user sound or a bank voice whose name does not tell). On SOUND, SELECT filters by category and ALGORITHM by engine
  * (each with ALL), PRESETS steps through what is left; a sound of another engine switches the part to it (live_ui.c).
  *
- * The category comes from the sound's name (nl_cat: a keyword at the start of a word, BASS / SUB -> BASS, PAD / STR / CHOIR -> PAD, LEAD / HOOVER / BRASS -> LEAD, EP / KEY / ORGAN -> KEYS, PLUCK / BELL / MARIMBA ->
+ * The category comes from the sound's name (nl_cat: a keyword at the start of a word (five letters or more: anywhere), BASS / SUB -> BASS, PAD / STR / CHOIR -> PAD, LEAD / HOOVER / BRASS -> LEAD, EP / KEY / ORGAN -> KEYS, PLUCK / BELL / MARIMBA ->
  * PLUCK .., at last 303 / ACID -> BASS), else the engine's own (ACID: BASS), else OTHER: one rule for the factory sounds (tests/ncc_test.c: none of
  * them OTHER), the user presets and a loaded DX7 bank alike, and no table to keep in step with the engines.
  *
@@ -60,8 +60,9 @@ static uint32_t nl_cat(const char *s, uint32_t e)
     for (r = 0; r < NELEM(NL_KW); r++)
         for (i = 0; s[i]; i++) {
             const char *kw = NL_KW[r].kw;
-            if (i && nl_letter(nl_up((uint8_t)s[i - 1])))
-                continue;                               /* (only where a word starts) */
+            if (i && nl_letter(nl_up((uint8_t)s[i - 1])) && str_len(kw) < 5u)
+                continue;                               /* (a short one only where a word starts; PIANO, ORGAN .. also
+                                                         * inside one: a DX7 bank's "GrandPiano", "Glidepiano") */
             for (j = 0; kw[j] && nl_up((uint8_t)s[i + j]) == (uint8_t)kw[j]; j++)
                 ;
             if (!kw[j])
