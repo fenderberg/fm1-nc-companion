@@ -374,6 +374,11 @@ static song_t song;
 #define NCC_SPLIT_DEFAULT 1
 #endif
 #define NCC_SPLIT() (NCC_SPLIT_DEFAULT ? song.g[G_ENGGO] != 1 : song.g[G_ENGGO] == 1)
+/* NC: the LOOP engine (eng_loop.c) in NCC's own lists (live_ui.c LV_ENGS: ALGORITHM, the library, the editor's NCC
+ * commands): 0 (0.3: "coming soon") leaves it out, the engine itself stays (a project with it, the tests); 1 offers it */
+#ifndef NCC_LOOP
+#define NCC_LOOP 0
+#endif
 #endif
 #define TSEL (&trk[song.sel])    /* the selected track */
 /* MIDI IN TRACK: track i's channel 0..15, MCH_OMNI or MCH_OFF (song.mch), and set */

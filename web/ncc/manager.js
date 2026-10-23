@@ -59,6 +59,7 @@ async function connect() {
     dev.info = parse[CMD.INFO](await rq(req.info(), { timeout: 800, retries: 3 }));   /* (the first frame after the port opens may be lost) */
     try { dev.ncc = parseNccInfo(await rq([NCMD.INFO, []], { timeout: 800, retries: 2 })); }
     catch (e) { dev.ncc = null; }
+    $("tabLoops").hidden = !dev.ncc?.engines.some((e) => e.name === "LOOP");   /* (LOOP: coming soon, core.h NCC_LOOP) */
     $("connect").textContent = "Disconnect";
     $("status").textContent = dev.ncc ? `Connected: NCC on ${dev.info.version.replace(/^FELUCCA /, "Felucca ")}${MOCK ? " (simulated)" : ""}`
       : `Connected to ${dev.info.version}, but it is not NCC firmware: only Backup and DX7 work.`;
@@ -489,12 +490,12 @@ function dropZone(zone, pick, input, onFiles) {
 /* ------------------------------------------------------------------ a simulated FM-1 with NCC (?mock=1) --- */
 function mockAccess() {
   const types = ["ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"];
-  const engs = [[12, "FM6"], [0, "JUNO"], [2, "PHASE"], [6, "TRIO"], [14, "ACID"], [15, "LOOP"]];
+  const engs = [[12, "FM6"], [0, "JUNO"], [2, "PHASE"], [6, "TRIO"], [14, "ACID"]];
   const lib = [[0, 12, 4, "TINE EP"], [0, 12, 5, "BELL"], [0, 12, 1, "FM BASS"], [1, 0, 2, "JUNO STRINGS"],
     [1, 0, 2, "JUNO PAD"], [1, 0, 4, "FUNK CLAV"], [0, 0, 3, "SAW LEAD"], [1, 2, 4, "PD EP"], [1, 2, 5, "GLASS BELL"],
     [1, 6, 1, "CHIP BASS"], [0, 6, 3, "ARP LEAD"], [0, 14, 1, "ACID 303"], [0, 14, 1, "SQUELCH"],
-    [0, 15, 6, "JUNGLE BREAK"], [0, 15, 6, "AMEN-ISH BREAK"], [0, 15, 6, "IDM GLITCH BEAT"]].map(([kind, eng, cat, name]) => ({ kind, eng, cat, name }));
-  const up = Array.from({ length: 32 }, (_, k) => (k < 3 ? { used: 1, engine: [12, 0, 15][k], name: ["MY EP", "WARM PAD", "MY BREAK"][k] } : { used: 0, engine: 0, name: "" }));
+    [1, 14, 3, "ACID LEAD"]].map(([kind, eng, cat, name]) => ({ kind, eng, cat, name }));
+  const up = Array.from({ length: 32 }, (_, k) => (k < 3 ? { used: 1, engine: [12, 0, 14][k], name: ["MY EP", "WARM PAD", "MY ACID"][k] } : { used: 0, engine: 0, name: "" }));
   const st = { parts: [{ entry: 0, cat: 0, ep: 0, ch: 2 }, { entry: 3, cat: 0, ep: 0, ch: 3 }], split: 1, clock: 1, sel: 0,
     smp: [{ zones: 0, name: "", kib: 0 }, { zones: 0, name: "", kib: 0 }, { zones: 0, name: "", kib: 0 }],
     bank: { has: 0, name: "", voices: Array.from({ length: 32 }, () => ({ used: 0, name: "" })) } };

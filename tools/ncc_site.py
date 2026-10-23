@@ -136,23 +136,22 @@ def home(version, changelog):
          "Circuit itself.", ""),
         ("pink", "The Circuit's knobs just work", "Its eight macros are mapped to what their labels mean on every engine, "
          "smoothly, and the screen shows what each one does.", "screen-sound.png"),
-        ("amber", "Sounds by role", "SELECT picks the type (bass, pad, lead, keys, pluck, beat), ALGORITHM the engine, "
-         "PRESETS walks through what's left. 88 sounds, and your own.", ""),
-        ("cyan", "Six engines", "DX7-style FM (loads real DX7 banks), Juno with its chorus, phase distortion, a chip synth, "
-         "a 303, and drum loops.", ""),
-        ("red", "Drum loops that fit the bar", "Any note opens a one-bar loop where the bar is; the Circuit's steps chop it. "
-         "Shuffle, reverse, stutter, crush and a DJ filter on the knobs.", "screen-loop.png"),
+        ("amber", "Sounds by role", "SELECT picks the category (bass, pad, lead, keys, pluck), ALGORITHM the engine, "
+         "PRESETS the sound. 81 sounds, and your own.", ""),
+        ("cyan", "Five engines", "DX7-style FM (loads real DX7 banks), Juno with its chorus, phase distortion, a chip synth "
+         "and a 303.", ""),
+        ("red", "Coming soon: drum loops", "One-bar loops that always fit the Circuit's bar, opened by any note and chopped "
+         "by its steps, with shuffle, reverse, stutter and crush on the knobs.", ""),
         ("purple", "Built for jamming", "OCT- / OCT+ switch between your two sounds, an arp locked to the clock with HOLD, "
          "and Drone to keep a pad ringing while you play over it.", "screen-arp.png"),
         ("green", "Effects one tap away", "Sends, delay, reverb, chorus, an insert and performance effects on the keys, plus "
          "echo and reverb throws.", "screen-sends.png"),
-        ("blue", "NCC Manager", "A web page over USB: sounds on L and R, your own sounds, DX7 banks, your drum loops, "
-         "backups and settings.", ""),
+        ("blue", "NCC Manager", "A web page over USB: sounds on L and R, your own sounds, DX7 banks, backups and "
+         "settings.", ""),
     ]
     cards = "\n".join(f'<div class="card" style="--c:var(--{c})"><h3>{t}</h3><p>{d}</p></div>' for c, t, d, _ in feats)
     shots = "\n".join(f'<figure><img src="{img}{f}" alt="{html.escape(cap)}"><figcaption>{cap}</figcaption></figure>'
-                       for f, cap in (("screen-sound.png", "SOUND: both parts, their filters, a Circuit knob's popup"),
-                                      ("screen-loop.png", "A drum loop on part L (type BEAT, engine LOOP)"),
+                       for f, cap in (("screen-sound.png", "SOUND: both parts with their category and engine, the place in the list"),
                                       ("screen-arp.png", "The arp, locked to the Circuit's clock"),
                                       ("screen-sends.png", "FX: one tap and you're on the sends")))
     faq = [
@@ -165,10 +164,10 @@ def home(version, changelog):
          "FM-1.fwsc, or use M-VAVE's own updater. Your music is backed up first."),
         ("Which browser?", "Chrome or Edge on a computer. The installer and the manager need Web MIDI with SysEx, which "
          "Safari and Firefox don't offer."),
-        ("My loop runs out of time with the Circuit.", "Press Stop and Start on the Circuit once: NCC counts its bar from the "
+        ("The arp runs out of time with the Circuit.", "Press Stop and Start on the Circuit once: NCC counts its bar from the "
          "Circuit's Start. Since 0.3 it follows the Circuit's clock pulses, so it can't drift away afterwards."),
-        ("Can I use my own sounds and loops?", "Yes: send DX7 banks and your own one-bar WAV drum loops with the manager, "
-         "and store your own sounds in the 32 user slots."),
+        ("Can I use my own sounds?", "Yes: send DX7 banks to FM6 with the manager, and store your own sounds in the 32 user "
+         "slots. Your own drum loops come with the LOOP engine, soon."),
         ("Is it safe?", "It installs like M-VAVE's own updates, and the way back is always there. Still, installing "
          "firmware is at your own risk; if an install is cut off, run it again (hold OCT- while switching on for the "
          "update mode)."),
@@ -245,7 +244,7 @@ def manual(text):
     body, toc = markdown(text, rel)
     side = "".join(f'<a href="#{i}"{" class=sub" if lvl == 3 else ""}>{html.escape(t)}</a>' for lvl, i, t in toc if lvl > 1)
     return page("../", "manual/", "NCC manual", f'<div class="manual"><aside class="toc"><div class="label">Contents</div>'
-                f'{side}</aside><article class="doc">{body}</article></div>', "The NCC manual: hooking up, sounds, loops, "
+                f'{side}</aside><article class="doc">{body}</article></div>', "The NCC manual: hooking up, sounds, "
                 "the Circuit's knobs, arp, Drone, effects, the manager, installing.")
 
 
@@ -320,7 +319,7 @@ def installer(path, version):
     t = sub1(t, 'beta: "Felucca 1.0 is a field-testing release; please report problems on GitHub.',
              'beta: "NCC is an early release built on Felucca; please report problems on GitHub (fenderberg/fm1-nc-companion).')
     t = sub1(t, 'editor: "Editor (after installing: edit sounds and sequences from the computer)"',
-             'editor: "NCC Manager (after installing: sounds, your own sounds, DX7 banks, loops and backups from the computer)"')
+             'editor: "NCC Manager (after installing: sounds, your own sounds, DX7 banks and backups from the computer)"')
     t = sub1(t, '<a href="../editor/"', '<a href="../manager/"')
     t = sub1(t, "say(`Felucca ${meta.version}`);", "say(`NCC ${meta.version}`);")
     t = sub1(t, "a.download = `Felucca-backup-", "a.download = `NCC-backup-")

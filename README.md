@@ -25,9 +25,9 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
   is hands-on from the Circuit, with smooth (zipper-free) moves. The FM-1's screen shows what each knob does.
 - **Sounds by role, not by engine.** SELECT picks the type (BASS, PAD, LEAD, KEYS, PLUCK, BEAT), ALGORITHM the engine (or
   ALL), PRESETS walks through what's left. A pad is a pad, wherever it comes from.
-- **Six engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
-  (Casio CZ-style phase distortion), TRIO (SID-style chip synth), ACID (a 303 with accent and slide) and LOOP: lo-fi
-  one-bar drum loops that always fit the bar, opened by any note, with glitch, shuffle, reverse and stutter on the knobs.
+- **Five engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
+  (Casio CZ-style phase distortion), TRIO (SID-style chip synth) and ACID (a 303 with accent and slide). Coming soon:
+  LOOP, one-bar drum loops that always fit the bar.
 - **Built for jamming.** OCT- / OCT+ switch the FM-1's keys and knobs between your two sounds in one press. An arp
   locked to the Circuit's clock, with HOLD. A **Drone** button that keeps a pad ringing while you play over it. Effects
   one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
@@ -44,7 +44,7 @@ Everything is on **[fenderberg.github.io/fm1-nc-companion](https://fenderberg.gi
 2. **[Install](https://fenderberg.github.io/fm1-nc-companion/webapp/installer/)** it: connect the FM-1 by USB and press
    Install. Back to stock any time on the same page (**Return to official V15**) or with M-VAVE's updater.
 3. **[Manage](https://fenderberg.github.io/fm1-nc-companion/webapp/manager/)** it from your computer: sounds on L/R,
-   your own sounds, DX7 banks, drum loops, backups and settings over USB.
+   your own sounds, DX7 banks, backups and settings over USB.
 4. **Read the [manual](docs/MANUAL.md).** It's short.
 
 Locally: `sh tools/ncc_demo.sh` (the emulator), `sh tools/ncc_manager.sh` (the manager), and see

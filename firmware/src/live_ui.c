@@ -45,8 +45,16 @@
 #include "ncc_presets.c"                                /* (NCC's own sounds: ncc_snd_load) */
 
 static const uint8_t LV_ENG[LV_PARTS] = {ENGI_FM6, ENGI_ANALOG};   /* (a part with an engine not in LV_ENGS) */
-static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID, ENGI_LOOP};
-static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID", "LOOP"};
+static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID,
+#if NCC_LOOP
+                                  ENGI_LOOP,           /* (core.h NCC_LOOP: coming soon) */
+#endif
+};
+static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID",
+#if NCC_LOOP
+                                          "LOOP",
+#endif
+};
 static int32_t lv_eng_pos(uint32_t e)                  /* e's place in LV_ENGS, -1 none */
 {
     uint32_t i;
@@ -183,47 +191,113 @@ static void lv_load_nth(uint32_t part, uint32_t c, uint32_t ep, uint32_t pos)
     lv.jsig[part] = lv_snd(TSEL);
 }
 
-/* PRESETS: d sounds on from the focused part's, among those its filters leave (not among them: from the first / last) */
-static void lv_list_go(int32_t d)
+/* PRESETS d detents on: where it lands among the *n sounds the part's filters leave (nl_build first); *cur its sound's
+ * place there (*n: not among them). Not round: it stops at the first and the last (not among them: from the first /
+ * the last) */
+static uint32_t lv_list_peek(uint32_t part, int32_t d, uint32_t *n, uint32_t *cur)
 {
-    uint32_t part = song.sel, c, ep, n, i, pos = 0, cur = NL_MAX;
-    int32_t f;
-    if (part >= LV_PARTS || !d)
-        return;
-    nl_build();
-    c = lv.cat[part];
-    ep = lv.ep[part];
-    if (!(n = nl_count(c, ep)))
-        return;
-    f = nl_find(part, lv_juno(part));
+    uint32_t c = lv.cat[part % LV_PARTS], ep = lv.ep[part % LV_PARTS], i, pos = 0;
+    int32_t f = nl_find(part, lv_juno(part)), to;
+    *n = nl_count(c, ep);
+    *cur = *n;
     for (i = 0; i < nl.n; i++)
         if (nl_fits(i, c, ep)) {
             if ((int32_t)i == f)
-                cur = pos;
+                *cur = pos;
             pos++;
         }
-    if (cur == NL_MAX)
-        pos = d > 0 ? (uint32_t)(d - 1) % n : n - 1u - (uint32_t)(-d - 1) % n;
-    else if (n < 2u)
-        return;
-    else
-        pos = (cur + (uint32_t)(d % (int32_t)n + (int32_t)n)) % n;
-    lv_load_nth(part, c, ep, pos);
+    if (!*n)
+        return 0;
+    to = *cur < *n ? (int32_t)*cur + d : d > 0 ? d - 1 : (int32_t)*n + d;
+    return (uint32_t)clamp(to, 0, (int32_t)*n - 1);
 }
 
-/* the filters dc categories and de engines on from the part's (round, past those with no sound left; nl_build first) */
+/* PRESETS: d sounds on from the focused part's, among those its filters leave */
+static void lv_list_go(int32_t d)
+{
+    uint32_t part = song.sel, n, cur, pos;
+    if (part >= LV_PARTS || !d)
+        return;
+    nl_build();
+    pos = lv_list_peek(part, d, &n, &cur);
+    if (n && pos != cur)
+        lv_load_nth(part, lv.cat[part], lv.ep[part], pos);
+}
+
+/* the filters dc categories and de engines on from the part's, past those with no sound left (nl_build first). Not
+ * round: they stop at ALL and at the last */
 static void lv_filter_peek(uint32_t part, int32_t dc, int32_t de, uint32_t *c, uint32_t *ep)
 {
+    uint32_t t, top = NELEM(LV_ENGS) + 1u;
     *c = lv.cat[part] % NC_N;
-    *ep = lv.ep[part] % (NELEM(LV_ENGS) + 1u);
-    for (; dc; dc += dc > 0 ? -1 : 1)                   /* (ALL always has some: it ends) */
-        do
-            *c = (*c + (dc > 0 ? 1u : NC_N - 1u)) % NC_N;
-        while (!nl_count(*c, *ep));
-    for (; de; de += de > 0 ? -1 : 1)
-        do
-            *ep = (*ep + (de > 0 ? 1u : (uint32_t)NELEM(LV_ENGS))) % (NELEM(LV_ENGS) + 1u);
-        while (!nl_count(*c, *ep));
+    *ep = lv.ep[part] % top;
+    for (; dc; dc += dc > 0 ? -1 : 1) {
+        for (t = *c; dc > 0 ? t + 1u < NC_N : t > 0u;)
+            if (nl_count(t += dc > 0 ? 1u : (uint32_t)-1, *ep))
+                break;
+        if (nl_count(t, *ep))
+            *c = t;
+    }
+    for (; de; de += de > 0 ? -1 : 1) {
+        for (t = *ep; de > 0 ? t + 1u < top : t > 0u;)
+            if (nl_count(*c, t += de > 0 ? 1u : (uint32_t)-1))
+                break;
+        if (nl_count(*c, t))
+            *ep = t;
+    }
+}
+static void lv_num(char *b, uint32_t v);                /* (live_draw.c) */
+/* the entry the pos-th sound (from 0) that fits the filters is, nl.n none (nl_build first) */
+static uint32_t lv_nth(uint32_t c, uint32_t ep, uint32_t pos)
+{
+    uint32_t i;
+    for (i = 0; i < nl.n; i++)
+        if (nl_fits(i, c, ep) && !pos--)
+            return i;
+    return nl.n;
+}
+/* the SOUND page's line for the focused part (s holds 40; nl_build first): what SELECT / ALGORITHM turn to and whether
+ * they are at an end, where PRESETS lands (and at an end), else "TYPE PAD  ENGINE ALL  3/10" */
+static void lv_sound_line(char *s)
+{
+    uint32_t part = song.sel % LV_PARTS, c, ep, c2, ep2, n, cur, pos;
+    char b[12];
+    s[0] = 0;
+    if (lv.cpend | lv.apend) {
+        lv_filter_peek(part, lv.cpend, lv.apend, &c, &ep);
+        lv_filter_peek(part, lv.cpend + (lv.cpend > 0) - (lv.cpend < 0), lv.apend + (lv.apend > 0) - (lv.apend < 0), &c2, &ep2);
+        str_cpy(s, lv.cpend ? "TYPE: " : "ENGINE: ", 9);
+        str_cpy(s + str_len(s), lv.cpend ? NC_NAME[c % NC_N] : ep ? LV_ENG_NAME[(ep - 1u) % NELEM(LV_ENGS)] : "ALL", 8);
+        str_cpy(s + str_len(s), "  ", 3);
+        lv_num(b, nl_count(c, ep));
+        str_cpy(s + str_len(s), b, 5);
+        str_cpy(s + str_len(s), (lv.cpend ? c2 == c : ep2 == ep) ? " SOUNDS  (END)" : " SOUNDS", 15);
+        return;
+    }
+    pos = lv_list_peek(part, lv.pend, &n, &cur);
+    if (lv.pend) {
+        str_cpy(s, "SOUND ", 7);
+        lv_num(b, n ? pos + 1u : 0u);
+        str_cpy(s + str_len(s), b, 5);
+        str_cpy(s + str_len(s), " / ", 4);
+        lv_num(b, n);
+        str_cpy(s + str_len(s), b, 5);
+        if (n && (pos == 0u || pos == n - 1u) && pos == lv_list_peek(part, lv.pend + (lv.pend > 0 ? 1 : -1), &n, &cur))
+            str_cpy(s + str_len(s), pos ? "  (LAST)" : "  (FIRST)", 10);
+        return;
+    }
+    str_cpy(s, "TYPE ", 6);
+    str_cpy(s + 5, NC_NAME[lv.cat[part] % NC_N], 8);
+    str_cpy(s + str_len(s), "   ENGINE ", 11);
+    str_cpy(s + str_len(s), lv.ep[part] ? LV_ENG_NAME[(lv.ep[part] - 1u) % NELEM(LV_ENGS)] : "ALL", 8);
+    if (cur < n) {
+        str_cpy(s + str_len(s), "   ", 4);
+        lv_num(b, cur + 1u);
+        str_cpy(s + str_len(s), b, 5);
+        str_cpy(s + str_len(s), "/", 2);
+        lv_num(b, n);
+        str_cpy(s + str_len(s), b, 5);
+    }
 }
 /* "PAD / ALL" (b holds 16) */
 static void lv_filter_name(char *b, uint32_t c, uint32_t ep)

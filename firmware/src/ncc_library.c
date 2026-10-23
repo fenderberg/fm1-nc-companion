@@ -168,6 +168,23 @@ static int32_t nl_find(uint32_t part, uint32_t juno)
     return -1;
 }
 
+/* entry i's name (s holds 16; nl_build first) */
+static void nl_name(uint32_t i, char *s)
+{
+    const nl_snd_t *e = &nl.s[i % NL_MAX];
+    if (e->kind == NLK_NCC)
+        str_cpy(s, NCC_SND[e->k].name, 16);
+    else if (e->kind == NLK_BANK)
+        str_cpy(s, nl.bname[e->k], 16);
+    else if (e->kind == NLK_USER)
+        up_name(e->k, s);
+    else if (e->kind == NLK_ULOOP) {                    /* a user slot's loop: the slot's name (eng_loop.c) */
+        if (!lu_name(e->k, s))
+            str_cpy(s, "NO LOOP", 16);
+    } else
+        str_cpy(s, ENGINES[e->eng]->presets[e->k].name, 16);
+}
+
 /* entry i on the focused part (its engine first when it is another's) */
 static void nl_load(uint32_t i)
 {

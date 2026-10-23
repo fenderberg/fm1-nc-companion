@@ -9,7 +9,7 @@ The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and g
 - [The two parts](#the-two-parts)
 - [The screen](#the-screen)
 - [Sounds and engines](#sounds-and-engines)
-- [Drum loops (LOOP)](#drum-loops-loop)
+- [Coming soon: drum loops](#coming-soon-drum-loops)
 - [The Circuit's 8 knobs](#the-circuits-8-knobs)
 - [Arp and HOLD](#arp-and-hold)
 - [Drone](#drone)
@@ -53,34 +53,40 @@ The FM-1 has two parts, **L** (blue) and **R** (pink). Each has its own engine, 
 
 - **Top bar:** the page (SOUND, ARP, or an FX page), `SPLIT` or `ST` (stereo), and the tempo (amber when it follows
   the Circuit's clock).
-- **The two part boxes:** channel, engine and sound name of L and R. The part in focus is highlighted. A row of dots
-  below shows the steps of the bar.
+- **The two part boxes:** channel, engine and sound name of L and R, and two labels with the part's filters: its
+  type and its engine (`PAD` `ALL`). The part in focus is highlighted. A row of dots below shows the steps of the bar.
 - **KNOB 1–4:** what the FM-1's own four knobs do on this page, with their values.
-- **Bottom line:** a hint for the page, or a popup. When you turn a Circuit knob it shows the Circuit's label and
+- **Bottom line:** on the SOUND page, the focused part's type, engine and place in the list (`TYPE PAD   ENGINE ALL
+  3/10`); on the other pages a hint; or a popup. When you turn a Circuit knob it shows the Circuit's label and
   what it does on that engine with the live value, for example `R FILTER FREQ   CUTOFF 2.1kHz`.
 
 ## Sounds and engines
 
-NCC puts the sounds of all six engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
-KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**):
+NCC puts the sounds of all five engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
+KEYS, PLUCK**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**), three
+knobs, one job each:
 
 | Control | What it does |
 |---|---|
-| **SELECT** (knob) | The **type** filter: ALL, BASS, PAD, LEAD, KEYS, PLUCK. |
-| **ALGORITHM** (knob) | The **engine** filter: ALL, FM6, JUNO, PHASE, TRIO, ACID. |
-| **PRESETS** (knob) | Steps through the sounds that pass both filters, across engines. It loads once you stop turning, so you can scroll freely. |
+| **SELECT** (knob) | The **category**: ALL, BASS, PAD, LEAD, KEYS, PLUCK. |
+| **ALGORITHM** (knob) | The **engine**: ALL, FM6, JUNO, PHASE, TRIO, ACID. |
+| **PRESETS** (knob) | The **sound**, among those of that category and engine. It loads once you stop turning, so you can scroll freely. |
 | KNOB 1–4 | LEVEL, OCTAVE, VOICE (poly / mono / legato ...), GLIDE |
 
+- The three knobs **stop at the ends**: past the last category, engine or sound nothing happens (the bottom line says
+  `(END)`, `(FIRST)` or `(LAST)`); turn back to go back.
+- While you turn, the screen shows where you're going in amber: the category or engine and how many sounds it has, or
+  for PRESETS the name of the sound you'll land on and its place (`SOUND 3 / 10`).
 - When you stop turning SELECT or ALGORITHM, the part keeps its sound if it fits the new filter; otherwise the first
   sound that fits loads, so you hear the change right away. Types or engines with no matching sound are skipped
   (ACID has no pads, for example).
 - A sound from another engine switches the part to that engine automatically.
-- Each part has its own filters, shown at the bottom of its box (`PAD / ALL`).
+- Each part has its own filters, shown as the two labels at the bottom of its box.
 - Your own sounds join in: user presets and a DX7 bank loaded into FM6 get their type from their name ("E.PIANO" is
   KEYS, "STRINGS" is PAD). Sounds whose name doesn't tell show up under **OTHER**.
 - The Juno chorus lives on **FX > CHORUS** (KNOB 3).
 
-There are 88 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK, 7 BEAT (drum loops).
+There are 81 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK.
 
 ### More FM sounds: load a DX7 bank
 
@@ -90,7 +96,7 @@ FM-1 by USB, open Felucca's [web editor](https://hugelton.github.io/Felucca/weba
 import the `.syx` in its FM6 section. The bank's 32 voices then show up in NCC's library under FM6, sorted into
 types by their names ("E.PIANO 1" is KEYS, "SYN-BASS 1" is BASS, "STRINGS 1" is PAD, "TUB BELLS" is PLUCK).
 
-The six engines:
+The five engines:
 
 | Engine | Character | Example sounds |
 |---|---|---|
@@ -99,49 +105,12 @@ The six engines:
 | **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | PD EP, DIGI PIANO, GLASS BELL, MALLET, PD BASS, FOLD LEAD |
 | **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | CHIP BASS, WOBBLE BASS, CHIP KEYS, TOY PIANO, 8BIT PAD, CHIP LEAD |
 | **ACID** | A 303-style bass: saw or square, a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, SOFT BASS, ACID LEAD, ACID PLUCK |
-| **LOOP** | Lo-fi one-bar drum loops that always fit the bar, with IDM-style glitch tricks on the knobs. See [Drum loops](#drum-loops-loop). | JUNGLE BREAK, AMEN-ISH BREAK, BOOM BAP BEAT, TWO STEP BEAT, FOUR FLOOR BEAT, ELECTRO BEAT, IDM GLITCH BEAT |
 
-## Drum loops (LOOP)
+## Coming soon: drum loops
 
-The LOOP engine plays one-bar drum loops in time with the Circuit. Pick one with SELECT on **BEAT** (or ALGORITHM on
-**LOOP**); each loop is its own sound.
-
-- **Always in the bar.** The loop is cut into 16 slices, and each one starts on its 16th of the Circuit's clock. At
-  any tempo it stays exactly one bar long, without changing pitch (a slower tempo leaves a little air after each
-  slice, a faster one cuts them short).
-- **A note is a gate.** Any note, at any pitch, opens the loop **where the bar is right now**, and the note-off closes
-  it. The Circuit's scale and key don't matter. So the Circuit's step sequencer becomes the loop's rhythm: one long
-  note plays the whole bar; short notes on a few steps chop a new groove out of it. Velocity sets the level.
-  **HOLD** or **Drone** keep it open.
-- **Lo-fi on purpose:** 11 kHz, 8 bits. The built-in loops are made from Felucca's own drum sounds. AMEN-ISH BREAK
-  plays the famous break's rhythm on those sounds; the original recording is not included (it is copyrighted).
-
-### Your own loops
-
-You can play your own one-bar drum loops (your copy of the Amen break, say) the same way, with all the knobs below:
-
-1. Cut each loop to **exactly one bar** (any tempo) and save it as a WAV.
-2. Connect the FM-1 by USB, open Felucca's [web editor](https://hugelton.github.io/Felucca/webapp/editor/) in Chrome
-   or Edge and upload the WAVs into a **user sample slot** (USR1, USR2 or USR3). Give the slot a name, e.g. `AMEN`.
-   Every sample (zone) in the slot becomes one loop; a slot holds about 7 seconds of audio in total.
-3. In NCC, set SELECT to **BEAT** (or ALGORITHM to **LOOP**): your loops are in the list, named after the slot
-   (`AMEN`, or `AMEN 1`, `AMEN 2` .. when the slot holds more than one), next to the built-in ones.
-
-When you pick one, NCC prepares it in a split second (silent meanwhile) and keeps it lo-fi like the built-in loops
-(8 bits, about 7 kHz for a bar at 120 BPM). Your loops stay on your FM-1; they are not part of NCC.
-
-The Circuit's knobs on a loop:
-
-| Circuit knob | LOOP |
-|---|---|
-| 1 OSCILLATOR | **Pitch**: the slices faster or slower (±12 semitones), still one per 16th |
-| 2 OSC MOD | **Shuffle**: each slice's chance to be another slice of the bar |
-| 3 AMP ENV | **Gate**: how much of each slice plays, down to blips |
-| 4 FILTER ENV | **Reverse**: each slice's chance to play backwards |
-| 5 FILTER FREQ | **DJ filter**: left a low-pass, right a high-pass |
-| 6 RESONANCE | **Crush**: fewer bits, a lower sample rate |
-| 7 MODULATION | **Stutter**: first random ratchets (2–4 hits in a 16th), further up a beat repeat of 1/8, 1/16, 1/32, 1/64 |
-| 8 FX | Drive + delay send |
+A LOOP engine with lo-fi one-bar drum loops that always fit the Circuit's bar, opened by any note and chopped by the
+Circuit's steps, with shuffle, reverse, stutter and crush on the knobs, is in the works. It is left out of this
+version while it gets finished.
 
 ## The Circuit's 8 knobs
 
@@ -243,8 +212,6 @@ It opens on `localhost` (Web MIDI only works there or on https). Press **Connect
 - **My sounds:** the 32 user preset slots. Store what L or R plays now, load, rename, erase, and save all of them to
   a file (or load such a file back).
 - **DX7 bank:** drop a 32-voice `.syx`, see its voices and their types, and send it to FM6.
-- **Loops:** drop WAV drum loops, set each one's tempo (guessed from its length) and listen to the bar that will be
-  kept; then send them to one of the three user sample slots (about three loops per slot). They appear under BEAT.
 - **Backup:** everything on the FM-1 in one file, and back.
 - **Settings:** L's and R's MIDI channel, SPLIT or STEREO, the clock source.
 

@@ -2,11 +2,13 @@
 
 ## 0.3
 
-- **Loops stay on the Circuit's bar.** On the Circuit's clock, NCC now counts the bar in its clock pulses, so loops
-  (and the arp) can no longer drift off the Circuit over time. Press Stop and Start on the Circuit once after
-  installing.
+- **Clearer sound picking.** SELECT is the category, ALGORITHM the engine, PRESETS the sound; all three stop at the
+  ends instead of going round. The part's box shows its category and engine as two labels, the bottom line its place
+  in the list, and while you turn you see where you're going (PRESETS: the sound's name before it loads).
+- **The LOOP engine is coming soon**: it is left out of this version while it gets finished.
+- **Locked to the Circuit's bar.** On the Circuit's clock, NCC now counts the bar in its clock pulses, so the arp can
+  no longer drift off the Circuit over time. Press Stop and Start on the Circuit once after installing.
 - A full 32-voice DX7 bank keeps its voice names and types after the FM-1 is switched off and on.
-- NCC Manager: your own loops show their names; silence before a WAV loop's first hit is cut off.
 
 ## 0.2
 

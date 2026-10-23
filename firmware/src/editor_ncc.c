@@ -71,18 +71,7 @@ static int ed_ncc_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
             ed_b(e->kind);
             ed_b(e->eng);
             ed_b(e->cat);
-            if (e->kind == NLK_NCC)
-                str_cpy(s, NCC_SND[e->k].name, 16);
-            else if (e->kind == NLK_BANK)
-                str_cpy(s, nl.bname[e->k], 16);
-            else if (e->kind == NLK_USER)
-                up_name(e->k, s);
-            else if (e->kind == NLK_ULOOP) {            /* a user slot's loop: the slot's name (eng_loop.c) */
-                if (!lu_name(e->k, s))
-                    str_cpy(s, "NO LOOP", 16);
-            }
-            else
-                str_cpy(s, ENGINES[e->eng]->presets[e->k].name, 16);
+            nl_name((uint32_t)start + i, s);
             ed_str(s, 16);
         }
         break;

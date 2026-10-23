@@ -123,7 +123,14 @@ static void lv_draw_pad(uint32_t part, int32_t x)
         str_cpy(s, "JUNO", sizeof s);                   /* (a Juno sound after a power-on: which one is not stored) */
     else
         sound_name(t, s);
-    cv_text_fit(x + 8, 22, &AF_M, s, on ? LC_TEXT : LC_MID, fill, 98);
+    if (on && lv.pend) {                                /* PRESETS turning: the sound it lands on, in amber until it loads */
+        uint32_t n, cur, k;
+        nl_build();
+        k = lv_nth(lv.cat[part], lv.ep[part], lv_list_peek(part, lv.pend, &n, &cur));
+        if (k < nl.n)
+            nl_name(k, s);
+    }
+    cv_text_fit(x + 8, 22, &AF_M, s, on && lv.pend ? LC_AMBER : on ? LC_TEXT : LC_MID, fill, 98);
     bx = x + 8;
     if (t->p[P_AMODE])
         bx = lv_badge(bx, 46, "ARP", on ? LC_PART[part] : LC_LINE, on ? LC_TEXT : LC_MID, fill);
@@ -131,17 +138,15 @@ static void lv_draw_pad(uint32_t part, int32_t x)
         bx = lv_badge(bx, 46, "HOLD", on ? LC_TEXT : LC_LINE, on ? LC_BG : LC_MID, fill);
     if (ncd_want[part])
         (void)lv_badge(bx, 46, "DRONE", on ? LC_AMBER : LC_LINE, on ? LC_BG : LC_MID, fill);
-    if (on && (lv.cpend | lv.apend)) {                  /* SELECT / ALGORITHM turning: the filters they will set */
+    c = lv.cat[part] % NC_N;                            /* the part's filters as two pills: type, engine (SELECT / */
+    ep = lv.ep[part];                                   /* ALGORITHM turning: what they will set, in amber) */
+    if (on && (lv.cpend | lv.apend)) {
         nl_build();
         lv_filter_peek(part, lv.cpend, lv.apend, &c, &ep);
-        s[0] = '>';
-        s[1] = ' ';
-        lv_filter_name(s + 2, c, ep);
-    } else if (on && lv.pend)
-        str_cpy(s, lv.pend > 0 ? "NEXT >" : "< PREV", 7);
-    else                                                /* the part's filters: category / engine */
-        lv_filter_name(s, lv.cat[part], lv.ep[part]);
-    cv_text_fit(x + 8, 66, &AF_S, s, on ? LC_MID : LC_DIM, fill, 98);
+    }
+    bx = lv_badge(x + 8, 64, NC_NAME[c], on && lv.cpend ? LC_AMBER : on ? LC_TEXT : LC_LINE, on ? LC_BG : LC_MID, fill);
+    (void)lv_badge(bx, 64, ep ? LV_ENG_NAME[(ep - 1u) % NELEM(LV_ENGS)] : "ALL", on && lv.apend ? LC_AMBER : on ? LC_TEXT :
+                   LC_LINE, on ? LC_BG : LC_MID, fill);
 }
 
 static uint32_t lv_pad_sig(uint32_t part)
@@ -152,7 +157,7 @@ static uint32_t lv_pad_sig(uint32_t part)
     h = lv_hash(h, (t->p[P_AMODE] != 0) | (t->p[P_AHOLD] != 0) << 1 | ncd_want[part] << 2 | (uint32_t)midi_lit(part) << 3);
     h = lv_hash(h, song.sel == part ? (uint32_t)(uint8_t)lv.cpend | (uint32_t)(uint8_t)lv.apend << 8 : 0u);
     h = lv_hash(h, (uint32_t)lv.cat[part] | (uint32_t)lv.ep[part] << 8);
-    return lv_hash(h, mch_get(part) | (song.sel == part) << 8 | (uint32_t)(song.sel == part && lv.pend) << 9);
+    return lv_hash(h, mch_get(part) | (song.sel == part) << 8 | (uint32_t)(song.sel == part ? (uint8_t)lv.pend : 0u) << 9);
 }
 
 static void lv_draw_parts(void)
@@ -273,8 +278,7 @@ static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
 
 static void lv_draw_foot(void)
 {
-    static const char *const HINT[PG_N] = {"SELECT: TYPE   ALGORITHM: ENGINE", "SELECT: PAGE 2   REC: HOLD",
-                                           "HOLD FX + KEY: PERFORM"};
+    static const char *const HINT[PG_N] = {"", "SELECT: PAGE 2   REC: HOLD", "HOLD FX + KEY: PERFORM"};
     uint32_t seen = ncm_seen, sig, mp = (seen >> 16) & 1u, m = (seen >> 8) & 7u;
     char s[24], r[24];
     int32_t v = 0;
@@ -291,11 +295,20 @@ static void lv_draw_foot(void)
         v = lv_macro_text(mp, m, r);
     sig = !lv.pop_ms ? 1u << 31 | lv.page << 4 | lv.fx | lv.sub << 8 : lv.say ? 1u << 29 | lv.say_n :
           1u << 30 | (seen & 0x1FF00u) << 8 | ((uint32_t)v & 0xFFFFu);
+    if (!lv.pop_ms && !lv.fx && lv.page == PG_SOUND)   /* (SOUND's line: the filters, the sound, the turning) */
+        sig = lv_hash(lv_hash(sig, lv_snd(TSEL) ^ lv_juno(song.sel % LV_PARTS) << 24),
+                      (uint32_t)(uint8_t)lv.pend | (uint32_t)(uint8_t)lv.cpend << 8 | (uint32_t)(uint8_t)lv.apend << 16 |
+                      (uint32_t)lv.cat[song.sel % LV_PARTS] << 24 | (uint32_t)lv.ep[song.sel % LV_PARTS] << 28 | (uint32_t)song.sel << 31);
     if (!lv_changed(RG_FOOT, sig))
         return;
     cv_begin(240, 26, LC_BG);
     cv_rect(0, 0, 240, 1, LC_LINE);
-    if (!lv.pop_ms)
+    if (!lv.pop_ms && !lv.fx && lv.page == PG_SOUND) {  /* SOUND: what SELECT / ALGORITHM / PRESETS have, or turn to */
+        char l[40];
+        nl_build();
+        lv_sound_line(l);
+        cv_text_in(0, 6, 240, &AF_S, l, lv.pend | lv.cpend | lv.apend ? LC_AMBER : LC_TEXT, LC_BG);
+    } else if (!lv.pop_ms)
         cv_text_in(0, 6, 240, &AF_S, !lv.fx ? HINT[lv.page % PG_N] : lv.sub == LV_FX_PERF ?
                    "KEYS: EFFECTS   FX: CLOSE" : "FX / SELECT: PAGES   HOME: CLOSE", LC_DIM, LC_BG);
     else if (lv.say)

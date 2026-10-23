@@ -1076,8 +1076,9 @@ static void user_loop_test(void)
     nl_build();
     for (i = 0; i < nl.n; i++)
         n += nl.s[i].kind == NLK_ULOOP && nl.s[i].cat == NC_BEAT;
-    ok("user loops: a slot of two loops: two sounds in the library, BEAT, named after the slot (AMEN 1, AMEN 2)",
-       n == 2u && lu_name(0, b) && !strcmp(b, "AMEN 1") && lu_name(1, b) && !strcmp(b, "AMEN 2") && !lu_name(2, b));
+    ok("user loops: a slot of two loops: named after the slot (AMEN 1, AMEN 2), in the library with NCC_LOOP",
+       n == (NCC_LOOP ? 2u : 0u) && lu_name(0, b) && !strcmp(b, "AMEN 1") && lu_name(1, b) && !strcmp(b, "AMEN 2") &&
+       !lu_name(2, b));
     loop_play(0, U0, 60, 0, bar + bar / 2, 120);
     printf("ncc: user loop: %u samples at %u Hz, ready %u\n", lu[1].len, lu[1].rate, lu[1].ready);
     ok("user loops: decoded in the main loop into R's buffer (a bar of 22.05 kHz: every 3rd sample, 7350 Hz)",
@@ -1121,9 +1122,9 @@ static void editor_ncc_test(void)
     uint32_t total, got = 0, start, i, at, loopi = 0, found = 0;
     power();
     nl_build();
-    ok("editor NCC: INFO says NCC, the types (BEAT among them), the six engines",
-       ncc_req(ED_NCC_INFO, 0, 0) > 0 && !strcmp((const char *)ed_out, "NCC") && memmem(ed_out, ed_n, "BEAT", 5) &&
-       memmem(ed_out, ed_n, "LOOP", 5));
+    ok("editor NCC: INFO says NCC, the types, the engines (LOOP only with NCC_LOOP)",
+       ncc_req(ED_NCC_INFO, 0, 0) > 0 && !strcmp((const char *)ed_out, "NCC") && memmem(ed_out, ed_n, "PLUCK", 6) &&
+       memmem(ed_out, ed_n, "ACID", 5) && !memmem(ed_out, ed_n, "LOOP", 5) == !NCC_LOOP);
     for (start = 0;; start += 16u) {                    /* the library, 16 at a time */
         q[0] = (uint8_t)((start + 8192u) & 127u);
         q[1] = (uint8_t)((start + 8192u) >> 7);
@@ -1131,7 +1132,7 @@ static void editor_ncc_test(void)
         ncc_req(ED_NCC_LIB, q, 3);
         total = (uint32_t)(ed_out[3] | ed_out[4] << 7) - 8192u;
         for (i = 0, at = 5; i < ed_out[2]; i++, got++) {
-            if (ed_out[at + 1] == ENGI_LOOP && !found)
+            if (ed_out[at + 1] == ENGI_ACID && !found)
                 loopi = start + i, found = 1;
             at += 3;
             while (ed_out[at++])
@@ -1144,8 +1145,8 @@ static void editor_ncc_test(void)
     q[0] = 1;
     q[1] = (uint8_t)((loopi + 8192u) & 127u);
     q[2] = (uint8_t)((loopi + 8192u) >> 7);
-    ok("editor NCC: LOAD a loop on R: R plays LOOP, L untouched, the focus kept",
-       ncc_req(ED_NCC_LOAD, q, 3) == 2u && ed_out[1] == 0 && trk[1].eng_req == ENGI_LOOP && trk[0].eng_req == ENGI_FM6 &&
+    ok("editor NCC: LOAD an ACID sound on R: R plays ACID, L untouched, the focus kept",
+       ncc_req(ED_NCC_LOAD, q, 3) == 2u && ed_out[1] == 0 && trk[1].eng_req == ENGI_ACID && trk[0].eng_req == ENGI_FM6 &&
        song.sel == 0u);
     ncc_req(ED_NCC_PARTS, 0, 0);
     {
@@ -1155,9 +1156,9 @@ static void editor_ncc_test(void)
         while (ed_out[a0++])
             ;
         e1 = (uint32_t)(ed_out[a0] | ed_out[a0 + 1] << 7) - 8192u;
-        ok("editor NCC: PARTS: R on that loop (its entry, LOOP, channel 4, its name)", ed_out[0] == 2u && e1 == loopi &&
-           ed_out[a0 + 5] == ENGI_LOOP && ed_out[a0 + 4] == 3u && !strcmp((const char *)ed_out + a0 + 6, NLOOP_NAME[0]) &&
-           e0 < nl.n);
+        ok("editor NCC: PARTS: R on that sound (its entry, ACID, channel 4, its name: ACID LEAD)", ed_out[0] == 2u &&
+           e1 == loopi && ed_out[a0 + 5] == ENGI_ACID && ed_out[a0 + 4] == 3u &&
+           !strcmp((const char *)ed_out + a0 + 6, "ACID LEAD") && e0 < nl.n);
     }
     q[0] = 1; q[1] = 0;
     ncc_req(ED_NCC_SET, q, 2);
@@ -1168,10 +1169,10 @@ static void editor_ncc_test(void)
     q[0] = 0; q[1] = 0; q[2] = 9;
     ncc_req(ED_NCC_SET, q, 3);
     ok("editor NCC: SET L's channel to 10", mch_get(0) == 9u && ed_out[1] == 0);
-    q[0] = 3; q[1] = 1; q[2] = NC_BEAT; q[3] = 6;
+    q[0] = 3; q[1] = 1; q[2] = NC_LEAD; q[3] = 5;
     ncc_req(ED_NCC_SET, q, 4);
-    ok("editor NCC: SET R's filters (BEAT / LOOP), its sound kept", lv.cat[1] == NC_BEAT && lv.ep[1] == 6u &&
-       trk[1].eng_req == ENGI_LOOP);
+    ok("editor NCC: SET R's filters (LEAD / ACID), its sound kept", lv.cat[1] == NC_LEAD && lv.ep[1] == 5u &&
+       trk[1].eng_req == ENGI_ACID);
     q[0] = 0; q[1] = 5; q[2] = 0;
     ok("editor NCC: bad arguments answer rc 1", ncc_req(ED_NCC_SET, q, 3) == 2u && ed_out[1] == 1);
 }
@@ -1271,8 +1272,11 @@ static void engine_ui_test(void)
     printf("ncc: library: %u sounds, BASS %u PAD %u LEAD %u KEYS %u PLUCK %u BEAT %u OTHER %u\n", nl.n, n[NC_BASS],
            n[NC_PAD], n[NC_LEAD], n[NC_KEYS], n[NC_PLUCK], n[NC_BEAT], n[NC_OTHER]);
     ok("sounds: the library holds the five engines' factory sounds and NCC's own, each in a category (none OTHER)",
-       nl.n - user == 51u + NCC_NSND - 12u + NLOOP && n[NC_OTHER] == 0u && n[NC_BASS] == 18u && n[NC_PAD] == 15u &&
-       n[NC_LEAD] == 20u && n[NC_KEYS] == 13u && n[NC_PLUCK] == 15u && n[NC_BEAT] == NLOOP);
+       nl.n - user == 51u + NCC_NSND - 12u + (NCC_LOOP ? NLOOP : 0u) && n[NC_OTHER] == 0u && n[NC_BASS] == 18u &&
+       n[NC_PAD] == 15u && n[NC_LEAD] == 20u && n[NC_KEYS] == 13u && n[NC_PLUCK] == 15u &&
+       n[NC_BEAT] == (NCC_LOOP ? NLOOP : 0u));
+    ok("sounds: LOOP is coming soon (core.h NCC_LOOP 0): not among the engines, no loop in the library",
+       NCC_LOOP || (lv_eng_pos(ENGI_LOOP) < 0 && !nl_count(NC_BEAT, 0)));
     ok("sounds: names of other sounds: E.PIANO 1 KEYS, Strings 2 PAD, DEEP BASS BASS, POLY SYNTH KEYS, WEIRD OTHER",
        nl_cat("E.PIANO 1", ENGI_FM6) == NC_KEYS && nl_cat("Strings 2", ENGI_FM6) == NC_PAD &&
        nl_cat("DEEP BASS", ENGI_ACID) == NC_BASS && nl_cat("POLY SYNTH", ENGI_ANALOG) == NC_KEYS &&
@@ -1303,7 +1307,11 @@ static void engine_ui_test(void)
        !strcmp(lv.say, "L BASS / ALL"));
     t_turn(EN_ALGO, -1);
     lv_frames(400);
-    ok("sounds: ALGORITHM back from ALL: ACID, its first bass (NCC's SOFT BASS)", lv.ep[0] == 5u &&
+    ok("sounds: ALGORITHM back from ALL: nothing (not round: ALL is the first)", lv.ep[0] == 0u &&
+       !strcmp(snd_name(0), "FM BASS"));
+    t_turn(EN_ALGO, 5);
+    lv_frames(400);
+    ok("sounds: ALGORITHM on to ACID, its first bass (NCC's SOFT BASS)", lv.ep[0] == 5u &&
        t->eng_req == ENGI_ACID && !strcmp(snd_name(0), "SOFT BASS"));
     ok("sounds: a new ACID sound slides (LEGATO, GLIDE in TIME mode)", t->p[P_VOICE] == V_LEGATO &&
        t->p[P_GLMODE] == 1 && t->p[P_GLIDE] == LV_ACID_GLIDE);
@@ -1317,14 +1325,21 @@ static void engine_ui_test(void)
        !strcmp(snd_name(0), "ACID LEAD"));
     t_turn(EN_ALGO, 1);
     lv_frames(400);
-    ok("sounds: ALGORITHM on: ALL engines, the lead kept", lv.ep[0] == 0u && !strcmp(snd_name(0), "ACID LEAD"));
+    ok("sounds: ALGORITHM on past the last engine: it stays (not round)", lv.ep[0] == 5u);
+    t_turn(EN_ALGO, -5);
+    lv_frames(400);
+    ok("sounds: ALGORITHM back to ALL engines, the lead kept", lv.ep[0] == 0u && !strcmp(snd_name(0), "ACID LEAD"));
     t_turn(EN_PRESET, 3);
     lv_frames(200);
     ok("sounds: PRESETS over the engines: SQUELCH LEAD, SCREAM, HOOVERISH", t->eng_req == ENGI_ACID &&
        !strcmp(snd_name(0), "HOOVERISH"));
     t_turn(EN_PRESET, 1);
     lv_frames(200);
-    ok("sounds: .. round to FM6's (BRASS)", t->eng_req == ENGI_FM6 && !strcmp(snd_name(0), "BRASS"));
+    ok("sounds: PRESETS past the last lead: it stays (not round)", !strcmp(snd_name(0), "HOOVERISH"));
+    t_turn(EN_PRESET, -60);
+    lv_frames(200);
+    ok("sounds: PRESETS far back: the first lead, FM6's (BRASS), and no further", t->eng_req == ENGI_FM6 &&
+       !strcmp(snd_name(0), "BRASS"));
     fm6_bank_read = stub_bank;                          /* a bank of two voices: E.PIANO 1 among the KEYS */
     fm6_bank_used = 3u;
     lv.cat[0] = NC_KEYS;
@@ -1637,6 +1652,7 @@ static void bpm0_test(void)
     song.g[G_CLOCK] = (int16_t)c;
 }
 
+#if NCC_LOOP
 /* the editor's NCC commands on a user slot's loops: LIB names them after the slot, PARTS names the one on R */
 static void editor_ncc_uloop_test(void)
 {
@@ -1671,6 +1687,7 @@ static void editor_ncc_uloop_test(void)
         ;
     ok("editor NCC: PARTS names the user loop R plays (AMEN 1)", !strcmp((const char *)ed_out + at + 6, "AMEN 1"));
 }
+#endif
 
 int main(void)
 {
@@ -1700,7 +1717,9 @@ int main(void)
     loop_test();
     editor_ncc_test();
     user_loop_test();
+#if NCC_LOOP
     editor_ncc_uloop_test();
+#endif
     engine_macro_test();
     macro_map_test();
     acid_test();
