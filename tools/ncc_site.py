@@ -32,8 +32,40 @@ def sub1(text, old, new):
     return text.replace(old, new)
 
 
+# the installer in the site's purple / pink (the front page's, the manager's): after Felucca's own style, so it wins
+INSTALLER_CSS = """<style>
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) { --bg: #cbbbe0; --fg: #fdf0ff; --dim: #e2d4f3; }
+  :root { --panel: #6a4c9c; --tray: #523a7e; --card: #7c5fae; --edge: #e39ad8; --ink: #2a1d40; color-scheme: light; }
+  body { background: #cbbbe0; color: var(--ink); }
+  main { max-width: 640px; padding: 24px 16px 40px; }
+  main > * { position: relative; }
+  .ncc-card { background: var(--panel); color: var(--fg); border-radius: 22px; padding: 22px 24px; }
+  .ncc-back { display: inline-block; margin: 0 0 12px; color: #4b3a63; text-decoration: none; font-size: 14px; }
+  .ncc-back:hover { text-decoration: underline; }
+  h1 { font-size: 30px; margin: 0 0 8px; color: var(--fg); }
+  .lang { color: var(--dim); }
+  .small, pre { color: var(--dim); }
+  a { color: inherit; }
+  button { background: var(--card); color: var(--fg); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 18px; }
+  button:hover:not(:disabled) { filter: brightness(1.12); }
+  #go { background: var(--edge); color: var(--ink); border-color: var(--edge); font-size: 18px; font-weight: 600;
+        padding: 12px 34px; border-radius: 12px; }
+  .lang { border: 0; background: none; }
+  details { background: var(--tray); border-radius: 14px; padding: 10px 14px; }
+  summary { cursor: pointer; }
+  input[type=file] { color: var(--dim); }
+  progress { accent-color: var(--edge); height: 8px; border-radius: 4px; }
+  #status { font-weight: 600; }
+</style>
+"""
+
+
 def installer(path, version):
     t = path.read_text(encoding="utf-8")
+    t = sub1(t, "</head>", INSTALLER_CSS + "</head>")
+    t = sub1(t, "<main>\n  <button class=\"lang\" id=\"lang\"></button>",
+             '<main>\n  <a class="ncc-back" href="../../">← NCC</a>\n  <div class="ncc-card">\n  <button class="lang" id="lang"></button>')
+    t = sub1(t, "</main>\n<script type=\"module\">", "  </div>\n</main>\n<script type=\"module\">")
     t = sub1(t, "<title>Felucca</title>", "<title>NCC installer</title>")
     t = sub1(t, "<h1>Felucca</h1>", f"<h1>NCC {html.escape(version)}</h1>\n  <p>Novation Circuit Companion: firmware that turns "
              "the M-VAVE FM-1 into a two-part synth for the Novation Circuit Tracks. Built on Felucca.</p>")
