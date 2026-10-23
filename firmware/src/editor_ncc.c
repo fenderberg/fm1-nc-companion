@@ -29,7 +29,10 @@ static void ed_ncc_name(uint32_t part, char *s)
     uint32_t jn = lv_juno(part);
     if (bank >= 0 && bank < (int32_t)FM6_NBANK && (nl_bank_names(), nl.bname[bank][0]))
         str_cpy(s, nl.bname[bank], 16);
-    else if (jn)
+    else if (t->eng_req == ENGI_LOOP && t->p[P_E0] >= (int16_t)NLOOP && user_of(t) >= UP_SLOTS) {   /* a user loop */
+        if (!lu_name((uint32_t)(t->p[P_E0] - (int16_t)NLOOP), s))
+            str_cpy(s, "NO LOOP", 16);
+    } else if (jn)
         str_cpy(s, NCC_SND[jn - 1u].name, 16);
     else
         sound_name(t, s);
@@ -74,6 +77,10 @@ static int ed_ncc_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
                 str_cpy(s, nl.bname[e->k], 16);
             else if (e->kind == NLK_USER)
                 up_name(e->k, s);
+            else if (e->kind == NLK_ULOOP) {            /* a user slot's loop: the slot's name (eng_loop.c) */
+                if (!lu_name(e->k, s))
+                    str_cpy(s, "NO LOOP", 16);
+            }
             else
                 str_cpy(s, ENGINES[e->eng]->presets[e->k].name, 16);
             ed_str(s, 16);

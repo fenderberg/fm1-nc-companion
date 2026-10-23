@@ -1580,6 +1580,41 @@ static void bpm0_test(void)
     song.g[G_CLOCK] = (int16_t)c;
 }
 
+/* the editor's NCC commands on a user slot's loops: LIB names them after the slot, PARTS names the one on R */
+static void editor_ncc_uloop_test(void)
+{
+    uint8_t q[3];
+    uint32_t start, i, at, total, found = 0, idx = 0;
+    power();
+    ulp_slot(0, "amen", 2);
+    for (start = 0;; start += 16u) {
+        q[0] = (uint8_t)((start + 8192u) & 127u);
+        q[1] = (uint8_t)((start + 8192u) >> 7);
+        q[2] = 16;
+        ncc_req(ED_NCC_LIB, q, 3);
+        total = (uint32_t)(ed_out[3] | ed_out[4] << 7) - 8192u;
+        for (i = 0, at = 5; i < ed_out[2]; i++) {
+            if (ed_out[at] == NLK_ULOOP && !strcmp((const char *)ed_out + at + 3, "AMEN 1"))
+                found = 1, idx = start + i;
+            at += 3;
+            while (ed_out[at++])
+                ;
+        }
+        if (start + 16u >= total)
+            break;
+    }
+    ok("editor NCC: LIB names a user slot's loops after the slot (AMEN 1)", found);
+    q[0] = 1;
+    q[1] = (uint8_t)((idx + 8192u) & 127u);
+    q[2] = (uint8_t)((idx + 8192u) >> 7);
+    ncc_req(ED_NCC_LOAD, q, 3);
+    ncc_req(ED_NCC_PARTS, 0, 0);
+    at = 7;
+    while (ed_out[at++])
+        ;
+    ok("editor NCC: PARTS names the user loop R plays (AMEN 1)", !strcmp((const char *)ed_out + at + 6, "AMEN 1"));
+}
+
 int main(void)
 {
     setup_test();
@@ -1607,6 +1642,7 @@ int main(void)
     loop_test();
     editor_ncc_test();
     user_loop_test();
+    editor_ncc_uloop_test();
     engine_macro_test();
     macro_map_test();
     acid_test();
