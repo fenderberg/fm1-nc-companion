@@ -56,8 +56,8 @@ async function connect() {
     input.onmidimessage = (e) => link.receive(e.data);
     if (input.open) await input.open().catch(() => {});
     dev = { link, input };
-    dev.info = parse[CMD.INFO](await rq(req.info(), { timeout: 800 }));
-    try { dev.ncc = parseNccInfo(await rq([NCMD.INFO, []], { timeout: 800, retries: 0 })); }
+    dev.info = parse[CMD.INFO](await rq(req.info(), { timeout: 800, retries: 3 }));   /* (the first frame after the port opens may be lost) */
+    try { dev.ncc = parseNccInfo(await rq([NCMD.INFO, []], { timeout: 800, retries: 2 })); }
     catch (e) { dev.ncc = null; }
     $("connect").textContent = "Disconnect";
     $("status").textContent = dev.ncc ? `Connected: NCC on ${dev.info.version.replace(/^FELUCCA /, "Felucca ")}${MOCK ? " (simulated)" : ""}`
