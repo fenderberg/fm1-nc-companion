@@ -177,7 +177,12 @@ def home(version, changelog):
     ]
     faqs = "\n".join(f"<details><summary>{q}</summary><p>{a}</p></details>" for q, a in faq)
     log, _ = markdown(re.sub(r"\A# .*\n", "", changelog), lambda u: u)
-    log = re.sub(r'<h2 id="[^"]*">([^<]*)</h2>', r'<h3><span class="pad lit green">\1</span></h3>', log)
+    def ver(m):                                         # (a version newer than the one installed: coming)
+        v = m.group(1)
+        newer = tuple(map(int, re.findall(r"\d+", v))) > tuple(map(int, re.findall(r"\d+", version)))
+        return (f'<h3><span class="pad lit {"amber" if newer else "green"}">{v}</span>'
+                + ('<span class="label">coming soon</span>' if newer else "") + "</h3>")
+    log = re.sub(r'<h2 id="[^"]*">([^<]*)</h2>', ver, log)
     video = (f'<div class="video"><iframe src="{VIDEO}" title="NCC demo" allowfullscreen></iframe></div>' if VIDEO else
              '<div class="video"><div><div class="label">Demo video</div><p>Coming soon. Meanwhile, hear it in your '
              'browser.</p><a class="pad lit pink" href="webapp/try/">Try it</a></div></div>')
