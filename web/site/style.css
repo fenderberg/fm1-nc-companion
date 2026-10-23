@@ -1,0 +1,121 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* NC: NCC's site style (tools/ncc_site.py), dark like a Circuit Tracks: a near-black body, panels like its
+   case, lit pads in its bright colours as cards and buttons, small labels in capitals. */
+:root {
+  --body: #0d0d0f; --case: #18181b; --case2: #202024; --edge: #2c2c31; --text: #ececf0; --dim: #9a9aa6; --faint: #5c5c66;
+  --green: #3ee07a; --blue: #3aa4ff; --red: #ff4d5e; --amber: #ffb020; --pink: #ff5fd2; --cyan: #34e3e0; --purple: #a782ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--body); }
+body { margin: 0; background: var(--body); color: var(--text);
+       font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--blue); }
+img { max-width: 100%; }
+.label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+
+/* the bar on every page */
+.ncc-nav { position: sticky; top: 0; z-index: 10; background: rgba(13, 13, 15, .92); backdrop-filter: blur(8px);
+           border-bottom: 1px solid var(--edge); }
+.ncc-nav .in { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 18px;
+               flex-wrap: wrap; }
+.ncc-nav .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none;
+                  font-weight: 800; letter-spacing: .08em; }
+.ncc-nav .brand i { display: grid; grid-template-columns: repeat(4, 6px); gap: 2px; }
+.ncc-nav .brand i b { width: 6px; height: 6px; border-radius: 1.5px; background: var(--faint); }
+.ncc-nav .brand i b:nth-child(1) { background: var(--green); } .ncc-nav .brand i b:nth-child(6) { background: var(--blue); }
+.ncc-nav .brand i b:nth-child(3) { background: var(--pink); } .ncc-nav .brand i b:nth-child(8) { background: var(--amber); }
+.ncc-nav nav { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+.ncc-nav nav a { color: var(--dim); text-decoration: none; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+                 font-weight: 600; padding: 6px 10px; border-radius: 6px; }
+.ncc-nav nav a:hover { color: var(--text); background: var(--case2); }
+.ncc-nav nav a[aria-current="page"] { color: var(--body); background: var(--green); }
+
+/* page */
+.wrap { max-width: 1100px; margin: 0 auto; padding: 28px 16px 56px; }
+.case { background: linear-gradient(180deg, var(--case2), var(--case)); border: 1px solid var(--edge); border-radius: 18px;
+        padding: 22px 24px; box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset; }
+h1, h2, h3 { line-height: 1.2; }
+h2 { font-size: 28px; margin: 48px 0 16px; }
+h2 .label { display: block; margin-bottom: 6px; }
+p.lead { font-size: 19px; color: var(--dim); max-width: 46em; }
+
+/* lit pads */
+.pad { --c: var(--green); display: inline-block; border-radius: 9px; background: var(--case2); border: 1px solid var(--edge);
+       color: var(--text); text-decoration: none; padding: 10px 18px; font-weight: 700; letter-spacing: .04em; }
+.pad.lit { background: var(--c); color: #08080a; border-color: transparent; box-shadow: 0 0 22px -4px var(--c); }
+.pad:hover { filter: brightness(1.1); }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 0; }
+.blue { --c: var(--blue); } .red { --c: var(--red); } .amber { --c: var(--amber); } .pink { --c: var(--pink); }
+.cyan { --c: var(--cyan); } .green { --c: var(--green); } .purple { --c: var(--purple); }
+
+/* the hero: a pad grid running like a sequence */
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 28px; align-items: center; margin-top: 8px; }
+.hero h1 { font-size: 64px; margin: 0; letter-spacing: .06em; }
+.hero h1 small { display: block; font-size: 15px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; margin-top: 8px; }
+.grid8 { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 26px; max-width: 300px; }
+.grid8 span { aspect-ratio: 1; border-radius: 7px; background: var(--case2); border: 1px solid var(--edge);
+              animation: step 2s steps(1) infinite; animation-delay: calc(var(--i) * .125s); }
+.grid8 span:nth-child(4n+1) { --c: var(--green); } .grid8 span:nth-child(4n+2) { --c: var(--blue); }
+.grid8 span:nth-child(4n+3) { --c: var(--pink); } .grid8 span:nth-child(4n) { --c: var(--amber); }
+@keyframes step { 0%, 6% { background: var(--c); box-shadow: 0 0 16px -2px var(--c); } 7%, 100% { background: var(--case2); } }
+@media (prefers-reduced-motion: reduce) { .grid8 span { animation: none; } }
+.shot { border-radius: 16px; border: 1px solid var(--edge); background: var(--case); display: block; }
+
+/* features */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.card { --c: var(--green); background: var(--case); border: 1px solid var(--edge); border-radius: 14px; padding: 18px; position: relative; }
+.card::before { content: ""; position: absolute; left: 18px; top: 18px; width: 12px; height: 12px; border-radius: 3px;
+                background: var(--c); box-shadow: 0 0 12px var(--c); }
+.card h3 { margin: 0 0 6px 24px; font-size: 18px; }
+.card p { margin: 0; color: var(--dim); font-size: 15px; }
+.card img { margin-top: 12px; border-radius: 10px; border: 1px solid var(--edge); }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.shots figure { margin: 0; background: var(--case); border: 1px solid var(--edge); border-radius: 14px; padding: 10px; }
+.shots img { width: 100%; border-radius: 10px; display: block; }
+.shots figcaption { color: var(--dim); font-size: 13px; margin-top: 8px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+/* video */
+.video { aspect-ratio: 16 / 9; max-height: 520px; width: 100%; border-radius: 16px; border: 1px solid var(--edge);
+         background: radial-gradient(circle at 50% 45%, #2a2a31, #141417); display: grid; place-items: center;
+         text-align: center; color: var(--dim); }
+.video p { margin: 6px 0 16px; font-size: 18px; color: var(--text); }
+.video iframe { width: 100%; height: 100%; border: 0; border-radius: 16px; }
+
+/* FAQ, changelog */
+details { background: var(--case); border: 1px solid var(--edge); border-radius: 12px; padding: 12px 16px; margin: 8px 0; }
+summary { cursor: pointer; font-weight: 650; }
+details p { color: var(--dim); margin: 10px 0 0; }
+.log h3 { margin: 18px 0 4px; }
+.log h3 .pad { padding: 2px 10px; font-size: 13px; margin-right: 8px; vertical-align: 2px; }
+.log ul { color: var(--dim); margin: 6px 0; }
+
+/* the manual */
+.manual { display: grid; grid-template-columns: 240px 1fr; gap: 28px; align-items: start; }
+.toc { position: sticky; top: 64px; max-height: calc(100vh - 84px); overflow: auto; font-size: 14px; }
+.toc a { display: block; color: var(--dim); text-decoration: none; padding: 4px 10px; border-left: 2px solid var(--edge); }
+.toc a:hover { color: var(--text); border-left-color: var(--green); }
+.toc a.sub { padding-left: 22px; font-size: 13px; }
+.doc { min-width: 0; }
+.doc h1 { font-size: 38px; margin: 0 0 12px; }
+.doc h2 { font-size: 24px; margin: 40px 0 10px; padding-top: 12px; border-top: 1px solid var(--edge); }
+.doc h3 { font-size: 18px; margin: 26px 0 8px; }
+.doc p, .doc li { color: #d2d2da; }
+.doc code { background: var(--case2); border: 1px solid var(--edge); border-radius: 5px; padding: 1px 5px; font-size: 14px; }
+.doc pre { background: var(--case); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 14px; overflow: auto; }
+.doc pre code { background: none; border: 0; padding: 0; }
+.doc table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; display: block; overflow-x: auto; }
+.doc th, .doc td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+.doc th { color: var(--dim); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.doc img { border-radius: 14px; border: 1px solid var(--edge); max-width: 640px; width: 100%; }
+
+footer.ncc-foot { border-top: 1px solid var(--edge); color: var(--faint); font-size: 13px; }
+footer.ncc-foot .in { max-width: 1100px; margin: 0 auto; padding: 18px 16px 30px; }
+footer.ncc-foot a { color: var(--dim); }
+
+@media (max-width: 820px) {
+  .hero, .two, .manual { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 48px; }
+  .toc { position: static; max-height: none; }
+}
