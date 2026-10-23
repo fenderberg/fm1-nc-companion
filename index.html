@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NCC: Novation Circuit Companion</title><meta name="description" content="Free firmware that turns the M-VAVE FM-1 into a two-part synth for the Novation Circuit Tracks."><link rel="stylesheet" href="style.css"></head><body>
+<header class="ncc-nav"><div class="in"><a class="brand" href=""><i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i>NCC</a><nav><a href="" aria-current=page>Home</a><a href="manual/">Manual</a><a href="webapp/installer/">Install</a><a href="webapp/manager/">Manager</a><a href="webapp/try/">Try it</a><a href="https://github.com/fenderberg/fm1-nc-companion">GitHub</a></nav></div></header>
+<main class="wrap">
+
+<section class="hero">
+  <div>
+    <h1>NCC<small>Novation Circuit Companion</small></h1>
+    <p class="lead">Free firmware that turns the M-VAVE FM-1 into a two-part synth for the Novation Circuit Tracks:
+      every sound hands-on from the Circuit's eight knobs.</p>
+    <div class="btns"><a class="pad lit green" href="webapp/installer/">Install 0.3</a>
+      <a class="pad lit pink" href="webapp/try/">Try it in your browser</a><a class="pad" href="manual/">Read the manual</a></div>
+    <div class="grid8" aria-hidden="true"><span style="--i:0"></span><span style="--i:1"></span><span style="--i:2"></span><span style="--i:3"></span><span style="--i:4"></span><span style="--i:5"></span><span style="--i:6"></span><span style="--i:7"></span><span style="--i:8"></span><span style="--i:9"></span><span style="--i:10"></span><span style="--i:11"></span><span style="--i:12"></span><span style="--i:13"></span><span style="--i:14"></span><span style="--i:15"></span><span style="--i:0"></span><span style="--i:1"></span><span style="--i:2"></span><span style="--i:3"></span><span style="--i:4"></span><span style="--i:5"></span><span style="--i:6"></span><span style="--i:7"></span><span style="--i:8"></span><span style="--i:9"></span><span style="--i:10"></span><span style="--i:11"></span><span style="--i:12"></span><span style="--i:13"></span><span style="--i:14"></span><span style="--i:15"></span></div>
+  </div>
+  <img class="shot" src="img/fm1-purple.png" alt="NCC on a purple FM-1, in the browser emulator">
+</section>
+
+<h2><span class="label">Why</span>The Circuit's spare pair</h2>
+<div class="two">
+  <p class="lead">The Circuit Tracks has two synth tracks inside, plus two MIDI tracks and two audio inputs that
+    often sit unused. That spare pair is an open invitation: plug in a second instrument and give each MIDI track its
+    own sound.</p>
+  <p class="lead">The FM-1 is small, cheap and runs Felucca, a brilliant multi-engine firmware, but Felucca is a whole
+    groovebox. NCC strips it down to one job: being the Circuit's companion. Less to learn, more to play.</p>
+</div>
+
+<h2><span class="label">What it does</span>Features</h2>
+<div class="cards">
+<div class="card" style="--c:var(--green)"><h3>Two parts, two tracks</h3><p>Part L listens to the Circuit's MIDI 1 track, part R to MIDI 2. The Circuit plays the notes and sends the clock; NCC has no sequencer of its own.</p></div>
+<div class="card" style="--c:var(--blue)"><h3>Split to its two inputs</h3><p>L comes out on the left, R on the right: mix, mute and effect each part on the Circuit itself.</p></div>
+<div class="card" style="--c:var(--pink)"><h3>The Circuit's knobs just work</h3><p>Its eight macros are mapped to what their labels mean on every engine, smoothly, and the screen shows what each one does.</p></div>
+<div class="card" style="--c:var(--amber)"><h3>Sounds by role</h3><p>SELECT picks the category (bass, pad, lead, keys, pluck), ALGORITHM the engine, PRESETS the sound. 81 sounds, and your own.</p></div>
+<div class="card" style="--c:var(--cyan)"><h3>Five engines</h3><p>DX7-style FM (loads real DX7 banks), Juno with its chorus, phase distortion, a chip synth and a 303.</p></div>
+<div class="card" style="--c:var(--red)"><h3>Coming soon: drum loops</h3><p>One-bar loops that always fit the Circuit's bar, opened by any note and chopped by its steps, with shuffle, reverse, stutter and crush on the knobs.</p></div>
+<div class="card" style="--c:var(--purple)"><h3>Built for jamming</h3><p>OCT- / OCT+ switch between your two sounds, an arp locked to the clock with HOLD, and Drone to keep a pad ringing while you play over it.</p></div>
+<div class="card" style="--c:var(--green)"><h3>Effects one tap away</h3><p>Sends, delay, reverb, chorus, an insert and performance effects on the keys, plus echo and reverb throws.</p></div>
+<div class="card" style="--c:var(--blue)"><h3>NCC Manager</h3><p>A web page over USB: sounds on L and R, your own sounds, DX7 banks, backups and settings.</p></div>
+</div>
+
+<h2><span class="label">On the screen</span>The FM-1 in Circuit style</h2>
+<div class="shots">
+<figure><img src="img/screen-sound.png" alt="SOUND: both parts with their category and engine, the place in the list"><figcaption>SOUND: both parts with their category and engine, the place in the list</figcaption></figure>
+<figure><img src="img/screen-arp.png" alt="The arp, locked to the Circuit&#x27;s clock"><figcaption>The arp, locked to the Circuit's clock</figcaption></figure>
+<figure><img src="img/screen-sends.png" alt="FX: one tap and you&#x27;re on the sends"><figcaption>FX: one tap and you're on the sends</figcaption></figure>
+</div>
+
+<h2><span class="label">Watch</span>See it play</h2>
+<div class="video"><div><div class="label">Demo video</div><p>Coming soon. Meanwhile, hear it in your browser.</p><a class="pad lit pink" href="webapp/try/">Try it</a></div></div>
+
+<h2><span class="label">Questions</span>FAQ</h2>
+<details><summary>What do I need?</summary><p>An M-VAVE FM-1, a Novation Circuit Tracks, a way to get the Circuit's MIDI to the FM-1's USB (a USB MIDI host adapter, or a computer passing it on), and a stereo-to-two-mono cable into the Circuit's audio inputs.</p></details>
+<details><summary>Does it work without a Circuit Tracks?</summary><p>Yes. The FM-1's keys play the parts, the arp runs on its own tempo, and any MIDI keyboard or sequencer on channels 3 and 4 works too. Or try it in your browser first.</p></details>
+<details><summary>How do I go back to the original firmware?</summary><p>On the Install page, open “Return to official V15” and pick M-VAVE's FM-1.fwsc, or use M-VAVE's own updater. Your music is backed up first.</p></details>
+<details><summary>Which browser?</summary><p>Chrome or Edge on a computer. The installer and the manager need Web MIDI with SysEx, which Safari and Firefox don't offer.</p></details>
+<details><summary>The arp runs out of time with the Circuit.</summary><p>Press Stop and Start on the Circuit once: NCC counts its bar from the Circuit's Start. Since 0.3 it follows the Circuit's clock pulses, so it can't drift away afterwards.</p></details>
+<details><summary>Can I use my own sounds?</summary><p>Yes: send DX7 banks to FM6 with the manager, and store your own sounds in the 32 user slots. Your own drum loops come with the LOOP engine, soon.</p></details>
+<details><summary>Is it safe?</summary><p>It installs like M-VAVE's own updates, and the way back is always there. Still, installing firmware is at your own risk; if an install is cut off, run it again (hold OCT- while switching on for the update mode).</p></details>
+<details><summary>What is Felucca?</summary><p>Felucca is Leo Kuroshita's open-source firmware for the FM-1. NCC is a fork of it, focused on being the Circuit Tracks' companion. Both are free software (GPL-3.0).</p></details>
+
+<h2><span class="label">Releases</span>What's new</h2>
+<div class="case log"><h3><span class="pad lit green">0.3</span></h3>
+<ul><li><strong>Clearer sound picking.</strong> SELECT is the category, ALGORITHM the engine, PRESETS the sound; all three stop at the ends instead of going round. The part's box shows its category and engine as two labels, the bottom line its place in the list, and while you turn you see where you're going (PRESETS: the sound's name before it loads).</li><li><strong>The LOOP engine is coming soon</strong>: it is left out of this version while it gets finished.</li><li><strong>Locked to the Circuit's bar.</strong> On the Circuit's clock, NCC now counts the bar in its clock pulses, so the arp can no longer drift off the Circuit over time. Press Stop and Start on the Circuit once after installing.</li><li>A full 32-voice DX7 bank keeps its voice names and types after the FM-1 is switched off and on.</li></ul>
+<h3><span class="pad lit green">0.2</span></h3>
+<ul><li><strong>Sounds by role, not by engine.</strong> SELECT picks the type (BASS, PAD, LEAD, KEYS, PLUCK, BEAT), ALGORITHM the engine (or ALL), PRESETS walks through what's left.</li><li><strong>88 sounds</strong>, 30 of them new: keys, plucks, bells, pads, basses and leads.</li><li><strong>LOOP</strong>, a new engine: lo-fi one-bar drum loops that always fit the bar, opened by any note, with shuffle, reverse, stutter, crush, a DJ filter and pitch on the Circuit's knobs. Seven built-in loops, and your own.</li><li><strong>NCC Manager</strong>, a web page over USB: sounds on L and R, your own sounds, DX7 banks, drum loops, backups, settings.</li><li>FX opens on SENDS; delay and reverb work in SPLIT; the Circuit's knobs 5 to 8 fixed; the knob popup shows what each knob does on each engine.</li></ul>
+<h3><span class="pad lit green">0.1</span></h3>
+<ul><li>The first release: two parts on the Circuit's MIDI 1 and MIDI 2 tracks, split output, the Circuit's eight knobs mapped per engine, five engines (FM6, JUNO, PHASE, TRIO, ACID), a clock-locked arp with HOLD, Drone, FX pages and throws.</li></ul><p><a href="https://github.com/fenderberg/fm1-nc-companion/releases">All releases on GitHub</a></p></div>
+
+</main>
+<footer class="ncc-foot"><div class="in">NCC is free software (GPL-3.0), built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita (Hügelton Instruments). Novation and Circuit Tracks are trademarks of Focusrite Audio Engineering Ltd; M-VAVE and FM-1 are trademarks of their respective owners. NCC is not affiliated with or endorsed by any of them. Installing firmware is at your own risk.</div></footer>
+</body></html>
