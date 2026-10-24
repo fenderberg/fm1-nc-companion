@@ -181,6 +181,12 @@ footer { color: #4b3a63; font-size: 12px; margin-top: 18px; }
     <table>
       <tr><td>Part L listens on</td><td><select id="chL"></select></td></tr>
       <tr><td>Part R listens on</td><td><select id="chR"></select></td></tr>
+      <tr><td>Dual notes</td><td><select id="dual"><option value="0">OFF (separate parts)</option>
+        <option value="1">Channel 3 → L + R</option><option value="2">Channel 4 → L + R</option></select></td></tr>
+      <tr><td>Drone L</td><td><select id="droneL"><option value="0">OFF</option><option value="1">STACK</option>
+        <option value="2">REPLACE</option></select></td></tr>
+      <tr><td>Drone R</td><td><select id="droneR"><option value="0">OFF</option><option value="1">STACK</option>
+        <option value="2">REPLACE</option></select></td></tr>
       <tr><td>Output</td><td><select id="split"><option value="1">SPLIT (L left, R right)</option>
         <option value="0">STEREO</option></select></td></tr>
       <tr><td>Clock</td><td><select id="clock"><option value="1">USB (the Circuit)</option><option value="0">Internal

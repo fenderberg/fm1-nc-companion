@@ -24,11 +24,12 @@ function say(text, kind = "") { const m = $("msg"); m.textContent = text; m.clas
 const rq = (r, opt = {}) => dev.link.request(r, opt);
 
 /* ------------------------------------------------------------------ the type rules (ncc_library.c nl_cat) --- */
-const KW = [["BEAT", 6], ["BREAK", 6], ["LOOP", 6], ["DRUM", 6], ["GROOVE", 6],
+const KW = [["BEAT", 6], ["BREAK", 6], ["LOOP", 6], ["DRUM", 6], ["GROOVE", 6], ["TOM", 6], ["VOX LEAD", 3],
   ["BASS", 1], ["SUB", 1], ["FRETLESS", 1],
   ["PAD", 2], ["STR", 2], ["CHOIR", 2], ["SWEEP", 2], ["WIND", 2], ["ATMO", 2], ["VOX", 2], ["VOICE", 2],
+  ["BOW", 2], ["FROZEN", 2], ["SHIMMER", 2], ["WHISPER", 2],
   ["LEAD", 3], ["HOOVER", 3], ["SCREAM", 3], ["RAVE", 3], ["WIRE", 3], ["SYNC", 3], ["SOLO", 3], ["BRASS", 3],
-  ["BRS", 3], ["HORN", 3], ["RESO", 3], ["SYNBRASS", 3], ["SYNTHBRASS", 3], ["HARMONICA", 3], ["FLUTE", 3],
+  ["BRS", 3], ["HORN", 3], ["RESO", 3], ["SYNBRASS", 3], ["SYNTHBRASS", 3], ["HARMONICA", 3], ["FLUTE", 3], ["SAX", 3], ["GLITCH", 3], ["ARCADE", 3],
   ["EP", 4], ["KEY", 4], ["TINE", 4], ["ORGAN", 4], ["POLY", 4], ["PIANO", 4], ["RHODE", 4], ["CLAV", 4],
   ["PLUCK", 5], ["BELL", 5], ["MARIMBA", 5], ["CHIME", 5], ["HARP", 5], ["MALLET", 5], ["VIBE", 5], ["GLOCK", 5],
   ["KALIMBA", 5], ["GUITAR", 5], ["GTR", 5], ["KOTO", 5], ["GLOK", 5], ["CELESTE", 5], ["SITAR", 5],
@@ -88,6 +89,8 @@ function parseNccInfo(a) {
   for (let i = 0; i < nt; i++) o.types.push(r.s());
   const ne = r.b();
   for (let i = 0; i < ne; i++) o.engines.push({ id: r.b(), name: r.s() });
+  o.perfVersion = r.i < a.length ? r.b() : 0;
+  o.perfCaps = o.perfVersion === 1 && r.i < a.length ? r.b() : 0;
   return o;
 }
 async function loadLib() {
@@ -100,6 +103,7 @@ async function loadLib() {
   }
   dev.lib = lib;
 }
+function aPerfAvailable(a, i) { return a.length - i >= 6; }
 async function loadParts() {
   const r = new Reader(await rq([NCMD.PARTS, []]));
   const n = r.b(), parts = [];
@@ -107,6 +111,11 @@ async function loadParts() {
     parts.push({ entry: r.v(), cat: r.b(), ep: r.b(), ch: r.b(), eng: r.b(), name: r.s() });
   dev.parts = parts;
   dev.split = r.b(); dev.clock = r.b(); dev.bpm = r.b() | r.b() << 7;
+  dev.dual = null; dev.drone = null;
+  if (aPerfAvailable(r.a, r.i) && r.b() === 1) {
+    dev.dual = r.b();
+    dev.drone = [{ mode: r.b(), on: r.b() }, { mode: r.b(), on: r.b() }];
+  }
 }
 async function loadMine() {
   const up = [];
@@ -463,6 +472,12 @@ function renderSettings() {
   $("split").disabled = $("clock").disabled = !dev?.parts;
   if (dev?.parts) { $("split").value = dev.split; $("clock").value = dev.clock; }
   $("bpm").textContent = dev?.parts ? `${dev.bpm} BPM` : "-";
+  $("dual").disabled = !(dev?.ncc?.perfCaps & 1) || dev?.dual == null;
+  $("dual").value = dev?.dual ?? 0;
+  for (const [id, p] of [["droneL", 0], ["droneR", 1]]) {
+    $(id).disabled = !(dev?.ncc?.perfCaps & 2) || !dev?.drone;
+    $(id).value = dev?.drone?.[p].on ? dev.drone[p].mode + 1 : 0;
+  }
 }
 function setting(args, text) {
   act("Setting", async () => {
@@ -490,13 +505,15 @@ function dropZone(zone, pick, input, onFiles) {
 /* ------------------------------------------------------------------ a simulated FM-1 with NCC (?mock=1) --- */
 function mockAccess() {
   const types = ["ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"];
-  const engs = [[12, "FM6"], [0, "JUNO"], [2, "PHASE"], [6, "TRIO"], [14, "ACID"]];
+  const engs = [[12, "FM6"], [0, "JUNO"], [2, "PHASE"], [6, "TRIO"], [14, "ACID"],
+    [9, "PHYS"], [8, "GRAIN"], [5, "VOICE"], [3, "LOFI"], [7, "WHEEL"], [11, "NOISE"], [4, "SAMPLE"]];
   const lib = [[0, 12, 4, "TINE EP"], [0, 12, 5, "BELL"], [0, 12, 1, "FM BASS"], [1, 0, 2, "JUNO STRINGS"],
     [1, 0, 2, "JUNO PAD"], [1, 0, 4, "FUNK CLAV"], [0, 0, 3, "SAW LEAD"], [1, 2, 4, "PD EP"], [1, 2, 5, "GLASS BELL"],
     [1, 6, 1, "CHIP BASS"], [0, 6, 3, "ARP LEAD"], [0, 14, 1, "ACID 303"], [0, 14, 1, "SQUELCH"],
-    [1, 14, 3, "ACID LEAD"]].map(([kind, eng, cat, name]) => ({ kind, eng, cat, name }));
+    [1, 14, 3, "ACID LEAD"], [1, 9, 5, "STEEL PLUCK"], [1, 8, 2, "MIST PAD"], [1, 5, 2, "AAH PAD"],
+    [1, 3, 3, "RAM LEAD"], [1, 7, 4, "SOUL ORGAN"], [1, 11, 2, "RADIO PAD"], [1, 4, 4, "SOFT PIANO"]].map(([kind, eng, cat, name]) => ({ kind, eng, cat, name }));
   const up = Array.from({ length: 32 }, (_, k) => (k < 3 ? { used: 1, engine: [12, 0, 14][k], name: ["MY EP", "WARM PAD", "MY ACID"][k] } : { used: 0, engine: 0, name: "" }));
-  const st = { parts: [{ entry: 0, cat: 0, ep: 0, ch: 2 }, { entry: 3, cat: 0, ep: 0, ch: 3 }], split: 1, clock: 1, sel: 0,
+  const st = { parts: [{ entry: 0, cat: 0, ep: 0, ch: 2 }, { entry: 3, cat: 0, ep: 0, ch: 3 }], split: 1, clock: 1, sel: 0, dual: 0, drone: [{ mode: 0, on: 0 }, { mode: 0, on: 0 }],
     smp: [{ zones: 0, name: "", kib: 0 }, { zones: 0, name: "", kib: 0 }, { zones: 0, name: "", kib: 0 }],
     bank: { has: 0, name: "", voices: Array.from({ length: 32 }, () => ({ used: 0, name: "" })) } };
   const S = strEnc, V = v14enc;
@@ -506,12 +523,23 @@ function mockAccess() {
     const f = unframe(d); if (!f) return;
     const a = f.a, c = f.cmd;
     if (c === CMD.INFO) reply(c, [...S("FELUCCA 1.6.1"), 16, 111, 30, 64, 103, ...Array.from({ length: 16 }, (_, i) => S(["ANALOG", "-", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "PHYS", "DRUM", "NOISE", "FM6", "SLICE", "ACID", "LOOP"][i])).flat(), 4]);
-    else if (c === NCMD.INFO) reply(c, [...S("NCC"), ...S("1.6.1"), types.length, ...types.flatMap(S), engs.length, ...engs.flatMap(([id, n]) => [id, ...S(n)])]);
+    else if (c === NCMD.INFO) reply(c, [...S("NCC"), ...S("1.6.1"), types.length, ...types.flatMap(S), engs.length, ...engs.flatMap(([id, n]) => [id, ...S(n)]), 1, 7]);
     else if (c === NCMD.LIB) { const s0 = v14dec(a[0], a[1]), n = Math.max(0, Math.min(a[2], lib.length - s0));
       reply(c, [...V(s0), n, ...V(lib.length), ...lib.slice(s0, s0 + n).flatMap((e) => [e.kind, e.eng, e.cat, ...S(e.name)])]); }
     else if (c === NCMD.LOAD) { const i = v14dec(a[1], a[2]); if (i < lib.length) st.parts[a[0]].entry = i; reply(c, [a[0], i < lib.length ? 0 : 1]); }
-    else if (c === NCMD.PARTS) reply(c, [2, ...st.parts.flatMap((p) => [...V(p.entry), p.cat, p.ep, p.ch, lib[p.entry].eng, ...S(lib[p.entry].name)]), st.split, st.clock, 120, 0]);
-    else if (c === NCMD.SET) { if (a[0] === 0) st.parts[a[1]].ch = a[2]; else if (a[0] === 1) st.split = a[1]; else if (a[0] === 2) st.clock = a[1]; reply(c, [a[0], 0]); }
+    else if (c === NCMD.PARTS) reply(c, [2, ...st.parts.flatMap((p) => [...V(p.entry), p.cat, p.ep, p.ch, lib[p.entry].eng, ...S(lib[p.entry].name)]), st.split, st.clock, 120, 0, 1, st.dual, ...st.drone.flatMap((p) => [p.mode, p.on])]);
+    else if (c === NCMD.SET) {
+      let rc = 0;
+      if (a[0] === 0 && a.length === 3 && a[1] < 2 && a[2] <= 17) st.parts[a[1]].ch = a[2];
+      else if (a[0] === 1 && a.length === 2 && a[1] <= 1) st.split = a[1];
+      else if (a[0] === 2 && a.length === 2 && a[1] <= 2) st.clock = a[1];
+      else if (a[0] === 3 && a.length === 4 && a[1] < 2 && a[2] < types.length && a[3] <= engs.length) {
+        st.parts[a[1]].cat = a[2]; st.parts[a[1]].ep = a[3];
+      } else if (a[0] === 4 && a.length === 2 && a[1] <= 2) st.dual = a[1];
+      else if (a[0] === 5 && a.length === 4 && a[1] < 2 && a[2] <= 1 && a[3] <= 1) st.drone[a[1]] = { mode: a[2], on: a[3] };
+      else rc = 1;
+      reply(c, [a[0], rc]);
+    }
     else if (c === CMD.UP_LIST) reply(c, [a[0], a[1], 32, ...up.slice(a[0], a[0] + a[1]).flatMap((u) => [u.used, u.engine, ...S(u.name)])]);
     else if (c === CMD.UP_GET) { const u = up[a[0]]; reply(c, [a[0], u.used, u.engine, ...S(u.name), ...Array(111).fill(0).flatMap(() => V(0)), ...Array(32).fill(0)]); }
     else if (c === CMD.UP_PUT) { const e = a.indexOf(0, 2); up[a[0]] = { used: 1, engine: a[1], name: String.fromCharCode(...a.slice(2, e)) }; reply(c, [a[0], 0]); }
@@ -556,6 +584,11 @@ $("bkLoad").onchange = (e) => { if (e.target.files[0]) bkRestore(e.target.files[
 $("chL").onchange = (e) => setting([0, 0, +e.target.value], "Part L's channel set.");
 $("chR").onchange = (e) => setting([0, 1, +e.target.value], "Part R's channel set.");
 $("split").onchange = (e) => setting([1, +e.target.value], +e.target.value ? "SPLIT: L left, R right." : "STEREO.");
+$("dual").onchange = (e) => setting([4, +e.target.value], "Dual note source set. Play a new note.");
+for (const [id, p] of [["droneL", 0], ["droneR", 1]]) $(id).onchange = (e) => {
+  const value = +e.target.value;
+  setting([5, p, value ? value - 1 : dev.drone[p].mode, value ? 1 : 0], `Drone ${PART[p]} set.`);
+};
 $("clock").onchange = (e) => setting([2, +e.target.value], "Clock set.");
 renderAll();
-if (MOCK) say("Simulated FM-1: press Connect.");
+if (MOCK) say("Simulated FM-1 with example sounds: press Connect.");
