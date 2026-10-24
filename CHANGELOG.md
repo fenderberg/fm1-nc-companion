@@ -1,8 +1,8 @@
 # What's new in NCC
 
-## Unreleased
+## 0.4
 
-Current development source; installed locally as `FM-1_700`. The public release and web installer remain 0.3.
+Twelve engines, Dual sounds and smoother chord drones. Release identity: `FM-1_704`.
 
 - Seven additional engines in the existing sound picker: PHYS, GRAIN, VOICE, LOFI, WHEEL, NOISE and SAMPLE.
   All eight Circuit Tracks macros have real audio destinations, with model-dependent LOFI controls and popup names.

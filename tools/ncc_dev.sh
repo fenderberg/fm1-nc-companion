@@ -106,13 +106,18 @@ manager)
     NO_SERVE=1 sh tools/ncc_manager.sh && serve build/ncc-manager 8768 ;;
 site)
     [ -n "${2:-}" ] && [ -f "build/rel/release-$2/ncc-$2.fwsc" ] || { echo "site X.Y (after: release X.Y)"; exit 2; }
-    "$PY" tools/ncc_site.py "build/rel/release-$2/ncc-$2.fwsc" "$2" build/site && serve build/site 8769 ;;
+    "$PY" tools/ncc_site.py "build/rel/release-$2/ncc-$2.fwsc" "$2" build/site
+    [ "${NCC_NO_SERVE:-0}" = 1 ] || serve build/site 8769 ;;
 publish-site)
     [ -f build/site/index.html ] || { echo "no build/site (run: site X.Y)"; exit 2; }
     printf "Publish build/site as GitHub Pages? Only with Remco's OK. [y/N] "; read -r a; [ "$a" = y ] || exit 1
-    P=$(mktemp -d) && cp -R build/site/. "$P/" && cd "$P" && git init -q -b gh-pages && git add -A &&
-        git commit -q -m "NCC site" && git remote add origin "$(git -C "$REPO" remote get-url origin)" &&
-        git -c http.postBuffer=524288000 push -f origin gh-pages ;;
+    # Publish onto the existing Pages history; a concurrent update must be reconciled, never overwritten.
+    P=$(mktemp -d)
+    git clone -q --single-branch --branch gh-pages "$(git -C "$REPO" remote get-url origin)" "$P"
+    rsync -a --delete --exclude .git/ "$REPO/build/site/" "$P/"
+    git -C "$P" add --all
+    git -C "$P" commit -q -m "Publish NCC site"
+    git -C "$P" -c http.postBuffer=524288000 push origin HEAD:gh-pages ;;
 *)
     sed -n '4,15p' "$0"; exit 2 ;;
 esac

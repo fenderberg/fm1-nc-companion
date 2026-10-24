@@ -1,8 +1,7 @@
 # NCC manual
 
-This manual follows the **current development source** (twelve engines, 161 sounds, Dual, chord REPLACE and
-GLO/EDIT pages). The public installer still provides **release 0.3**, which has five engines and 81 sounds.
-See [CHANGELOG.md](../CHANGELOG.md) for the distinction. The development build is `FM-1_700`.
+This manual describes **NCC 0.4** (`FM-1_704`): twelve engines, 161 sounds, Dual, chord REPLACE and GLO/EDIT pages.
+See [CHANGELOG.md](../CHANGELOG.md) for changes from 0.3. Local development builds use `FM-1_700`.
 
 NCC (Novation Circuit Companion) turns the M-VAVE FM-1 into a two-part sound module for the Novation Circuit Tracks.
 The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and gives you the controls for playing live.
@@ -367,16 +366,16 @@ Edge, connect the FM-1 by USB (directly, a data cable) and press **Install**.
 
 **The command line:**
 
-1. Get the package: `ncc-0.3.fwsc` (or the newest `ncc-X.Y.fwsc`) from the [Releases](https://github.com/fenderberg/fm1-nc-companion/releases) page, or
+1. Get the package: `ncc-0.4.fwsc` (or the newest `ncc-X.Y.fwsc`) from the [Releases](https://github.com/fenderberg/fm1-nc-companion/releases) page, or
    build it yourself (`FELUCCA_LIVEUI=1 ./build.sh`, see [BUILDING.md](../BUILDING.md)).
 2. Connect the FM-1 by USB and install with the command-line installer (Python 3 with `pip3 install mido
    python-rtmidi`):
 
    ```bash
-   python3 tools/fm1_install.py ncc-0.3.fwsc
+   python3 tools/fm1_install.py ncc-0.4.fwsc
    ```
 
-3. The FM-1 restarts into NCC (identity `FM-1_703` for release 0.3; NCC uses `FM-1_7XY`). Check with `python3 tools/fm1_install.py --info`.
+3. The FM-1 restarts into NCC (identity `FM-1_704` for release 0.4; NCC uses `FM-1_7XY`). Check with `python3 tools/fm1_install.py --info`.
 
 If an install is ever cut off, run the same command again, or hold **OCT-** while switching on to reach the updater.
 

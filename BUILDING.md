@@ -31,7 +31,13 @@ No golden or baseline should be updated merely to make a failing test pass.
 
 The latest installed development package has image 576728 B, RAM 61704 / 73728 B and pool 359464 / 368640 B.
 See [AGENTS.md](AGENTS.md) for chip/architecture rules and [docs/HANDOFF.md](docs/HANDOFF.md) for validation and
-installation history. No new release or website deployment is implied by pushing source changes.
+installation history. The public release is **0.4** (`FM-1_704`); the owner's installed `FM-1_700` has the same firmware logic.
+
+For an explicitly authorized release: commit the source, run `sh tools/ncc_dev.sh release 0.4`, and check the size
+report and checksums. `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.4` builds the site without starting a server;
+otherwise the site command serves it on localhost:8769. `publish-site` preserves existing Pages history and uses a
+normal push. Release assets must include the source with the engine submodule, not only GitHub's generated ZIP.
+Publishing a source commit does not itself publish a release or deploy the website.
 
 ## Upstream Felucca workflow
 

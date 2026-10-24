@@ -371,7 +371,7 @@ def main(pkg, version, out):
     subprocess.run(["sh", str(SRC / "tools" / "ncc_manager.sh")], check=True, env=env)
     shutil.copytree(SRC / "build" / "ncc-manager", out / "webapp" / "manager")
     themed(out / "webapp" / "manager" / "index.html", "webapp/manager/", MANAGER_CSS)
-    subprocess.run(["sh", str(SRC / "tools" / "ncc_demo.sh")], check=True, env={**env, "DEMO": "1"})
+    subprocess.run(["sh", str(SRC / "tools" / "ncc_demo.sh")], check=True, env={**env, "DEMO": "1", "EMU_VERSION": f"v{version}", "EMU_PREVIEW": "0"})
     shutil.copytree(SRC / "build" / "emu-demo", out / "webapp" / "try")
     themed(out / "webapp" / "try" / "index.html", "webapp/try/", TRY_CSS)
     shutil.copy(SRC / "web" / "site" / "style.css", out / "style.css")

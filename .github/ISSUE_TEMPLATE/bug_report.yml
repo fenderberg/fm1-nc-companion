@@ -6,13 +6,13 @@ body:
     attributes:
       value: |
         Report NCC bugs here. Check the [current manual](https://github.com/fenderberg/fm1-nc-companion/blob/main/docs/MANUAL.md) first.
-        Please distinguish public release 0.3 from the current development source; they have different features.
+        Please include the release number or development commit so we can reproduce the same build.
   - type: input
     id: version
     attributes:
       label: NCC release or development revision
       description: Include the release number or git commit. Development builds share FM-1_700; the identity alone is not enough.
-      placeholder: "0.3 / FM-1_703, or development commit and FM-1_700"
+      placeholder: "0.4 / FM-1_704, or development commit and FM-1_700"
     validations:
       required: true
   - type: input

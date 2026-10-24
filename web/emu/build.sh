@@ -9,12 +9,12 @@
 # (EMU_CFLAGS=-msimd128: let the compiler vectorise; every browser with AudioWorklet has wasm SIMD).
 # The page shows the version (FELUCCA_VERSION) marked "(preview)" before its release; EMU_PREVIEW=0 drops the mark.
 # NC: EMU_OUT puts it elsewhere (default build/emu; tools/ncc_demo.sh: build/emu-demo), EMU_TITLE names the page, EMU_SKIN
-# picks a colour (web/emu/skin-*.css).
+# picks a colour (web/emu/skin-*.css); EMU_VERSION overrides the version for an NCC release site.
 set -e
 cd "$(dirname "$0")/../.."
 [ -f build/gen/felucca_tables.h ] || { echo "emu: run ./build.sh once first (build/gen)"; exit 1; }
 command -v emcc >/dev/null 2>&1 || { echo "emu: no emcc (Emscripten)"; exit 1; }
-VERSION=$(sed -n 's/^#define FELUCCA_VERSION "\([^"]*\)".*/\1/p' firmware/src/felucca.c | head -n 1)
+VERSION=${EMU_VERSION:-$(sed -n 's/^#define FELUCCA_VERSION "\([^"]*\)".*/\1/p' firmware/src/felucca.c | head -n 1)}
 O="${EMU_OUT:-build/emu}"   # NC
 mkdir -p "$O/fonts"
 # shellcheck disable=SC2086

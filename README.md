@@ -6,10 +6,9 @@
 
 ![NCC running in the browser emulator, on a purple FM-1](docs/ncc-emulator.jpg)
 
-This README describes the **current development source**: twelve engines, 161 sounds, Dual and chord REPLACE.
-The public installer and latest tagged release are still **[0.3](https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.3)**.
-The development firmware (`FM-1_700`) is installed on the owner's FM-1; it has not been published as a new release.
-See [Unreleased changes](CHANGELOG.md#unreleased) and the [current manual](docs/MANUAL.md).
+Current release: **[NCC 0.4](https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.4)** — twelve engines,
+161 sounds, Dual and chord REPLACE. The public installer provides `FM-1_704`.
+See [release notes](CHANGELOG.md#04) and the [manual](docs/MANUAL.md).
 
 ## The idea
 
@@ -67,7 +66,7 @@ Installing firmware is at your own risk.
 
 ## Status
 
-Early but playable. The latest development build passes host/audio tests and the WebAssembly panel/MIDI checks.
+Early but playable. The 0.4 code passes host/audio tests and the WebAssembly panel/MIDI checks.
 Installation, restart and the twelve-engine/161-sound library were verified on the FM-1. Listening to the new
 patches and REPLACE transition, physical controls and hardware timing remain practical checks.
 

@@ -17,11 +17,13 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 - Logs (local, ignored by git): `build/ncc-flash-smooth.log`, `build/ncc-flash-smooth.sha256`,
   `build/ncc-device-check-smooth.json`, `build/drone-smooth-test-run.log`, `build/drone-smooth-emu-run.log`.
   Earlier installs: first Dual build 570076 B, SCL/chord build 573408 B; superseded by the package above.
-- **Public release remains 0.3** (`FM-1_703`): five engines / 81 sounds, sound filters and preview, pulse-locked arp,
-  LOOP hidden, complete DX7 bank names. The website/installer still serves that release:
-  https://fenderberg.github.io/fm1-nc-companion/ . The current README/manual/changelog describe development explicitly.
-- Remco authorized committing/pushing all pending source changes and updating documentation. This source sync
-  does not create a release, deploy the site or authorize another flash. Later actions need their own explicit OK.
+- **Release 0.4** (`FM-1_704`) packages this code: twelve engines / 161 sounds, Dual, chord drones, GLO/EDIT and dry
+  defaults. Website/installer: https://fenderberg.github.io/fm1-nc-companion/ . Release metadata differs from the
+  installed development build; no synth logic was changed for packaging.
+- Remco explicitly authorized the public release/webinstaller update with “doe dat” after being told publication
+  was separate from main. This covers the release, its source documentation and website deployment. The device
+  already runs the same firmware logic, with its write/restart and library checks recorded above; no additional
+  device flash is part of publication. Listening and hardware timing limitations below remain explicit.
 
 ## Performance controls and state
 
@@ -120,4 +122,4 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 - Framework Python 3.13 for generators/builds (Pillow/fontTools); Homebrew Python for mido/python-rtmidi.
   Paths/overrides in tools/ncc_dev.sh. Emscripten for emulator, Node for Manager/integration tests.
 - MIDI port X0X FM-1. Use tools/ncc_dev.sh for test/build/emu/manager/info/flash/site tasks. Never reflash or publish
-  on the basis of a previous consumed authorization; source push authorization covers this source sync only.
+  on the basis of a previous consumed authorization; each later device flash or publication needs explicit OK.
