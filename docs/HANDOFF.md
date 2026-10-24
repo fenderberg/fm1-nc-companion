@@ -27,6 +27,12 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 
 ## Release 0.4 publication
 
+- Publication completed: GitHub latest release **v0.4**, tag target **dc707a05b09319b5f4b448db430d7b7c1c6caddd**.
+  Pages commit **5dbe90353b3ad36faf6247d1b8bc20f3798a2d64** built successfully. Normal live URLs for the home,
+  manual, installer, Manager/protocol and v0.4 demo were fetched and checked; the live firmware checksum matches
+  the release exactly. All four uploaded asset digests match the local files. Evidence:
+  `build/release-0.4-github.json`, `build/release-0.4-live.json`, `build/release-0.4-publish.log`.
+
 - Release package: `ncc-0.4.fwsc`, identity `FM-1_704`; image **576724 B**, RAM **61704 / 73728 B**,
   pool **359464 / 368640 B**. The four-byte image difference from the installed development build is release
   metadata; firmware source is unchanged. SHA-256:
