@@ -200,7 +200,11 @@ static const param_desc_t GP[G_COUNT] = {
      * showed the USB state), SYNC was a placeholder, CPU a reading; the USB state and the CPU load are MENU > SYSTEM >
      * INFO's now (ui_menu.c). Kept: the ids and G_COUNT are fixed by the formats and the protocol */
     [G_MIDI] = PE("MIDI", N_MIDI_INPUT, 0),
+#if FELUCCA_LIVEUI
+    [G_SYNC] = PD("NC", F_INT, 0, 127, 0),          /* NC: marked Dual/Drone choices in the unused stored placeholder */
+#else
     [G_SYNC] = PE("SYNC", N_DASH, 0),
+#endif
     /* MIDI IN's routing, edited on MENU > MIDI > MIDI IN (1.2: menu_items.c MI_MIDIIN; up to 1.1.5 GLO > SYSTEM ROUT),
      * stored with the project as before. (was "--": stored 0 = CH1-4, as MIDI IN always was) */
     [G_ROUTE] = PE("ROUT", N_ROUTE, 0),

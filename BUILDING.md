@@ -1,4 +1,41 @@
-# Building Felucca
+# Building NCC and Felucca
+
+## NCC development workflow
+
+Clone this fork with its engine submodule:
+
+```bash
+git clone --recurse-submodules https://github.com/fenderberg/fm1-nc-companion.git
+cd fm1-nc-companion
+sh tools/setup_env.sh
+sh tools/ncc_dev.sh gen
+sh tools/ncc_dev.sh test
+sh tools/ncc_dev.sh build
+```
+
+`tools/ncc_dev.sh` handles the owner's macOS setup (Colima and a build mirror outside Dropbox); its Python/toolchain
+paths can be overridden with the environment variables at the top of that script. On another machine, adapt those
+paths or use the upstream workflow below with `FELUCCA_LIVEUI=1`.
+
+- NCC package: `build/ncc.fwsc`, development identity `FM-1_700`. Read the size report on every build.
+- `sh tools/ncc_dev.sh emu-test`: WebAssembly panel/MIDI integration, including all engines and REPLACE chords.
+- `sh tools/ncc_dev.sh emu demo`: browser emulator with the demo Circuit.
+- `sh tools/ncc_dev.sh manager`: local Web MIDI Manager (`?mock=1` for a simulated device).
+- `sh tools/ncc_dev.sh info`: read the connected device's identity.
+- `sh tools/ncc_dev.sh flash`: install the package, only with the owner's explicit authorization for that flash.
+
+The test command runs both NCC variants (LOOP hidden/enabled), fatal UBSan checks with the documented DSP
+`shift-base` exception, 113 NCC and 98 plain Felucca golden renders, Manager/editor/runner checks and comparative
+host CPU measurements. Two specific Mac CPU baseline exceptions are bounded and reported by `ncc_check.py`.
+No golden or baseline should be updated merely to make a failing test pass.
+
+The latest installed development package has image 576728 B, RAM 61704 / 73728 B and pool 359464 / 368640 B.
+See [AGENTS.md](AGENTS.md) for chip/architecture rules and [docs/HANDOFF.md](docs/HANDOFF.md) for validation and
+installation history. No new release or website deployment is implied by pushing source changes.
+
+## Upstream Felucca workflow
+
+The remaining sections describe the upstream build without `FELUCCA_LIVEUI=1`.
 
 The build makes three files in `build/`:
 

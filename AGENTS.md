@@ -44,7 +44,7 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
   `volatile`, one writer per variable.
 - **Main loop** returns within a few ms (USB, updater, watchdog). **Screen**: draw only what changed.
 - **Flash**: an erase silences audio ~50 ms: only save when quiet.
-- **Memory is tight**: image ~567 KB of ~618 KB; RAM ~60 KB of 73.7 KB; pool ~359 KB of 368.6 KB (0.3). Check the
+- **Memory is tight**: current dev image 576728 B of ~618 KB; RAM 61704 / 73728 B; pool 359464 / 368640 B. Check the
   size report of every build.
 - No register access outside `firmware/hal/`, no calls into chip ROM (the build refuses both).
 
@@ -55,8 +55,15 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
 | `firmware/src/live_ui.c` | The panel's input: pages, parts, sound picking (filters, not round), arp, Drone, FX mode |
 | `firmware/src/live_draw.c` | The screen (Circuit style): part boxes with category / engine pills, SOUND's status line, popups |
 | `firmware/src/ncc_library.c` | One list of all sounds (NCC's own, presets, FM6's DX7 bank, user presets), each with a category from its name (`nl_cat`) |
+| `firmware/src/ncc_extra_macros.c`, `ncc_extra_presets.c` | Macro tables and 46 patches for PHYS/GRAIN/VOICE/LOFI/WHEEL/NOISE/SAMPLE |
+| `firmware/src/ncc_formant_math.c`, `ncc_noise.c` | NCC-only safe arithmetic adapters; engine interface/submodule unchanged |
+| `firmware/src/ncc_sample_data.c` | Validated built-in/user XIP sample addressing |
 | `firmware/src/ncc_presets.c` | NCC's own sounds (`NCC_SND`: engine, values) |
+| `firmware/src/ncc_drone_fade.c` | Smooth REPLACE fade-out/in shared by all engines; event core writes, render cores read |
 | `firmware/src/ncc_seq.c` | Arp on the clock's grid, Drone, the bar in clock pulses (`ncc_bar`). Included by `seq.c`, audio ISR |
+| `firmware/src/ncc_input.c`, `ncc_settings.c` | Dual note ownership, local key snapshots, stored Dual/Drone modes; included by `seq.c` |
+| `firmware/src/ncc_pages.c` | Settings on GLO and focused sound editing on EDIT, using existing descriptors and FM6 patch writer |
+| `firmware/src/ncc_sound_defaults.c` | Zero delay/reverb sends after a sound load; included by `ui.c` |
 | `firmware/src/juno_chorus.c` | Juno chorus, drift, SPLIT output. Audio ISR |
 | `firmware/src/eng_acid.c` | ACID, NCC's 303 (engine 14) |
 | `firmware/src/eng_loop.c` | LOOP, one-bar drum loops (engine 15). **Coming soon**: hidden by `NCC_LOOP 0` in `core.h` |
@@ -65,13 +72,14 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
 | `web/emu/ncc_demo.c`, `skin-purple.css` | The emulator's demo Circuit, the purple FM-1 |
 | `web/site/`, `tools/ncc_site.py` | The site (GitHub Pages): style, pictures, generator (manual from `docs/MANUAL.md`) |
 | `tools/gen_loops.py` | LOOP's built-in loops → `build/gen/ncc_loops.h` |
-| `tests/ncc_test.c` | All NCC host tests |
+| `tests/ncc_test.c`, `tests/ncc_*.c` | NCC behavior/audio tests; extra engine CPU comparisons |
 
 Hooks marked `/* NC: */` in `felucca.c`, `main.c`, `fx.c`, `seq.c`, `midi_clock.c`, `midi_control.c`, `voice.c`,
 `eng_fm6.c`, `ui_draw.c`, `editor.c`, `engines.c`, `core.h`, `tools/build.py`, `web/emu/*`.
 
 Stored without a format change: a part's Juno character in `P_ED_FX` (chorus | drift << 2); SPLIT in `G_ENGGO`
-(`NCC_SPLIT()`, `core.h`; 1 = STEREO). Engines 14 (ACID) and 15 (LOOP) need `NENGINES 16`; favourites refuse 14+; LOOP
+(`NCC_SPLIT()`, `core.h`; 1 = STEREO); Dual/Drone modes in retired `G_SYNC` (marked bits, `ncc_settings.c`).
+Engines 14 (ACID) and 15 (LOOP) need `NENGINES 16`; favourites refuse 14+; LOOP
 is left out of Felucca's own engine list (`NENG_SHOWN`).
 
 ## Build, test, run: `tools/ncc_dev.sh`
@@ -83,6 +91,7 @@ sh tools/ncc_dev.sh test            # host tests + regression: run after every c
 sh tools/ncc_dev.sh gen             # build/gen (needed once, and after changing a generator)
 sh tools/ncc_dev.sh build           # firmware -> build/ncc.fwsc
 sh tools/ncc_dev.sh emu demo        # browser emulator with a demo Circuit, localhost:8767
+sh tools/ncc_dev.sh emu-test        # WebAssembly panel/MIDI integration and a screen capture
 sh tools/ncc_dev.sh manager         # NCC Manager, localhost:8768 (?mock=1 without an FM-1)
 sh tools/ncc_dev.sh release 0.4     # release build from HEAD -> build/rel/
 sh tools/ncc_dev.sh site 0.4        # the site with that release -> build/site, localhost:8769

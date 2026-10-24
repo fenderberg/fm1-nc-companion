@@ -1,74 +1,123 @@
 # Handoff: where NCC stands
 
-Read **AGENTS.md** first (rules, code map, commands). This file is the state of the work, kept up to date by whoever
-works on it last. Last update: 2026-10-23.
+Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-24.
 
-## Released and live
-- **Release 0.3** (identity `FM-1_703`) is on GitHub and on the site; Remco's FM-1 runs it.
-  - 0.3: clearer sound picking (not round, pills, status line, preview), the bar in clock pulses, DX7 bank names kept,
-    LOOP hidden ("coming soon").
-  - 0.2: sounds by category, 30 new sounds, LOOP, the NCC Manager. 0.1: the first release.
-- **Site**: https://fenderberg.github.io/fm1-nc-companion/ (the `gh-pages` branch): home, manual (built from
-  `docs/MANUAL.md`), web installer (0.3), NCC Manager, emulator with a demo Circuit. Dark, Circuit Tracks-like style;
-  the FM-1 in the pictures is Remco's purple one. The demo video spot is a placeholder: set `VIDEO` in
-  `tools/ncc_site.py` to a YouTube embed URL when there is one.
-- Shared on Reddit (r/novationcircuit); people asked for the web installer and editor (done).
+## Current source, installed firmware and public release
 
-## On Remco's FM-1 (not in git)
-- A DX7 bank "BANK0054" (32 voices) and user sample slot USR1 "LOOPS" (3 loops, unused while LOOP is hidden).
-- A best-of DX7 bank he can load himself: `build/dx7/NCC-DX7-best-of.syx` (32 classics from the public DX7 archive;
-  not committed: Yamaha's ROM voices are not ours to ship).
+- Current development source: **twelve engines, 161 built-in sounds**, independent L/R parts, note-only Dual,
+  STACK/REPLACE chord drones, SCL/GLO/EDIT controls and zero delay/reverb sends on sound selection.
+- Installed on Remco's FM-1: development identity **FM-1_700**, package SHA-256
+  `f5b0b041a7906ed590e13e4c44fad83316cf337f1460da8e32885ee6e58f3ec2`.
+  Image **576728 B**, RAM **61704 / 73728 B**, pool **359464 / 368640 B**.
+- Remco authorized the latest installation with “de replace drone is nu iets te plotseling. die mag vloeiender
+  overgaan. doe dat en zet alles naar de fm1”. The installer completed the write/restart; separate identity and
+  read-only NCC_INFO/LIB/PARTS checks passed. Twelve engines, **161 built-ins / 193 entries including 32 bank voices**.
+- Existing state restored: PHASE/BELL on CH3, JUNO/SOFT PAD on CH4, SPLIT, TRS clock, 121 BPM, Dual off;
+  R remembers REPLACE with Drone off. No notes, settings or sound loads sent during post-flash verification.
+- Logs (local, ignored by git): `build/ncc-flash-smooth.log`, `build/ncc-flash-smooth.sha256`,
+  `build/ncc-device-check-smooth.json`, `build/drone-smooth-test-run.log`, `build/drone-smooth-emu-run.log`.
+  Earlier installs: first Dual build 570076 B, SCL/chord build 573408 B; superseded by the package above.
+- **Public release remains 0.3** (`FM-1_703`): five engines / 81 sounds, sound filters and preview, pulse-locked arp,
+  LOOP hidden, complete DX7 bank names. The website/installer still serves that release:
+  https://fenderberg.github.io/fm1-nc-companion/ . The current README/manual/changelog describe development explicitly.
+- Remco authorized committing/pushing all pending source changes and updating documentation. This source sync
+  does not create a release, deploy the site or authorize another flash. Later actions need their own explicit OK.
 
-## In progress: Felucca's extra engines in NCC (requested 2026-10-23)
-Remco: "doe de extra engines. hou de interface hoe je deze kiest as is. probeer de engines te vullen met zoveel mogelijk
-goede patches." Nothing is written yet; the research is done:
+## Performance controls and state
 
-| Engine (index) | Parameters (E0..E7) | Felucca's presets | Notes |
-|---|---|---|---|
-| PHYS (9) | MODEL (MODAL STRNG MEMB SYMP), STRC, BRIT, DAMP, POS, ACC, BOW, EXC (labels change per model: `phys_desc`) | BELL TREE, MARIMBA, PLUCK, BOWED METAL, KALIMBA, HAND DRUM, TOMS, DRONE STRING, HARP | poly 3; plucks, bells, mallets, bowed |
-| GRAIN (8) | SRC (sample sets, USR1..3), POS, SIZE, DENS, PTCH, SPRD, RAND, TONE | CLOUD PAD, GLITCH, FROZEN, SHIMMER | pads and textures over SAMPLE's material |
-| VOICE (5) | VOWL, VOWL2, TALK, SHIFT, BUZZ, BRTH, Q, RAND | CHOIR AAH, VOX LEAD, WOW BASS, WHISPER | formant voices, poly 4 |
-| SAMPLE (4) | SET (PIANO FLUTE SAX, USR1..3), TUNE, BITS, LOOP, CUT, -, DRV, - | PIANO, FLUTE, SAX | `sampled`; only 3 real presets (one is an alias) |
-| LOFI (3) | CHIP, WAVE, DUTY, CRSH, SWP, VIB, ARP, TONE | PULSE LD, WAVE BASS, ARP 8BIT, WAVE LEAD, STEP LEAD | chip voices |
-| WHEEL (7) | REG (16 drawbar settings), SUB, BODY, TOP, PERC, CLICK, DRV, ROTR | FULL ORGAN, JAZZ PERC, GOSPEL, SOFT FLUTE, ROCK DRIVE | tonewheel organ |
-| NOISE (11) | MODE (ANLG DUST LFSR META), COLR, FREQ, RES, TRK, DENS, DRFT, CRSH | WIND, RAIN, ARCADE, METAL | textures, risers |
+- Normal notes: L channel 3, R channel 4; SPLIT by default. OCT-/+ select which part the panel edits.
+- **SCL** (small button beside FX) toggles Dual using the remembered **CH3/CH4** source; **GLO page 2** chooses it.
+  Only that physical channel supplies notes to both existing parts; local keys play both. Macro CCs, bend,
+  aftertouch, sustain and Program Change keep their usual per-part targets. Shared FX retain their existing buses.
+  Switching Dual/source fades current notes and clears held input. GLO + HOME is ordinary HOME.
+- **SEQ** toggles Drone on the focused part. ARP page 2, knob 4 chooses STACK/REPLACE; also available under GLO/Manager.
+  STACK keeps its toggle behavior. REPLACE groups all notes until every physical key is released; the next strike
+  replaces the whole chord. Sustain does not extend the physical gesture; CHORD expansion counts as one strike.
+  Use POLY for simultaneous tones; MONO/LEGATO/UNISON and the existing shared voice cap retain their own behavior.
+- REPLACE now uses **70 blocks (~50.8 ms) out, then 70 in**. First strikes start next block at unity. Old voices render
+  until a zero-gain block has completed, then their slots are reused and the queued chord fades in. Fast gestures
+  replace the queue without restarting fade-out; a reversal during fade-in starts at the current gain. No extra
+  voices/sample buffers. Patch envelopes remain intact. Panic/Stop/Drone off/routing changes cancel safely.
+- `ncc_drone_fade.c` is included by voice.c; the event core alone updates gains before render cores read them.
+  `ncc_seq.c` owns the bounded 16-tone queue. `ncc_input.c` uses private MIDI ownership slots 16=L/17=R and per-part
+  local-key snapshots. Old note-offs, pedal ownership and focus/chord changes cannot strand or steal another layer.
+- **GLO**: two pages, SELECT/GLO cycles. Page 1 channels/output/clock; page 2 Dual/BPM/L Drone/R Drone.
+  **EDIT**: engine descriptors, envelopes, LFO, voices and chord; JUNO filter and FM6 operator/envelope/mode pages.
+  FM6 edits use the existing patch writer and OWN slot. Sound edits support undo and preserve intentionally wet sends.
+- Every newly selected NCC/factory/DX7/user sound starts with P_DLY=P_REV=0; the other part and shared tails remain.
+  Restore/undo keep saved wet values. `ncc_sound_defaults.c` handles the outermost load, including initialization/PC.
+- No stored-format/engine-ABI change. G_SYNC holds marked Dual/Drone bits (see ncc_settings.c and protocol docs);
+  old/corrupt values mean OFF/STACK. Dual source/modes persist; Drone on/off and sounding notes do not.
+- Manager protocol 96..100 has append-only INFO/PARTS trailers and SET operations 4/5. Legacy replies remain usable.
+  The Manager mock now offers representative sounds from all twelve engines and exercises library pagination.
+  Full wire descriptions: `web/EDITOR_PROTOCOL.md`, implementation comments in editor_ncc.c.
 
-Left out on purpose: DRUM (10: the Circuit has drums), SLICE (13: needs the user's samples), DIGITAL (1: retired).
+## Engines and sound library
 
-The plan:
-1. Add the engines to `LV_ENGS` / `LV_ENG_NAME` in `live_ui.c` (after ACID; names of at most ~6 letters fit the part
-   box). The library, ALGORITHM and the manager pick them up from there. The interface stays as it is.
-2. A `NCM_MAP` entry per engine in `perf_layer.c`: the NC's 8 knobs on what their labels mean for that engine, plus
-   the popup words (`show[]`). The MACROS test in `tests/ncc_test.c` then checks every knob of every engine moves its
-   parameter and its popup fits.
-3. Categories: every factory sound must get one (the SOUNDS test says "none OTHER"). Add keywords to `NL_KW` in
-   `ncc_library.c` as needed (e.g. ORGAN for WHEEL's GOSPEL / JAZZ PERC, CHOIR, BELL ..). Think about a new category
-   **FX** for NOISE's WIND / RAIN / ARCADE / METAL (insert before OTHER in `NC_*`/`NC_NAME`; ask Remco). PHYS's HAND
-   DRUM / TOMS fall under BEAT (keywords DRUM, TOM).
-4. Many good NCC patches per engine in `NCC_SND` (`ncc_presets.c`; format: engine, name, E0..E7, ADSR, ENV->FLT, mono,
-   sends, LFO rate / SHP / FLT, Juno chorus | drift). The NCC SOUNDS test plays each one (not silent, not clipping).
-   Aim for a useful spread per category; names that say what they are.
-5. Check CPU (PHYS and GRAIN cost more: `fx.c ENG_VCOST`), the regression (factory goldens must not change), the
-   emulator, then update `docs/MANUAL.md` (engines table, sound counts), README, site features and `CHANGELOG.md`.
+- Engine order: FM6, JUNO, PHASE, TRIO, ACID, **PHYS, GRAIN, VOICE, LOFI, WHEEL, NOISE, SAMPLE**.
+  SELECT remains category, ALGORITHM engine, PRESETS sound; none wraps. LOOP remains hidden (`NCC_LOOP 0`).
+- The seven additions have all eight Circuit macro slots (CC 1,2,5,11,71,74,12,13), same base/middle and slew.
+  `ncc_extra_macros.c`: PHYS model labels; LOFI DUTY becomes SWP on triangle/saw/noise, AMP ENV becomes RELEASE in
+  STEP. Destination changes preserve knob/slew ownership. WHEEL FILTER ENV is percussion (no cutoff input),
+  SAMPLE RESONANCE is drive and FX is chorus. Tables: `docs/MANUAL.md`, `docs/NC-extra-engines-macros.md`.
+- `ncc_extra_presets.c`: **46 patches** (8 each PHYS/GRAIN/VOICE, 6 each LOFI/WHEEL/NOISE, 4 SAMPLE), plus 34 existing
+  factory sounds. Total **161**: 25 BASS, 40 PAD, 36 LEAD, 29 KEYS, 27 PLUCK, 4 BEAT. No new category or external
+  samples/banks. Peak checks pass for every NCC patch; musical quality still needs listening.
+- Library capacity 384 (previously 192), with compile reserve/runtime full-bank-user checks, including room for 48
+  future loops. Extra engines get category fallbacks for unknown names; Manager keyword previews match firmware.
+- `ncc_formant_math.c`: exact first-formant scaling with 32-bit divides; 100000 comparisons against the old quotient.
+  `ncc_noise.c`: local renderer with wide products for colored noise poles, color/filter/gain calculations (RADIO
+  PAD exposed signed overflow). Upstream constants/presets/descriptors reused; engine submodule/ABI untouched.
+  Non-NCC code still uses the original renderer. All existing golden hashes remain unchanged.
 
-## Open points (small)
-- The GLIDE ring on the SOUND page shows the time wrongly; the Juno sound's name is lost after a power cycle (it shows
-  "JUNO"); the clock comes from USB only (not TRS MIDI) in NCC's setup.
-- `nc/ci`: a local branch with a GitHub Actions workflow; pushing it needs `gh auth refresh -s workflow`.
-- UBSan reports an out-of-bounds read in `eng_slice.c:134` during the user-loop tests (stub slot data); look at it
-  before LOOP comes back.
-- LOOP (engine 15) is done but hidden (`NCC_LOOP 0`): user loops from the sample slots work, the manager's Loops tab
-  appears when the device offers LOOP. Remco wants it back later, polished.
-- Ideas Remco liked (from other FM-1 firmwares): a rhythmic gate per part on the clock, chords / scale on the FM-1's
-  keys (+ strum), sound changes on the bar + favourites, freeze / infinite space, knob motion recording, an acid arp
-  for ACID, sidechain duck, a safe mode, LOOP back.
+## Other fixes included
 
-## Remco's Mac (how it is set up)
-- Apple silicon, the repo in Dropbox: `~/Library/CloudStorage/Dropbox/ClaudeCode/FM1/fm1-nc-companion`.
-- Firmware builds: **Colima** with Rosetta (`colima start --vm-type vz --vz-rosetta`), no Docker Desktop; the JieLi
-  toolchain in `~/.jieli/toolchain`, the SDK in `~/fw-AC79_AIoT_SDK`; builds run in the mirror `~/.cache/ncc-build`.
-- Pythons: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3` (Pillow, fontTools: generators, builds);
-  `/opt/homebrew/bin/python3` (mido, python-rtmidi: the installer). `python3` on PATH is Homebrew 3.15.
-- Emscripten from Homebrew (`emcc`) for the emulator; `gh` logged in as fenderberg (no `workflow` scope).
-- ASan does not start on this macOS: the tests use UBSan.
-- The FM-1 shows up as MIDI port "X0X FM-1".
+- Manager PARTS tempo encodes both BPM bytes from the same 0..300 value (127/128 and 255/256 tests).
+- `ncc_sample_data.c` resolves validated built-in/user XIP addresses with integer arithmetic, avoiding indexing a
+  separate allocation through SMP_DATA. Shared by SAMPLE/GRAIN/SLICE, LOOP decoding and waveform display; no sample
+  format/audio change. Tests compare all built-in/user bytes and decoders through every slot. Host fixture images
+  must still lie above SMP_DATA within 4 GiB because rebased offsets are 32-bit.
+- `tools/ncc_check.py` preserves exit failures/crashes/missing summaries and writes full logs. ncc_dev.sh uses it
+  for test/build/release. Both NCC variants use fatal UBSan; **only shift-base is excluded** for existing signed DSP
+  left shifts. Bounds/division/overflow/invalid counts remain fatal. Six runner tests cover failure paths.
+
+## Validation and its limits
+
+- `sh tools/ncc_dev.sh test`: both NCC variants pass (`ncc: all ok`), Manager/editor/runner pass; **113 NCC + 98 plain
+  golden renders unchanged**, no golden/baseline updates. Two known Mac CPU differences are accepted only for
+  ANALOG/SINE_KEY and PHASE/BRASS, at most +35%, with no health/routing/crash failures.
+- Tests cover real CC isolation in Dual, all **56 additional macros changing rendered audio**, all **49 extra-engine
+  pairs** under live CCs, PHYS/GRAIN caps, full library, sample data, settings/edit/undo, chord ownership and longer
+  fades including zero-boundary replacement, reversal and cancellation. `tests/ncc_extra_cpu.c` records host-only
+  comparisons in `build/host/ncc_extra_cpu.log`; these do not certify AC791N deadlines.
+- `sh tools/ncc_dev.sh emu-test`: real Wasm panel/MIDI paths for settings/edit, chords, Dual, every extra engine and
+  macro; old drone still renders 20 ms into replacement. Audio bounded. Screens in `build/emu-demo/performance*.png`.
+- `sh tools/ncc_dev.sh build`: succeeds with the memory figures above. Device write/restart and library/protocol
+  availability checked. **Listening, physical panel/Circuit use and hardware timing remain practical tests.**
+- The broader Felucca suite was run earlier with `SANITIZE=0`, outside Dropbox. Known Mac failures: font spacing,
+  PERFORM/regression CPU budgets, two always-built DRUM ASan processes aborting during initialization. Other groups
+  pass; optional sanitizer/fuzz phase skipped. Logs: `build/host/full-suite.log`, workdir in
+  `build/host/full-suite-workdir.txt`. Not rerun for each later panel/engine/fade follow-up.
+
+## Open work
+
+- GLIDE ring time on SOUND is wrong; an NCC patch's own name is lost after power cycle (JUNO falls back to JUNO).
+- Audit signed DSP left shifts before removing the UBSan shift-base exception.
+- LOOP/user loops need device polish/testing before being offered again. DRUM/SLICE/DIGITAL remain outside NCC's picker.
+- Clock is selectable INT/USB/TRS in GLO and Manager; USB is the default. The older “TRS unavailable” note is obsolete.
+- Local branch `nc/ci` has a GitHub Actions workflow; publishing workflow changes needs a token with workflow scope.
+  It is separate from the current source sync; do not push unrelated branches.
+- Ideas Remco liked: rhythmic gate, chords/scale and strum on panel keys, changes on bar/favourites, freeze/infinite
+  space, motion recording, acid arp, sidechain duck, safe mode, LOOP's return. These are proposals, not shipped controls.
+- Device-only content (not in git): DX7 bank BANK0054 (32 voices), USR1 LOOPS (3 loops). Do not ship copyrighted
+  recordings/ROM banks; the local best-of DX7 file under build/dx7 is not a repository asset.
+
+## Working environment
+
+- Owner Remco / GitHub Fenderberg; answer Dutch, code/docs/comments English except Dutch design records.
+- Apple silicon Mac; repository in Dropbox. Colima with Rosetta, toolchain `~/.jieli/toolchain`, SDK
+  `~/fw-AC79_AIoT_SDK`; builds in `~/.cache/ncc-build`. Setup: `sh tools/setup_env.sh`.
+- Framework Python 3.13 for generators/builds (Pillow/fontTools); Homebrew Python for mido/python-rtmidi.
+  Paths/overrides in tools/ncc_dev.sh. Emscripten for emulator, Node for Manager/integration tests.
+- MIDI port X0X FM-1. Use tools/ncc_dev.sh for test/build/emu/manager/info/flash/site tasks. Never reflash or publish
+  on the basis of a previous consumed authorization; source push authorization covers this source sync only.

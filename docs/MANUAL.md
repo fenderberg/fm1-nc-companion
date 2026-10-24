@@ -1,5 +1,9 @@
 # NCC manual
 
+This manual follows the **current development source** (twelve engines, 161 sounds, Dual, chord REPLACE and
+GLO/EDIT pages). The public installer still provides **release 0.3**, which has five engines and 81 sounds.
+See [CHANGELOG.md](../CHANGELOG.md) for the distinction. The development build is `FM-1_700`.
+
 NCC (Novation Circuit Companion) turns the M-VAVE FM-1 into a two-part sound module for the Novation Circuit Tracks.
 The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and gives you the controls for playing live.
 
@@ -7,12 +11,15 @@ The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and g
 
 - [Hooking it up](#hooking-it-up)
 - [The two parts](#the-two-parts)
+- [Dual: play both sounds together](#dual-play-both-sounds-together)
 - [The screen](#the-screen)
 - [Sounds and engines](#sounds-and-engines)
 - [Coming soon: drum loops](#coming-soon-drum-loops)
 - [The Circuit's 8 knobs](#the-circuits-8-knobs)
 - [Arp and HOLD](#arp-and-hold)
 - [Drone](#drone)
+- [Settings (GLO)](#settings-glo)
+- [Editing sounds (EDIT)](#editing-sounds-edit)
 - [Effects (FX)](#effects-fx)
 - [Split or stereo](#split-or-stereo)
 - [Button cheat sheet](#button-cheat-sheet)
@@ -22,8 +29,8 @@ The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and g
 
 ## Hooking it up
 
-**MIDI.** Send the Circuit Tracks' MIDI to the FM-1's USB MIDI port (through a USB MIDI host adapter, or your computer
-passing the Circuit's MIDI on). NCC listens on:
+**MIDI.** Send the Circuit Tracks' MIDI to the FM-1's TRS MIDI input, or use USB MIDI through a USB host adapter or
+a computer passing the MIDI on. NCC listens on:
 
 | Circuit Tracks track | MIDI channel | FM-1 part |
 |---|---|---|
@@ -31,8 +38,9 @@ passing the Circuit's MIDI on). NCC listens on:
 | MIDI 2 | 4 | **R** (JUNO to start with) |
 
 Use the Circuit's **factory MIDI template** on both MIDI tracks: its 8 macro knobs then send exactly the CCs NCC
-expects (1, 2, 5, 11, 71, 74, 12, 13). NCC follows the Circuit's **clock and Start/Stop** over USB; with no clock
-coming, the arp runs at the FM-1's own BPM.
+expects (1, 2, 5, 11, 71, 74, 12, 13). NCC follows the Circuit's **clock and Start/Stop** over USB or TRS MIDI;
+choose the clock source on **GLO > SETUP**, KNOB 4 (USB is the default). With no clock coming, the arp runs at the
+FM-1's own BPM.
 
 **Audio.** Run a stereo-to-2×mono Y-cable from the FM-1's output into the Circuit's **audio inputs 1 and 2**. By default
 part L is on the left channel only and part R on the right only, so each part arrives on its own Circuit input (see
@@ -44,15 +52,39 @@ Then program notes on the Circuit's MIDI 1 and MIDI 2 tracks, press Play, and tu
 
 The FM-1 has two parts, **L** (blue) and **R** (pink). Each has its own engine, sound, arp, drone and sends.
 
-- **OCT-** puts the focus on **L**, **OCT+** on **R**. The FM-1's keys, its 4 knobs and its buttons always act on
-  the part in focus. This is the quick way to jump between your two sounds while jamming.
+- **OCT-** puts the focus on **L**, **OCT+** on **R**. The FM-1's 4 knobs and its buttons act on the part in focus;
+  its keys play that part, or both parts in Dual. This is the quick way to jump between your two sounds while jamming.
 - The Circuit always plays both parts, whichever has the focus.
 - Up to 8 voices are shared between the two parts.
+
+## Dual: play both sounds together
+
+Press **SCL** (the small button beside FX) to turn Dual **on/off**. It remembers the last chosen source, CH3 or CH4;
+the first use selects CH3. Choose OFF/CH3/CH4 on **GLO page 2, KNOB 1**, or in the Manager's Settings.
+The top bar shows `D3` or `D4` while Dual is on, and the SCL LED stays lit.
+
+| Dual | MIDI channel 3 notes | MIDI channel 4 notes | FM-1 keys |
+|---|---|---|---|
+| **OFF** | Normal routing (L by default) | Normal routing (R by default) | Part in focus |
+| **CH3** | Both L and R | Ignored | Both L and R |
+| **CH4** | Ignored | Both L and R | Both L and R |
+
+Each part keeps its own sound, voice settings, arp, HOLD and Drone. For example, put an arp on L and a REPLACE drone
+on R: one Circuit MIDI track then plays the arp and updates the drone together. OCT- / OCT+ still choose which part
+the panel edits. Focus changes do not move held notes to another part.
+
+Dual links **notes only**. Circuit macro knobs, pitchbend, aftertouch, sustain and Program Change keep their usual
+destinations: channel 3 controls L and channel 4 controls R in the default setup. Both sets of knobs keep working even
+when only one of those channels supplies the notes. Effects keep their existing shared buses and per-part sends.
+Dual uses the exact channel 3 or 4 chosen here; it does not overwrite the normal per-part MIDI channel settings.
+
+Changing the Dual source or switching Dual on/off fades the current live notes and clears arp/Drone latches on both
+parts. Release and strike the keys again to use the new routing. Sound and knob settings stay in place.
 
 ## The screen
 
 - **Top bar:** the page (SOUND, ARP, or an FX page), `SPLIT` or `ST` (stereo), and the tempo (amber when it follows
-  the Circuit's clock).
+  the Circuit's clock). `D3` / `D4` identifies the active Dual note source.
 - **The two part boxes:** channel, engine and sound name of L and R, and two labels with the part's filters: its
   type and its engine (`PAD` `ALL`). The part in focus is highlighted. A row of dots below shows the steps of the bar.
 - **KNOB 1–4:** what the FM-1's own four knobs do on this page, with their values.
@@ -62,14 +94,14 @@ The FM-1 has two parts, **L** (blue) and **R** (pink). Each has its own engine, 
 
 ## Sounds and engines
 
-NCC puts the sounds of all five engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
-KEYS, PLUCK**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**), three
+NCC puts the sounds of all twelve engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
+KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**), three
 knobs, one job each:
 
 | Control | What it does |
 |---|---|
-| **SELECT** (knob) | The **category**: ALL, BASS, PAD, LEAD, KEYS, PLUCK. |
-| **ALGORITHM** (knob) | The **engine**: ALL, FM6, JUNO, PHASE, TRIO, ACID. |
+| **SELECT** (knob) | The **category**: ALL, BASS, PAD, LEAD, KEYS, PLUCK, BEAT (OTHER for unclassified names). |
+| **ALGORITHM** (knob) | The **engine**: ALL, FM6, JUNO, PHASE, TRIO, ACID, PHYS, GRAIN, VOICE, LOFI, WHEEL, NOISE, SAMPLE. |
 | **PRESETS** (knob) | The **sound**, among those of that category and engine. It loads once you stop turning, so you can scroll freely. |
 | KNOB 1–4 | LEVEL, OCTAVE, VOICE (poly / mono / legato ...), GLIDE |
 
@@ -83,10 +115,16 @@ knobs, one job each:
 - A sound from another engine switches the part to that engine automatically.
 - Each part has its own filters, shown as the two labels at the bottom of its box.
 - Your own sounds join in: user presets and a DX7 bank loaded into FM6 get their type from their name ("E.PIANO" is
-  KEYS, "STRINGS" is PAD). Sounds whose name doesn't tell show up under **OTHER**.
+  KEYS, "STRINGS" is PAD). Unknown names use their engine's default category on the seven extra engines; otherwise **OTHER**.
 - The Juno chorus lives on **FX > CHORUS** (KNOB 3).
+- Every newly loaded sound starts with **DELAY and REVERB sends at zero**, including user sounds and DX7 bank voices.
+  Turn them up on FX > SENDS whenever you want. Loading another sound resets only that part's two sends; the other
+  part keeps its settings and existing effect tails can finish. Stored presets and banks are kept intact.
 
-There are 81 built-in sounds: 18 BASS, 15 PAD, 20 LEAD, 13 KEYS, 15 PLUCK.
+There are **161 built-in sounds**: 25 BASS, 40 PAD, 36 LEAD, 29 KEYS, 27 PLUCK and 4 BEAT.
+The seven extra engines bring 34 existing factory sounds and 46 new NCC patches. No external samples or DX7 banks
+are included. PHYS and GRAIN have up to three voices each per part; VOICE has four. The shared voice budget still
+applies when two parts play together.
 
 ### More FM sounds: load a DX7 bank
 
@@ -96,7 +134,7 @@ FM-1 by USB, open Felucca's [web editor](https://hugelton.github.io/Felucca/weba
 import the `.syx` in its FM6 section. The bank's 32 voices then show up in NCC's library under FM6, sorted into
 types by their names ("E.PIANO 1" is KEYS, "SYN-BASS 1" is BASS, "STRINGS 1" is PAD, "TUB BELLS" is PLUCK).
 
-The five engines:
+The twelve engines:
 
 | Engine | Character | Example sounds |
 |---|---|---|
@@ -105,6 +143,13 @@ The five engines:
 | **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | PD EP, DIGI PIANO, GLASS BELL, MALLET, PD BASS, FOLD LEAD |
 | **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | CHIP BASS, WOBBLE BASS, CHIP KEYS, TOY PIANO, 8BIT PAD, CHIP LEAD |
 | **ACID** | A 303-style bass: saw or square, a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, SOFT BASS, ACID LEAD, ACID PLUCK |
+| **PHYS** | Physical models: modal bodies, strings, membranes and sympathetic strings. | STEEL PLUCK, BOWED PAD, HARP PLUCK, ROUND BASS, DEEP TOM |
+| **GRAIN** | Granular textures from the built-in or uploaded sample material. | MIST PAD, FROST PAD, HALO PAD, DUST PLUCK, GLITCH LEAD |
+| **VOICE** | Sung vowels with moving formants, buzz and breath. | AAH PAD, OOH PAD, AIR PAD, VOWEL LEAD, TALK BASS, VOCAL KEYS |
+| **LOFI** | Low-bit chip waves, wave RAM and stepped envelopes. | PULSE BASS, TRI KEYS, RAM LEAD, CHIP PAD, STEP PLUCK |
+| **WHEEL** | Tonewheel organ, drawbar registrations, percussion and rotor. | SOUL ORGAN, DUB ORGAN, GOSPEL KEYS, MELLOW ORGAN, ROCK ORGAN |
+| **NOISE** | Analog noise, dust, shift registers and metallic patterns through a resonant filter. | WIND PAD, RAIN PAD, RADIO PAD, METAL PLUCK, BUZZ BASS |
+| **SAMPLE** | Built-in piano, flute and sax, or uploaded sample sets. | SOFT PIANO, DUST PIANO, FLUTE PAD, SAX LEAD |
 
 ## Coming soon: drum loops
 
@@ -129,6 +174,36 @@ Moves are smoothed, so sweeps don't zipper.
 | 7 MODULATION | LFO on brightness + a little vibrato | LFO on filter + rate | LFO on DCW + rate | LFO on filter + rate | slide time |
 | 8 FX | drive + chorus send | drive + chorus send | drive + chorus send | drive + chorus send | drive + delay send |
 
+The extra engines use the same CCs: **1, 2, 5, 11, 71, 74, 12, 13**, on their own part's channel.
+
+| Circuit knob | PHYS | GRAIN | VOICE |
+|---|---|---|---|
+| 1 OSCILLATOR | structure / harmonics / chord | sample position | both vowels |
+| 2 OSC MOD | strike position / sympathetic amount | grain size | buzz |
+| 3 AMP ENV | attack + release | attack + release | attack + release |
+| 4 FILTER ENV | envelope to brightness | envelope to tone | envelope to vowels |
+| 5 FILTER FREQ | brightness | tone | formant shift |
+| 6 RESONANCE | ringing time | grain density | formant Q |
+| 7 MODULATION | bow / bend / buzz | random + spread | LFO to vowels + rate |
+| 8 FX | drive + chorus send | drive + chorus send | drive + chorus send |
+
+| Circuit knob | LOFI | WHEEL | NOISE | SAMPLE |
+|---|---|---|---|---|
+| 1 OSCILLATOR | waveform | drawbar registration | color | tune |
+| 2 OSC MOD | duty / wave RAM; sweep on triangle, saw and noise | sub drawbars | density / register | bit reduction |
+| 3 AMP ENV | attack + release; STEP: release | attack + release | attack + release | attack + release |
+| 4 FILTER ENV | envelope to tone | percussion | envelope to filter | envelope to tone |
+| 5 FILTER FREQ | tone | top drawbars | cutoff | cutoff |
+| 6 RESONANCE | crush / STEP decay | body drawbars | resonance | drive |
+| 7 MODULATION | vibrato | rotor OFF/SLOW/FAST | LFO to filter + rate | vibrato + rate |
+| 8 FX | drive + chorus send | organ drive | drive + chorus send | chorus send |
+
+The popup names the actual function, including model-specific controls. Choose models, chips and sample sources
+on **EDIT**. A source-dependent control works when there is source material: upload a sample before selecting an
+empty user slot. SAMPLE's held notes keep their original sample zone; tuning and tone remain live.
+Grain changes can take effect on newly spawned grains; percussion and excitation also affect the next strike.
+Filter envelopes need an envelope shape with movement; a fully open tone control can mask further brightening.
+
 If you change a value on the FM-1 itself while a Circuit knob is turned, your FM-1 setting stays, and the Circuit
 knob keeps working on top of it.
 
@@ -137,7 +212,7 @@ knob keeps working on top of it.
 - **ARP** switches the arp on for the part in focus and opens the **ARP** page. Press ARP again on that page to switch
   it off.
 - KNOB 1–4: MODE (UP, DN, UPDN, RND, ORD, CHORD and more), RATE (1/4 to 1/32, triplets), OCTAVES, GATE. Turn
-  **SELECT** for page 2: SWING, PROB, ORDER.
+  **SELECT** for page 2: SWING, PROB, ORDER, DRONE (STACK / REPLACE).
 - The arp is always locked to the Circuit's clock. A new chord starts on the next step of the grid, so it stays in time.
 - **REC** = **HOLD**: the arp keeps playing after you let go. A new chord replaces the held one; press REC again to
   release.
@@ -145,9 +220,66 @@ knob keeps working on top of it.
 
 ## Drone
 
-**SEQ** = **Drone** for the part in focus. With Drone on, notes keep sounding after their note-off: build up a pad
-from the Circuit or the FM-1's keys and jam over it. Play a droning note again to let it go; press SEQ again to
-release everything. The Circuit's **Stop** releases the drone too (Drone stays switched on for the next notes).
+**SEQ** switches **Drone** on/off for the part in focus. Choose its mode with **KNOB 4 on ARP page 2** (turn SELECT
+on the ARP page), or in the Manager's Settings:
+
+| Mode | New note | Same note again | Badge |
+|---|---|---|---|
+| **STACK** | Adds to the held notes, as before | Removes that note from the drone | `DR+` |
+| **REPLACE** | Adds notes to the current chord while keys remain down; the next gesture replaces the old chord | Retriggers it | `DR1` |
+
+Notes keep sounding after you let go. In REPLACE, play a chord and release all its keys: the whole chord keeps
+droning. The next strike fades that old chord and starts a new one. You can add notes for as long as any physical key
+is still down, with no time limit. This works from MIDI and the FM-1 keys, including Dual and mapped CHORD shapes.
+The sustain pedal does not keep a gesture open once all physical keys are released.
+
+Use **VOICE = POLY** for several simultaneous drone tones (SOUND page, KNOB 3, or EDIT > VOICE). MONO, LEGATO and
+UNISON keep their voice settings. When replacing a sounding chord, REPLACE fades it out over about **50 ms**, then
+fades the new chord in over about **50 ms**, even with a long RELEASE. The first strike starts directly. Rapid new
+gestures update the waiting chord without restarting the fade-out; old note-offs do not stop
+the new chord. An existing delay/reverb tail may still finish.
+
+With ARP on, Drone holds the arp's input notes. HOLD (`H` on screen) and the arp's rate remain independent per part.
+Changing STACK/REPLACE takes effect on the next strike. Press SEQ again to release the drone; physically held keys
+keep playing until released. The Circuit's **Stop** clears the held drone notes too, leaving Drone enabled for the
+next strikes.
+
+## Settings (GLO)
+
+Press **GLO** to open the settings. Turn **SELECT** to change page, or tap GLO again to cycle the two pages.
+**HOME** returns to SOUND. These are the same performance settings offered in the Manager:
+
+| Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
+|---|---|---|---|---|
+| **SETUP** | L MIDI channel (1–16 / OMNI / OFF) | R MIDI channel | Output SPLIT / STEREO | Clock INT / USB / TRS |
+| **SETUP 2** | Dual OFF / CH3 / CH4 | Internal BPM | L Drone OFF / STACK / REPLACE | R Drone OFF / STACK / REPLACE |
+
+The top bar shows the current tempo; BPM on SETUP 2 sets the internal tempo. External clock keeps its usual priority.
+SCL switches Dual on/off from any page. Turning it off remembers the source for the next press. Each Drone control
+also remembers its mode while off. These controls affect the same settings as the panel's SEQ and ARP Drone controls.
+
+## Editing sounds (EDIT)
+
+Press **EDIT** to open the focused part's sound parameters. **SELECT** changes edit page; further EDIT presses also
+step through them. **OCT- / OCT+** select L / R to edit, including while Dual plays both. **HOME** returns to SOUND.
+The four knobs show the engine's real parameter names and ranges. Editing keeps any delay/reverb you have turned up.
+
+| Page | Parameters |
+|---|---|
+| **ENGINE 1 / 2** | The engine's eight parameters: oscillators, modulation, filter and other engine-specific values |
+| **AMP ENV** | Attack, decay, sustain, release (engines with the common envelope) |
+| **ENV DEST** | Envelope to filter, pitch, shape; envelope sync |
+| **LFO / LFO DEST / LFO SYNC** | Rate, waveform, phase, fade; pitch/filter/shape/amplitude amounts; sync, trigger, polarity |
+| **VOICE / VOICE 2** | Poly/mono/legato/unison, glide, priority; allocation, detune, pan, spread |
+| **CHORD** | Chord shape, voicing, root, scale |
+| **FILTER** (JUNO) | Filter type, cutoff, resonance, key tracking |
+| **OPERATOR** (FM6) | Operator 1–6, ratio/fixed frequency, fine tuning, output level |
+| **OP ENV** (FM6) | Operator, envelope stage, rate, level |
+| **OP MODE** (FM6) | Operator, ratio/fixed mode, detune, velocity response |
+
+FM6 uses its operator envelopes, so it shows the operator pages instead of the common AMP ENV / ENV DEST pages.
+Its operator edits turn the patch into SLOT OWN and are saved with projects/user sounds. Selecting a different FM6
+SLOT on ENGINE 2 loads a sound and starts its delay/reverb sends at zero, like other sound selections.
 
 ## Effects (FX)
 
@@ -190,12 +322,18 @@ effect lasts as long as you hold its key. The PERFORM page shows which key does 
 | REC | Arp HOLD |
 | SEQ | Drone |
 | GLO + SEQ | SPLIT ↔ STEREO |
+| SCL | Dual on/off, remembering CH3 / CH4 |
+| GLO | Settings (SELECT / GLO: page) |
+| EDIT | Edit the focused sound (SELECT / EDIT: page) |
+| ARP page 2, KNOB 4 | Drone STACK / REPLACE |
 | FX | Open effects, next page, close |
 | ENV (hold) | Echo throw |
 | LFO (hold) | Reverb throw |
-| Keys | Play the part in focus (with FX open: PERFORM effects) |
+| Keys | Play the part in focus, or both in Dual (with FX open: PERFORM effects) |
 
-Your parts, engines, sounds and effect settings are kept by Felucca's autosave.
+Your parts, engines, sounds, effect settings, Dual source and Drone mode choices are kept by Felucca's autosave.
+Drone's on/off state and sounding notes are not restored after power-on. Restoring a complete project or undoing a
+sound change restores its saved effect settings; the zero-send rule applies when selecting a new sound.
 
 ## NCC Manager (web page)
 
@@ -213,9 +351,11 @@ It opens on `localhost` (Web MIDI only works there or on https). Press **Connect
   a file (or load such a file back).
 - **DX7 bank:** drop a 32-voice `.syx`, see its voices and their types, and send it to FM6.
 - **Backup:** everything on the FM-1 in one file, and back.
-- **Settings:** L's and R's MIDI channel, SPLIT or STEREO, the clock source.
+- **Settings:** L's and R's MIDI channel, SPLIT or STEREO, the clock source, Dual OFF/CH3/CH4 and each part's Drone
+  OFF/STACK/REPLACE. Drone remembers its mode while switched off. The new controls are disabled on older firmware.
 
-No FM-1 at hand? `http://localhost:8768/?mock=1` simulates one.
+No FM-1 at hand? `http://localhost:8768/?mock=1` simulates one with example sounds from all twelve engines.
+The demo list is a small subset of the full firmware library.
 
 ## Installing
 
@@ -227,16 +367,16 @@ Edge, connect the FM-1 by USB (directly, a data cable) and press **Install**.
 
 **The command line:**
 
-1. Get the package: `ncc-0.2.fwsc` (or the newest `ncc-X.Y.fwsc`) from the [Releases](https://github.com/fenderberg/fm1-nc-companion/releases) page, or
+1. Get the package: `ncc-0.3.fwsc` (or the newest `ncc-X.Y.fwsc`) from the [Releases](https://github.com/fenderberg/fm1-nc-companion/releases) page, or
    build it yourself (`FELUCCA_LIVEUI=1 ./build.sh`, see [BUILDING.md](../BUILDING.md)).
 2. Connect the FM-1 by USB and install with the command-line installer (Python 3 with `pip3 install mido
    python-rtmidi`):
 
    ```bash
-   python3 tools/fm1_install.py ncc-0.2.fwsc
+   python3 tools/fm1_install.py ncc-0.3.fwsc
    ```
 
-3. The FM-1 restarts into NCC (identity `FM-1_702` for release 0.2; NCC uses `FM-1_7XY`). Check with `python3 tools/fm1_install.py --info`.
+3. The FM-1 restarts into NCC (identity `FM-1_703` for release 0.3; NCC uses `FM-1_7XY`). Check with `python3 tools/fm1_install.py --info`.
 
 If an install is ever cut off, run the same command again, or hold **OCT-** while switching on to reach the updater.
 

@@ -1,5 +1,9 @@
 # NC-Companion: verkenning van Felucca (stap 0)
 
+**Historisch document.** Dit bewaart het ontwerp en de teststand van de vermelde mijlpaal; oude bediening en
+“nog niet geflasht” zijn geen actuele status. Voor de huidige firmware: [handleiding](MANUAL.md),
+[overdracht/status](HANDOFF.md), [Dual/Drone](NC-dual-drone-plan.md) en [extra engines](NC-extra-engines-macros.md).
+
 Datum: 20 oktober 2026. Onderzocht: hugelton/Felucca `main` (laatste commit 16-10-2026, versie v1.6.1) met submodule Felucca-Engines.
 Hoort bij: `NC-companion-ontwerp.md` (v0.6).
 

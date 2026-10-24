@@ -6,6 +6,11 @@
 
 ![NCC running in the browser emulator, on a purple FM-1](docs/ncc-emulator.jpg)
 
+This README describes the **current development source**: twelve engines, 161 sounds, Dual and chord REPLACE.
+The public installer and latest tagged release are still **[0.3](https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.3)**.
+The development firmware (`FM-1_700`) is installed on the owner's FM-1; it has not been published as a new release.
+See [Unreleased changes](CHANGELOG.md#unreleased) and the [current manual](docs/MANUAL.md).
+
 ## The idea
 
 The Circuit Tracks has two synth tracks inside, plus two **MIDI tracks** and two **audio inputs**. That spare pair is
@@ -25,13 +30,21 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
   is hands-on from the Circuit, with smooth (zipper-free) moves. The FM-1's screen shows what each knob does.
 - **Sounds by role, not by engine.** SELECT picks the type (BASS, PAD, LEAD, KEYS, PLUCK, BEAT), ALGORITHM the engine (or
   ALL), PRESETS walks through what's left. A pad is a pad, wherever it comes from.
-- **Five engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
-  (Casio CZ-style phase distortion), TRIO (SID-style chip synth) and ACID (a 303 with accent and slide). Coming soon:
+- **Twelve engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
+  (Casio CZ-style phase distortion), TRIO (SID-style chip synth), ACID (a 303 with accent and slide), PHYS (physical
+  models), GRAIN (granular), VOICE (formants), LOFI (chip), WHEEL (organ), NOISE and SAMPLE. **161 built-in sounds**,
+  including 46 new patches for the extra engines. All eight Circuit knobs are mapped on each engine. Coming soon:
   LOOP, one-bar drum loops that always fit the bar.
 - **Built for jamming.** OCT- / OCT+ switch the FM-1's keys and knobs between your two sounds in one press. An arp
-  locked to the Circuit's clock, with HOLD. A **Drone** button that keeps a pad ringing while you play over it. Effects
-  one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
+  locked to the Circuit's clock, with HOLD. A **Drone** button with STACK (build up notes) and REPLACE (hold only the
+  latest chord with about 50 ms fade-out and 50 ms fade-in). Effects one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
   throws.
+- **Dual sounds.** SCL switches Dual on/off; GLO chooses MIDI channel 3 or 4 as the note source for L and R together.
+  Each part keeps its own patch, arp and Drone; the Circuit's knobs keep controlling their usual part.
+- **Settings and sound editing on the device.** GLO opens channels, clock, output and performance settings. EDIT
+  opens the focused sound's engine, envelope, LFO and voice controls, plus FM6's operators.
+- **Delay and reverb start at zero.** Every new sound loads with both sends off. Turn them up on FX > SENDS; the
+  shared effects keep their usual controls.
 
 Less to learn, more to play: NCC gives you more jam with your Circuit Tracks, not more menus.
 
@@ -54,8 +67,12 @@ Installing firmware is at your own risk.
 
 ## Status
 
-Early but playable, tested on a real FM-1 with a Circuit Tracks. Feedback and ideas are welcome in the
-[issues](https://github.com/fenderberg/fm1-nc-companion/issues).
+Early but playable. The latest development build passes host/audio tests and the WebAssembly panel/MIDI checks.
+Installation, restart and the twelve-engine/161-sound library were verified on the FM-1. Listening to the new
+patches and REPLACE transition, physical controls and hardware timing remain practical checks.
+
+The [development handoff](docs/HANDOFF.md) records the installed package checksum, memory use, validation limits
+and open issues. Feedback and ideas are welcome in the [issues](https://github.com/fenderberg/fm1-nc-companion/issues).
 
 ## Working on NCC
 
@@ -71,7 +88,7 @@ the Circuit macro layer, the Juno chorus, the split output and the ACID engine o
 build flag the code builds plain Felucca. Felucca's own README is in [README-Felucca.md](README-Felucca.md); building
 is described in [BUILDING.md](BUILDING.md) (NCC: `FELUCCA_LIVEUI=1 ./build.sh`).
 
-Like Felucca, NCC is developed with the help of AI coding agents (Claude Code); the ideas, the sound and the direction
+Like Felucca, NCC is developed with the help of AI coding agents (Claude Code and Codex); the ideas, the sound and the direction
 are the author's.
 
 ## Licence

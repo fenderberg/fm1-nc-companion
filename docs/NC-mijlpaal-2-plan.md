@@ -1,5 +1,9 @@
 # NCC mijlpaal 2: plan (nog geen code)
 
+**Historisch document.** Dit bewaart het ontwerp en de teststand van de vermelde mijlpaal; oude bediening en
+“nog niet geflasht” zijn geen actuele status. Voor de huidige firmware: [handleiding](MANUAL.md),
+[overdracht/status](HANDOFF.md), [Dual/Drone](NC-dual-drone-plan.md) en [extra engines](NC-extra-engines-macros.md).
+
 Datum: 20 oktober 2026. Hoort bij `NC-companion-ontwerp.md` (v0.7), bouwplan stap 2: **Juno-smaak op ANALOG** en de
 **stereo/split-uitgang**. Status: **akkoord (20-10-2026, met de voorgestelde antwoorden); gebouwd en getest, nog niet geflasht.** Zie "Stand van zaken" onderaan.
 

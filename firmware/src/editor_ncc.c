@@ -4,15 +4,18 @@
  * its type), what the two parts play, a sound on a part, and NCC's settings. Main loop (editor.c ed_handle), as the
  * other commands; every reply fits ed_out (NCC_LIB: at most 16 entries a request).
  *   96 NCC_INFO   -              -> "NCC", Felucca's version, NC_N, the type names, the engines NCC offers: count,
- *                                   then each: engine byte, name
+ *                                   then each: engine byte, name; optional trailer: 1, capabilities (bits 0 Dual,
+ *                                   1 Drone modes, 2 zero default sends)
  *   97 NCC_LIB    start v14, n   -> start v14, n, total v14, then each: kind (NLK_*), engine byte, type (NC_*), name
  *   98 NCC_LOAD   part, i v14    -> part, rc (0 loaded, 1 arguments): entry i of the library on part 0 (L) / 1 (R)
  *   99 NCC_PARTS  -              -> 2, then per part: entry v14 (-1: none), type filter, engine filter (LV_ENGS + 1,
  *                                   0 ALL), MIDI channel (0..15, 16 OMNI, 17 OFF), engine byte, the sound's name; then
- *                                   SPLIT (1) / STEREO (0), the clock (0 INT, 1 USB, 2 TRS), the BPM
+ *                                   SPLIT (1) / STEREO (0), the clock (0 INT, 1 USB, 2 TRS), BPM low/high 7 bits;
+ *                                   optional trailer: 1, Dual (0 OFF, 1 CH3, 2 CH4), L mode, L on, R mode, R on
  *  100 NCC_SET    op, args       -> op, rc: 0 part, ch (0..15, 16 OMNI, 17 OFF): its MIDI channel; 1 on: SPLIT (1) or
  *                                   STEREO (0); 2 src: the clock, 0 INT (the BPM), 1 USB, 2 TRS; 3 part, type, engine: its
- *                                   filters (the sound stays) */
+ *                                   filters (the sound stays); 4 mode: Dual (0 OFF, 1 CH3, 2 CH4); 5 part, mode, on:
+ *                                   Drone (mode 0 STACK, 1 REPLACE; on 0/1). Old reply prefixes stay unchanged. */
 enum { ED_NCC_INFO = 96, ED_NCC_LIB, ED_NCC_LOAD, ED_NCC_PARTS, ED_NCC_SET };
 
 static void ed_v14(int32_t v)
@@ -55,6 +58,8 @@ static int ed_ncc_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
             ed_b(LV_ENGS[i]);
             ed_str(LV_ENG_NAME[i], 8);
         }
+        ed_b(1);                                      /* optional performance trailer: version, capabilities */
+        ed_b(7);                                      /* bit 0 Dual, bit 1 Drone modes, bit 2 zero default sends */
         break;
     case ED_NCC_LIB: {
         int32_t start = n == 3u ? ed_rv(a) : 0, cnt = n == 3u ? (int32_t)a[2] : 0;
@@ -107,8 +112,14 @@ static int ed_ncc_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
         }
         ed_b((uint32_t)NCC_SPLIT());
         ed_b((uint32_t)clamp(song.g[G_CLOCK], 0, 2));
-        ed_b((uint32_t)clamp(song.g[G_BPM], 0, 127) & 127u);
+        ed_b((uint32_t)clamp(song.g[G_BPM], 0, 300) & 127u);
         ed_b((uint32_t)clamp(song.g[G_BPM], 0, 300) >> 7);
+        ed_b(1);                                      /* append-only: older Managers ignore this trailer */
+        ed_b(ncc_dual_mode());
+        for (i = 0; i < LV_PARTS; i++) {
+            ed_b(ncd_mode(i));
+            ed_b(ncd_want[i] != 0);
+        }
         break;
     case ED_NCC_SET:
         if (n == 3u && a[0] == 0u && a[1] < LV_PARTS && a[2] <= 17u) {
@@ -125,6 +136,13 @@ static int ed_ncc_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
         } else if (n == 4u && a[0] == 3u && a[1] < LV_PARTS && a[2] < NC_N && a[3] <= NELEM(LV_ENGS)) {
             lv.cat[a[1]] = a[2];
             lv.ep[a[1]] = a[3];
+            rc = 0;
+        } else if (n == 2u && a[0] == 4u && a[1] <= 2u) {
+            ncc_set_dual(a[1]);
+            rc = 0;
+        } else if (n == 4u && a[0] == 5u && a[1] < LV_PARTS && a[2] <= 1u && a[3] <= 1u) {
+            ncd_set_mode(a[1], a[2]);
+            ncd_want[a[1]] = a[3];
             rc = 0;
         }
         ed_b(n ? a[0] : 0u);

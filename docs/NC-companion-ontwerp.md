@@ -1,5 +1,9 @@
 # NCC (Novation Circuit Companion): FM-1 als hulpje van de Circuit Tracks, ontwerp v0.7
 
+**Historisch document.** Dit bewaart het ontwerp en de teststand van de vermelde mijlpaal; oude bediening en
+“nog niet geflasht” zijn geen actuele status. Voor de huidige firmware: [handleiding](MANUAL.md),
+[overdracht/status](HANDOFF.md), [Dual/Drone](NC-dual-drone-plan.md) en [extra engines](NC-extra-engines-macros.md).
+
 Status: ontwerp, 20 oktober 2026. Verkenning (stap 0) klaar, bouwen begint in Claude Code.
 - v0.2: geen sequencer, split-uitgang als optie, interface voor live gebruik.
 - v0.3: rolverdeling. **NC = noten + klankvorming (8 macro's). FM-1-paneel = sounds kiezen, arp bedienen, effecten.** Ontworpen voor een live jam.

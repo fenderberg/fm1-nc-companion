@@ -1,5 +1,9 @@
 # NCC mijlpaal 4: meer engines, een 303, en per part de engine kiezen (plan, nog geen code)
 
+**Historisch document.** Dit bewaart het ontwerp en de teststand van de vermelde mijlpaal; oude bediening en
+“nog niet geflasht” zijn geen actuele status. Voor de huidige firmware: [handleiding](MANUAL.md),
+[overdracht/status](HANDOFF.md), [Dual/Drone](NC-dual-drone-plan.md) en [extra engines](NC-extra-engines-macros.md).
+
 Datum: 21 oktober 2026. Vraag van Remco: "ik wil meer engines, bv. de 303, en een manier om te kiezen welke engine
 synth 1 (L) en welke synth 2 (R) heeft. Kies alleen engines waarmee we de knoppen van de NC kunnen toewijzen."
 Status: **akkoord (21-10-2026); gebouwd en getest, nog niet geflasht.** Zie "Stand van zaken" onderaan.

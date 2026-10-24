@@ -103,6 +103,9 @@ static void formant_note_on(track_t *t, voice_t *v)
     }
 }
 
+#if FELUCCA_LIVEUI
+#include "ncc_formant_math.c"                        /* NC: exact bandwidth scaling using only 32-bit divides */
+#endif
 static void formant_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
 {
     const int16_t *p = t->p;
@@ -138,7 +141,11 @@ static void formant_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, con
         f = (int32_t)(((int64_t)f * ratio) >> 16);
         b = (int32_t)(((((int64_t)b * ratio) >> 16) * bws) >> 16);
         if (j == 0 && (uint32_t)f < f0 + (f0 >> 4) && f > 0) {   /* sung high: F1 follows F0 (sopranos do), */
+#if FELUCCA_LIVEUI
+            b = (int32_t)ncc_formant_bw((uint32_t)b, f0 + (f0 >> 4), (uint32_t)f); /* NC: same Q, no wide divide */
+#else
             b = (int32_t)(((int64_t)b * (int32_t)(f0 + (f0 >> 4))) / f);   /* same Q: no boom on the fundamental */
+#endif
             f = (int32_t)(f0 + (f0 >> 4));
         }
         fa[j] = clamp(f, 60 * 16, 7000 * 16);

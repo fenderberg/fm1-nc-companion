@@ -1,5 +1,9 @@
 # NCC mijlpaal 1: testlijst op de FM-1
 
+**Historisch document.** Dit bewaart het ontwerp en de teststand van de vermelde mijlpaal; oude bediening en
+“nog niet geflasht” zijn geen actuele status. Voor de huidige firmware: [handleiding](MANUAL.md),
+[overdracht/status](HANDOFF.md), [Dual/Drone](NC-dual-drone-plan.md) en [extra engines](NC-extra-engines-macros.md).
+
 Voor Remco. Pas gebruiken als er een echte build is (`FELUCCA_LIVEUI=1 ./build.sh`, in de cloud) en jij besluit te
 flashen. Vink af en noteer bijzonderheden in je FM-1-logboek.
 

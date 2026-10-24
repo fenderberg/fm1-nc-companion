@@ -118,13 +118,29 @@ static const ncm_map_t NCM_MAP[] = {
     },
         {"PITCH", "SHUFFLE", "GATE", "REVERSE", "DJ FILTER", "CRUSH", "STUTTER", "DRIVE"},
     },
+#include "ncc_extra_macros.c"                         /* NC: the seven additional engines, same macro ABI */
 };
+
+/* NC: resolve LOFI's unused controls without changing the engine ABI. Triangle/saw/noise have no duty;
+ * STEP has its own attack/decay but still obeys release. The popup uses the same resolved destination. */
+static ncm_dst_t ncm_destination(const track_t *t, const ncm_map_t *mp, uint32_t m, uint32_t k)
+{
+    ncm_dst_t ds = mp->d[m][k];
+    if (mp->eng == 3u) {
+        if (m == 1u && !k && t->p[P_E1] != 0 && t->p[P_E1] != 4)
+            ds.id = P_E4;                              /* SWP instead of DUTY / WAV# */
+        if (m == 2u && t->p[P_E0] == 4)
+            ds.id = k ? NCM_NONE : P_REL;
+    }
+    return ds;
+}
 
 static struct {
     uint8_t tgt[NCM_PARTS][NCM_N];      /* the last CC, 0..127 */
     uint16_t cur[NCM_PARTS][NCM_N];     /* where the knob is, Q8 */
     int16_t base[NCM_PARTS][NCM_N][NCM_DST];    /* the parameter as the sound has it */
     int16_t put[NCM_PARTS][NCM_N][NCM_DST];     /* what ncm_block last wrote (NCM_UNSET: nothing yet) */
+    uint8_t dest[NCM_PARTS][NCM_N][NCM_DST];    /* NC: detect a model-dependent destination change */
     uint32_t snd[NCM_PARTS];            /* the sound's signature (ncm_sig) */
     uint8_t gen[NCM_PARTS];             /* the ncm_gen seen */
     uint32_t n;                         /* blocks */
@@ -185,8 +201,10 @@ static void ncm_reset(uint32_t part)    /* every knob of the part at 64, nothing
     for (m = 0; m < NCM_N; m++) {
         ncm.tgt[part][m] = 64;
         ncm.cur[part][m] = NCM_MID;
-        for (k = 0; k < NCM_DST; k++)
+        for (k = 0; k < NCM_DST; k++) {
             ncm.put[part][m][k] = NCM_UNSET;
+            ncm.dest[part][m][k] = NCM_NONE;
+        }
     }
     fm6_ceg[part] = 0;
 }
@@ -246,8 +264,13 @@ static void ncm_block(void)
             ncm.cur[part][m] = (uint16_t)c;
             there = c == (int32_t)ncm.tgt[part][m] << 8;
             for (k = 0; k < NCM_DST; k++) {
-                const ncm_dst_t *ds = &mp->d[m][k];
+                ncm_dst_t resolved = ncm_destination(t, mp, m, k);
+                const ncm_dst_t *ds = &resolved;
                 int32_t lo, hi, v, now;
+                if (ncm.dest[part][m][k] != ds->id) {
+                    ncm.dest[part][m][k] = ds->id;
+                    ncm.put[part][m][k] = NCM_UNSET; /* preserve knob position/slew, anchor the new field */
+                }
                 if (ds->id == NCM_NONE)
                     continue;
                 now = ncm_get(t, ds->id);

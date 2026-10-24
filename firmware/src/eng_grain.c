@@ -118,7 +118,7 @@ static inline uint32_t gr_scale(uint32_t n, uint32_t f16) { return (n >> 16) * f
 /* one IMA ADPCM sample of zone z at index pos */
 static inline int32_t gr_dec(const smp_zone_t *z, uint32_t pos, int32_t *pred, int32_t *idx)
 {
-    uint32_t b = SMP_DATA[z->off + (pos >> 1)], code = (pos & 1u) ? (b >> 4) : (b & 15u);
+    uint32_t b = smp_data_byte(z->off + (pos >> 1)), code = (pos & 1u) ? (b >> 4) : (b & 15u);   /* NC: user XIP */
     int32_t step = IMA_STEP[*idx], vd = step >> 3;
     if (code & 4u)
         vd += step;

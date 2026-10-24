@@ -36,7 +36,7 @@
  *              the part's buffer, in time on the beats at 120 and 90 BPM, SHUF on them, an absent zone silent, an
  *              upload decoded again, an emptied slot gone
  *   EDITOR     the editor protocol's NCC commands (editor_ncc.c): INFO, the library page by page, a sound on a part,
- *              the parts, the settings (SPLIT / STEREO, channel, filters), bad arguments
+ *              the parts, the settings (SPLIT / STEREO, channel, filters), BPM across 7-bit boundaries, bad arguments
  *   NCC SOUNDS each of NCC's own sounds (ncc_presets.c) plays, none silent, none clipping
  *   SOUNDS     the library (ncc_library.c): every factory sound in a category; SELECT the category, ALGORITHM the engine
  *              (after a rest, past the empty ones, the sound kept if it fits), PRESETS through what fits and over the
@@ -114,6 +114,14 @@ static int gate_on(const track_t *t)
 static void power(void)
 {
     ui_power_on();
+    memset((void *)ncd_want, 0, sizeof ncd_want);
+    memset(ncd, 0, sizeof ncd);
+    memset(ncd_fade, 0, sizeof ncd_fade);
+    memset(ncd_retired, 0, sizeof ncd_retired);
+    memset(ncd_new, 0, sizeof ncd_new);
+    memset(ncc_midi_down, 0, sizeof ncc_midi_down);
+    memset(ncc_keys, 0, sizeof ncc_keys);
+    ncc_key_mask = ncc_dual = ncd_starting = 0;
     memset(&lv, 0, sizeof lv);
     memset(&ncm, 0, sizeof ncm);
     memset(fm6_ceg, 0, sizeof fm6_ceg);
@@ -1057,6 +1065,39 @@ static void ulp_slot(uint32_t k, const char *name, uint32_t nz)
     h->data_len = nz * (n / 2u);
     smp_user_scan(k);
 }
+/* The rebased user offsets address the slot images, not elements of SMP_DATA. Check every byte against its real
+ * allocation, then the SAMPLE / GRAIN / SLICE decoders against each other, including the crossing between zones. */
+static void user_sample_data_test(void)
+{
+    uint32_t k, z, i, bytes = 1, dec = 1;
+    for (i = 0; i < sizeof SMP_DATA; i++)
+        bytes &= smp_data_byte(i) == SMP_DATA[i];
+    for (k = 0; k < SMP_USER_SLOTS; k++) {
+        const smp_user_hdr_t *h = (const smp_user_hdr_t *)smp_user_xip(k);
+        slc_dec_t sd;
+        ulp_slot(k, "XIP TEST", 2);
+        dec &= usr_nz[k] == 2u && slc_usr[k].nseg == 2u && slc_usr[k].len == 88200u;
+        slc_dec_at(&sd, 0, 0);
+        for (z = 0; z < 2u; z++) {
+            const smp_zone_t *zone = &usr_zone[k][z];
+            const uint8_t *data = smp_user_xip(k) + SMP_USER_DATA + h->zone[z].off;
+            voice_t v = {0};
+            int32_t pred = 0, idx = 0;
+            for (i = 0; i < (zone->n + 1u) / 2u; i++)
+                bytes &= smp_data_byte(zone->off + i) == data[i];
+            for (i = 0; i < zone->n; i++) {
+                int32_t x = sample_next(zone, &v, 0);
+                dec &= gr_dec(zone, i, &pred, &idx) == x;
+                dec &= slc_dec_next(&slc_usr[k], &sd) == x;
+            }
+        }
+    }
+    ok("user samples: built-in data and all three slots read from their own allocations", bytes);
+    ok("user samples: SAMPLE, GRAIN and SLICE agree through both zones in every slot", dec);
+    memset(host_slots, 0, sizeof host_slots);
+    for (k = 0; k < SMP_USER_SLOTS; k++)
+        smp_user_scan(k);
+}
 /* the share (of 1000) of the bar's energy in the 1/32 after each of its first 'per' points (per a bar) */
 static uint32_t ulp_onbeat(uint32_t bar, uint32_t per)
 {
@@ -1160,6 +1201,18 @@ static void editor_ncc_test(void)
            e1 == loopi && ed_out[a0 + 5] == ENGI_ACID && ed_out[a0 + 4] == 3u &&
            !strcmp((const char *)ed_out + a0 + 6, "ACID LEAD") && e0 < nl.n);
     }
+    {
+        static const int16_t BPM[] = {-1, 0, 120, 127, 128, 140, 255, 256, 300, 301};
+        int16_t saved = song.g[G_BPM];
+        for (i = 0; i < NELEM(BPM); i++) {
+            char label[96];
+            song.g[G_BPM] = BPM[i];
+            ncc_req(ED_NCC_PARTS, 0, 0);
+            snprintf(label, sizeof label, "editor NCC: PARTS BPM %d decoded from two 7-bit bytes", BPM[i]);
+            ok(label, ed_n >= 8u && (ed_out[ed_n - 8u] | ed_out[ed_n - 7u] << 7) == clamp(BPM[i], 0, 300));
+        }
+        song.g[G_BPM] = saved;
+    }
     q[0] = 1; q[1] = 0;
     ncc_req(ED_NCC_SET, q, 2);
     ok("editor NCC: SET STEREO", !NCC_SPLIT() && ed_out[1] == 0);
@@ -1262,7 +1315,7 @@ static void full_bank_test(void)
 static void engine_ui_test(void)
 {
     track_t *t = &trk[0];
-    uint32_t i, n[NC_N] = {0}, user = 0;
+    uint32_t i, k, n[NC_N] = {0}, user = 0, factory = NCC_NSND, loops = 0;
     power();
     nl_build();
     for (i = 0; i < nl.n; i++) {
@@ -1271,12 +1324,15 @@ static void engine_ui_test(void)
     }
     printf("ncc: library: %u sounds, BASS %u PAD %u LEAD %u KEYS %u PLUCK %u BEAT %u OTHER %u\n", nl.n, n[NC_BASS],
            n[NC_PAD], n[NC_LEAD], n[NC_KEYS], n[NC_PLUCK], n[NC_BEAT], n[NC_OTHER]);
-    ok("sounds: the library holds the five engines' factory sounds and NCC's own, each in a category (none OTHER)",
-       nl.n - user == 51u + NCC_NSND - 12u + (NCC_LOOP ? NLOOP : 0u) && n[NC_OTHER] == 0u && n[NC_BASS] == 18u &&
-       n[NC_PAD] == 15u && n[NC_LEAD] == 20u && n[NC_KEYS] == 13u && n[NC_PLUCK] == 15u &&
-       n[NC_BEAT] == (NCC_LOOP ? NLOOP : 0u));
-    ok("sounds: LOOP is coming soon (core.h NCC_LOOP 0): not among the engines, no loop in the library",
-       NCC_LOOP || (lv_eng_pos(ENGI_LOOP) < 0 && !nl_count(NC_BEAT, 0)));
+    for (i = 0; i < NELEM(LV_ENGS); i++)
+        for (k = 0; k < ENGINES[LV_ENGS[i]]->npresets; k++)
+            factory += preset_orig(ENGINES[LV_ENGS[i]], k) == k;
+    for (i = 0; i < nl.n; i++)
+        loops += nl.s[i].eng == ENGI_LOOP;
+    ok("sounds: all twelve engines' factory/NCC sounds in the library, each in a category",
+       NELEM(LV_ENGS) == 12u + NCC_LOOP && nl.n - user == factory && n[NC_OTHER] == 0u);
+    ok("sounds: LOOP is coming soon: no LOOP engine or loop sounds when hidden (percussion remains)",
+       NCC_LOOP || (lv_eng_pos(ENGI_LOOP) < 0 && !loops));
     ok("sounds: names of other sounds: E.PIANO 1 KEYS, Strings 2 PAD, DEEP BASS BASS, POLY SYNTH KEYS, WEIRD OTHER",
        nl_cat("E.PIANO 1", ENGI_FM6) == NC_KEYS && nl_cat("Strings 2", ENGI_FM6) == NC_PAD &&
        nl_cat("DEEP BASS", ENGI_ACID) == NC_BASS && nl_cat("POLY SYNTH", ENGI_ANALOG) == NC_KEYS &&
@@ -1326,20 +1382,32 @@ static void engine_ui_test(void)
     lv_frames(400);
     ok("sounds: SELECT on: ACID has no PAD, so LEAD (ACID LEAD)", lv.cat[0] == NC_LEAD && t->eng_req == ENGI_ACID &&
        !strcmp(snd_name(0), "ACID LEAD"));
+    t_turn(EN_ALGO, 100);
+    lv_frames(400);
+    i = lv.ep[0];
     t_turn(EN_ALGO, 1);
     lv_frames(400);
-    ok("sounds: ALGORITHM on past the last engine: it stays (not round)", lv.ep[0] == 5u);
-    t_turn(EN_ALGO, -5);
+    ok("sounds: ALGORITHM stops at the last matching engine (not round)", i > 5u && lv.ep[0] == i);
+    t_turn(EN_ALGO, -100);
     lv_frames(400);
-    ok("sounds: ALGORITHM back to ALL engines, the lead kept", lv.ep[0] == 0u && !strcmp(snd_name(0), "ACID LEAD"));
+    ok("sounds: ALGORITHM back to ALL engines, the lead kept", lv.ep[0] == 0u);
+    nl_build();
+    for (i = 0; i < nl.n; i++)
+        if (nl.s[i].kind == NLK_NCC && !strcmp(NCC_SND[nl.s[i].k].name, "ACID LEAD")) {
+            uint32_t pos = 0, z;
+            for (z = 0; z < i; z++) pos += nl_fits(z, NC_LEAD, 0);
+            lv_load_nth(0, NC_LEAD, 0, pos);
+            break;
+        }
     t_turn(EN_PRESET, 3);
     lv_frames(200);
     ok("sounds: PRESETS over the engines: SQUELCH LEAD, SCREAM, HOOVERISH", t->eng_req == ENGI_ACID &&
        !strcmp(snd_name(0), "HOOVERISH"));
-    t_turn(EN_PRESET, 1);
-    lv_frames(200);
-    ok("sounds: PRESETS past the last lead: it stays (not round)", !strcmp(snd_name(0), "HOOVERISH"));
-    t_turn(EN_PRESET, -60);
+    t_turn(EN_PRESET, 100); lv_frames(200);
+    i = (uint32_t)nl_find(0, lv.juno[0]);
+    t_turn(EN_PRESET, 1); lv_frames(200);
+    ok("sounds: PRESETS past the last lead stays (not round)", (uint32_t)nl_find(0, lv.juno[0]) == i);
+    t_turn(EN_PRESET, -200);
     lv_frames(200);
     ok("sounds: PRESETS far back: the first lead, FM6's (BRASS), and no further", t->eng_req == ENGI_FM6 &&
        !strcmp(snd_name(0), "BRASS"));
@@ -1396,12 +1464,13 @@ static void macro_map_test(void)
     for (e = 0; e < NELEM(NCM_MAP); e++)
         for (m = 0; m < NCM_N; m++) {
             const ncm_map_t *mp = &NCM_MAP[e];
-            uint32_t id = mp->d[m][0].id, cc;
+            uint32_t id, cc;
             int32_t base, now;
             power();
             set_engine_of(&trk[1], mp->eng);
             for (i = 0; i < 5u; i++)
                 blk();
+            id = ncm_destination(&trk[1], mp, m, 0).id;
             base = ncm_get(&trk[1], id);
             for (cc = 0; cc < 128u; cc += 127u) {           /* (one way may be the end of its range) */
                 midi(0xB3, NCM_CC[m], cc);
@@ -1692,6 +1761,9 @@ static void editor_ncc_uloop_test(void)
 }
 #endif
 
+#include "ncc_performance.c"
+#include "ncc_extra_engines.c"
+
 int main(void)
 {
     setup_test();
@@ -1720,6 +1792,7 @@ int main(void)
     loop_test();
     editor_ncc_test();
     user_loop_test();
+    user_sample_data_test();
 #if NCC_LOOP
     editor_ncc_uloop_test();
 #endif
@@ -1730,6 +1803,8 @@ int main(void)
     bar_lock_test();
     splash_test();
     bpm0_test();
+    performance_test();
+    extra_engines_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");
     return bad ? 1 : 0;
 }

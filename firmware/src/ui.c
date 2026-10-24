@@ -971,8 +971,15 @@ static void mom_back(const track_t *t)            /* a sound load into t (0: a p
         }
     mom.n = (uint8_t)k;
 }
+#if FELUCCA_LIVEUI
+#include "ncc_sound_defaults.c"                   /* NC: sound choices start without delay/reverb sends */
+#endif
 static void load_begin(track_t *t, uint32_t what)
 {
+#if FELUCCA_LIVEUI
+    if (!undo_depth)
+        ncc_load_sound = (uint8_t)((what & UNDO_SOUND) != 0u);
+#endif
     uint32_t i = trk_index(t);
     if (what & UNDO_SOUND) {
         mom_back(t);                              /* (MOMENTARY: the sound as it was, then the load) */
@@ -1007,6 +1014,9 @@ static void load_end(track_t *t)
 {
     if (--undo_depth)
         return;
+#if FELUCCA_LIVEUI
+    ncc_sound_defaults(t);                         /* NC: after nested presets, before signatures/macrobases */
+#endif
     if (load_mo & 1u) {                           /* a sound load: the motion on the common parameters stays */
         (void)motion_sound_loaded(t, load_from, t->eng_req);
         if ((load_mo & 2u) && motion_count(t))
@@ -1376,6 +1386,9 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         for (i = 0; i < 4u; i++)
             t->p[P_DIST + i] = (int16_t)(pr->fx[i] ? pr->fx[i] - 1 : FX_DEF[i]);
     }
+#if FELUCCA_LIVEUI
+    ncc_sends_zero(t);                                /* NC: boot loads suppress undo, but start without DLY/REV too */
+#endif
     fm6_track_loaded(t);                              /* FM6: the preset's patch (its SLOT) */
     load_end(t);
 }
@@ -1470,8 +1483,12 @@ static void midi_pc_load(track_t *t, uint32_t n)
     }
     if (n >= preset_shown(e)) {
         int32_t s = (int32_t)(FM6_OWN + 1u + n - preset_shown(e));
-        if (e == ENGI_FM6 && fm6_bank_slot(s) >= 0 && fm6_slot_ok(s))
+        if (e == ENGI_FM6 && fm6_bank_slot(s) >= 0 && fm6_slot_ok(s)) {
             t->p[P_E7] = (int16_t)s;
+#if FELUCCA_LIVEUI
+            ncc_sends_zero(t);                        /* NC: a bank Program Change is a sound choice too */
+#endif
+        }
         return;
     }
     for (k = 0; preset_orig(ENGINES[e], k) != k || n--; k++)   /* the n-th shown preset */

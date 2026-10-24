@@ -69,15 +69,17 @@ static void lv_draw_head(void)
     static const char *const PG_NAME[PG_N] = {"SOUND", "ARP", "FX"};
     uint32_t part = song.sel % LV_PARTS, bpm = lv_bpm(), split = (uint32_t)NCC_SPLIT(), ext = (uint32_t)lv_ext();
     char s[12];
-    if (!lv_changed(RG_HEAD, lv_hash(lv_hash(lv_hash(lv.page * 7u + lv.sub * 3u + lv.fx, part), bpm), split * 2u + ext)))
+    if (!lv_changed(RG_HEAD, lv_hash(lv_hash(lv_hash(lv_view_key(), part), bpm),
+                                   split * 2u + ext + ncc_dual_mode() * 4u)))
         return;
     cv_begin(240, 26, LC_BG);
     cv_rrect(2, 2, 82, 22, 4, LC_PART[part], LC_BG);
-    str_cpy(s, lv.fx ? LV_FX_PAGE[lv.sub % 6u] : PG_NAME[lv.page % PG_N], sizeof s);
-    if (!lv.fx && lv.sub)
+    str_cpy(s, lv.page == PG_GLO || lv.page == PG_EDIT ? lv_page_name() :
+            lv.fx ? LV_FX_PAGE[lv.sub % 6u] : PG_NAME[lv.page % PG_N], sizeof s);
+    if (!lv.fx && lv.sub && lv.page < PG_GLO)
         str_cpy(s + str_len(s), " 2", 3);
     cv_text_in(2, 4, 82, &AF_M, s, LC_TEXT, LC_PART[part]);
-    cv_text_on(92, 7, &AF_S, "NCC", LC_MID, LC_BG);
+    cv_text_on(92, 7, &AF_S, ncc_dual_mode() == 1u ? "D3" : ncc_dual_mode() == 2u ? "D4" : "NCC", LC_MID, LC_BG);
     cv_text_on(124, 7, &AF_S, split ? "SPLIT" : "ST", split ? LC_AMBER : LC_DIM, LC_BG);
     lv_num(s, bpm);
     cv_text_r(236, 4, &AF_M, s, ext ? LC_AMBER : LC_TEXT, LC_BG);
@@ -135,9 +137,9 @@ static void lv_draw_pad(uint32_t part, int32_t x)
     if (t->p[P_AMODE])
         bx = lv_badge(bx, 46, "ARP", on ? LC_PART[part] : LC_LINE, on ? LC_TEXT : LC_MID, fill);
     if (t->p[P_AHOLD])
-        bx = lv_badge(bx, 46, "HOLD", on ? LC_TEXT : LC_LINE, on ? LC_BG : LC_MID, fill);
+        bx = lv_badge(bx, 46, "H", on ? LC_TEXT : LC_LINE, on ? LC_BG : LC_MID, fill);
     if (ncd_want[part])
-        (void)lv_badge(bx, 46, "DRONE", on ? LC_AMBER : LC_LINE, on ? LC_BG : LC_MID, fill);
+        (void)lv_badge(bx, 46, ncd_mode(part) ? "DR1" : "DR+", on ? LC_AMBER : LC_LINE, on ? LC_BG : LC_MID, fill);
     c = lv.cat[part] % NC_N;                            /* the part's filters as two pills: type, engine (SELECT / */
     ep = lv.ep[part];                                   /* ALGORITHM turning: what they will set, in amber) */
     if (on && (lv.cpend | lv.apend)) {
@@ -155,6 +157,7 @@ static uint32_t lv_pad_sig(uint32_t part)
     uint32_t h = lv_hash(lv_snd(t), ((uint32_t)t->p[P_E7] & 63u) | (uint32_t)(uint16_t)t->p[P_E0] << 8);   /* (LOOP: E0) */
     h = lv_hash(h, (uint32_t)clamp(t->p[P_ED_FX], 0, 63) | (uint32_t)lv_juno(part) << 8);
     h = lv_hash(h, (t->p[P_AMODE] != 0) | (t->p[P_AHOLD] != 0) << 1 | ncd_want[part] << 2 | (uint32_t)midi_lit(part) << 3);
+    h = lv_hash(h, ncd_mode(part));
     h = lv_hash(h, song.sel == part ? (uint32_t)(uint8_t)lv.cpend | (uint32_t)(uint8_t)lv.apend << 8 : 0u);
     h = lv_hash(h, (uint32_t)lv.cat[part] | (uint32_t)lv.ep[part] << 8);
     return lv_hash(h, mch_get(part) | (song.sel == part) << 8 | (uint32_t)(song.sel == part ? (uint8_t)lv.pend : 0u) << 9);
@@ -212,8 +215,10 @@ static void lv_draw_steps(void)
 static void lv_draw_knobs(void)
 {
     uint32_t part = song.sel % LV_PARTS, k, hot = lv.hot && (fm1_ms | 1u) - lv.hot_ms < LV_HOT_MS ? lv.hot : 0u;
-    uint32_t h = lv_hash(lv.page * 7u + lv.sub * 3u + lv.fx, part * 16u + hot);
+    uint32_t h = lv_hash(lv_view_key(), part * 16u + hot);
     int32_t v[4], lo[4], hi[4];
+    if (lv.page == PG_EDIT && TSEL->eng_req == ENGI_FM6)
+        h = lv_hash(h, fm6_pgen[part]);                  /* an external patch edit may change RATIO to FIXED */
     for (k = 0; k < 4u; k++) {
         v[k] = lv_get(lv_knob(k), &lo[k], &hi[k]);
         h = lv_hash(h, (uint32_t)v[k]);
@@ -225,10 +230,11 @@ static void lv_draw_knobs(void)
         const lv_knob_t *kb = lv_knob(k);
         int32_t cx = (int32_t)k * 60, a0, a1, on = hot == k + 1u;
         uint16_t vc = on ? LC_TEXT : LC_PART[part];
-        char s[16];
+        char s[16], label[16], value[16];
         if (kb->kind == LK_NONE)
             continue;
-        cv_text_in(cx, 0, 60, &AF_S, lv_label(kb), on ? LC_TEXT : LC_MID, LC_BG);
+        (void)text_fit(label, sizeof label, lv_label(kb), &AF_S, 56);
+        cv_text_in(cx, 0, 60, &AF_S, label, on ? LC_TEXT : LC_MID, LC_BG);
         if (lo[k] < 0) {                                /* bipolar: from 12 o'clock */
             int32_t sv = v[k] * KA_END / (v[k] < 0 ? -lo[k] : (hi[k] ? hi[k] : 1));
             a0 = (sv < 0 ? sv : 0) - 8;
@@ -239,7 +245,8 @@ static void lv_draw_knobs(void)
         }
         knob_arc(cx + 30 - KNOB_BIG_R, 18, KNOB_BIG_R, KNOB_BIG_COV, KNOB_BIG_ANG, a0, a1, LC_LINE, vc, LC_BG);
         lv_text(kb, s);
-        cv_text_in(cx, 58, 60, &AF_S, s, on ? LC_TEXT : LC_MID, LC_BG);
+        (void)text_fit(value, sizeof value, s, &AF_S, 56);
+        cv_text_in(cx, 58, 60, &AF_S, value, on ? LC_TEXT : LC_MID, LC_BG);
     }
     cv_blit(0, LY_KNOBS);
 }
@@ -258,10 +265,11 @@ static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
     s[0] = 0;
     if (!mp)
         return 0;
-    id = mp->d[m][0].id;
+    id = ncm_destination(t, mp, m, 0).id;               /* NC: model-dependent macro fields */
     v = ncm_get(t, id);
     d = id == NCM_CEG ? 0 : track_desc(t, id);
-    str_cpy(s, mp->show[m] ? mp->show[m] : d ? d->label : "", 11);
+    str_cpy(s, mp->eng == 3u && m == 2u && t->p[P_E0] == 4 ? "RELEASE" :
+               mp->show[m] ? mp->show[m] : d ? d->label : "", 11);
     n = str_len(s);
     s[n++] = ' ';
     if (!d) {                                           /* FM6's CEG: the offset, + slower */
@@ -278,7 +286,8 @@ static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
 
 static void lv_draw_foot(void)
 {
-    static const char *const HINT[PG_N] = {"", "SELECT: PAGE 2   REC: HOLD", "HOLD FX + KEY: PERFORM"};
+    static const char *const HINT[PG_N] = {"", "SELECT: PAGE 2   REC: HOLD", "HOLD FX + KEY: PERFORM",
+                                          "SELECT: PAGE   HOME: SOUND", "SELECT: PAGE   OCT-/+: PART"};
     uint32_t seen = ncm_seen, sig, mp = (seen >> 16) & 1u, m = (seen >> 8) & 7u;
     char s[24], r[24];
     int32_t v = 0;

@@ -129,6 +129,11 @@ def markdown(text, rel):
 # ------------------------------------------------------------------------------------------------- the pages ---
 def home(version, changelog):
     img = "img/"
+    pending = re.search(r"^## Unreleased\n(.*?)(?=^## |\Z)", changelog, re.M | re.S)
+    development = bool(pending and pending.group(1).strip())
+    notice = (f'<p class="lead">These features describe the current development source. The installer provides '
+              f'release {html.escape(version)}; see its release notes below for the features in that package. '
+              f'<a href="{REPO}/blob/main/CHANGELOG.md">Development changelog</a>.</p>' if development else "")
     feats = [
         ("green", "Two parts, two tracks", "Part L listens to the Circuit's MIDI 1 track, part R to MIDI 2. The Circuit "
          "plays the notes and sends the clock; NCC has no sequencer of its own.", ""),
@@ -137,13 +142,19 @@ def home(version, changelog):
         ("pink", "The Circuit's knobs just work", "Its eight macros are mapped to what their labels mean on every engine, "
          "smoothly, and the screen shows what each one does.", "screen-sound.png"),
         ("amber", "Sounds by role", "SELECT picks the category (bass, pad, lead, keys, pluck), ALGORITHM the engine, "
-         "PRESETS the sound. 81 sounds, and your own.", ""),
-        ("cyan", "Five engines", "DX7-style FM (loads real DX7 banks), Juno with its chorus, phase distortion, a chip synth "
-         "and a 303.", ""),
+         "PRESETS the sound. 161 sounds, and your own.", ""),
+        ("cyan", "Twelve engines", "FM6, Juno, phase distortion, TRIO, ACID, physical models, granular, formant voices, "
+         "LOFI, tonewheel organ, noise and samples. Every engine has eight Circuit macros.", ""),
         ("red", "Coming soon: drum loops", "One-bar loops that always fit the Circuit's bar, opened by any note and chopped "
          "by its steps, with shuffle, reverse, stutter and crush on the knobs.", ""),
         ("purple", "Built for jamming", "OCT- / OCT+ switch between your two sounds, an arp locked to the clock with HOLD, "
-         "and Drone to keep a pad ringing while you play over it.", "screen-arp.png"),
+         "and STACK or whole-chord REPLACE Drone with a smooth 50 ms fade-out and 50 ms fade-in.", "screen-arp.png"),
+        ("pink", "Dual sounds", "SCL layers the existing L/R sounds from MIDI channel 3 or 4. Each keeps its own arp, "
+         "Drone and Circuit knob controls.", ""),
+        ("amber", "Settings and sound editing", "GLO opens channels, output, clock and performance settings. EDIT opens "
+         "the selected sound's engine, envelopes, LFO and voice controls, including FM6 operators.", ""),
+        ("blue", "Dry sound defaults", "Every newly selected sound starts without delay or reverb. Turn the sends up "
+         "whenever you want; both parts use the existing shared effect buses.", ""),
         ("green", "Effects one tap away", "Sends, delay, reverb, chorus, an insert and performance effects on the keys, plus "
          "echo and reverb throws.", "screen-sends.png"),
         ("blue", "NCC Manager", "A web page over USB: sounds on L and R, your own sounds, DX7 banks, backups and "
@@ -155,9 +166,8 @@ def home(version, changelog):
                                       ("screen-arp.png", "The arp, locked to the Circuit's clock"),
                                       ("screen-sends.png", "FX: one tap and you're on the sends")))
     faq = [
-        ("What do I need?", "An M-VAVE FM-1, a Novation Circuit Tracks, a way to get the Circuit's MIDI to the FM-1's USB "
-         "(a USB MIDI host adapter, or a computer passing it on), and a stereo-to-two-mono cable into the Circuit's audio "
-         "inputs."),
+        ("What do I need?", "An M-VAVE FM-1, a Novation Circuit Tracks, a MIDI connection to the FM-1's TRS input or USB "
+         "(with a USB MIDI host adapter or computer), and a stereo-to-two-mono cable into the Circuit's audio inputs."),
         ("Does it work without a Circuit Tracks?", "Yes. The FM-1's keys play the parts, the arp runs on its own tempo, and "
          "any MIDI keyboard or sequencer on channels 3 and 4 works too. Or try it in your browser first."),
         ("How do I go back to the original firmware?", "On the Install page, open “Return to official V15” and pick M-VAVE's "
@@ -178,7 +188,7 @@ def home(version, changelog):
     log, _ = markdown(re.sub(r"\A# .*\n", "", changelog), lambda u: u)
     def ver(m):                                         # (a version newer than the one installed: coming)
         v = m.group(1)
-        newer = tuple(map(int, re.findall(r"\d+", v))) > tuple(map(int, re.findall(r"\d+", version)))
+        newer = v == "Unreleased" or tuple(map(int, re.findall(r"\d+", v))) > tuple(map(int, re.findall(r"\d+", version)))
         return (f'<h3><span class="pad lit {"amber" if newer else "green"}">{v}</span>'
                 + ('<span class="label">coming soon</span>' if newer else "") + "</h3>")
     log = re.sub(r'<h2 id="[^"]*">([^<]*)</h2>', ver, log)
@@ -208,7 +218,8 @@ def home(version, changelog):
     groovebox. NCC strips it down to one job: being the Circuit's companion. Less to learn, more to play.</p>
 </div>
 
-<h2><span class="label">What it does</span>Features</h2>
+<h2><span class="label">What it does</span>{"Development features" if development else "Features"}</h2>
+{notice}
 <div class="cards">
 {cards}
 </div>

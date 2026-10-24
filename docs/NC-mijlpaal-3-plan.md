@@ -1,5 +1,9 @@
 # NCC mijlpaal 3: arp, effecten en Circuit-stijl (plan, nog geen code)
 
+**Historisch document.** Dit bewaart het ontwerp en de teststand van de vermelde mijlpaal; oude bediening en
+“nog niet geflasht” zijn geen actuele status. Voor de huidige firmware: [handleiding](MANUAL.md),
+[overdracht/status](HANDOFF.md), [Dual/Drone](NC-dual-drone-plan.md) en [extra engines](NC-extra-engines-macros.md).
+
 Datum: 21 oktober 2026. Vraag van Remco: "als je een sound selecteert en je drukt ARP in, dan moet de arp aanstaan;
 met KNOB 1–4 pas je de arp aan; de arp moet een latch/hold hebben; werk de effecten uit; maak de UI in de stijl en
 vibe van de Circuit Tracks." Dit voegt stap 3 (arp) en 4 (FX) van het bouwplan samen, plus een nieuwe look.

@@ -10,6 +10,7 @@
 #   sh tools/ncc_dev.sh info             what the connected FM-1 runs
 #   sh tools/ncc_dev.sh flash [FILE]     install FILE (default build/ncc.fwsc) on the FM-1: ONLY with Remco's OK
 #   sh tools/ncc_dev.sh emu [demo]       the browser emulator (demo: with the built-in Circuit) on localhost:8767
+#   sh tools/ncc_dev.sh emu-test         build NCC's WebAssembly and test the panel/MIDI paths without a server
 #   sh tools/ncc_dev.sh manager          the NCC Manager on localhost:8768 (?mock=1: a simulated FM-1)
 #   sh tools/ncc_dev.sh site X.Y         the site with release X.Y's package -> build/site, served on localhost:8769
 #   sh tools/ncc_dev.sh publish-site     build/site as the gh-pages branch (GitHub Pages): ONLY with Remco's OK
@@ -54,25 +55,38 @@ gen)
     done ;;
 test)
     mkdir -p build/host
-    cc -O1 -w -fsanitize=undefined -Ibuild/gen -Ifirmware/src -o build/host/ncc_test tests/ncc_test.c -lm
-    build/host/ncc_test | grep -E "FAIL|^ncc: (all|FAILED)"
-    cc -O1 -w -DNCC_LOOP=1 -Ibuild/gen -Ifirmware/src -o build/host/ncc_test_loop tests/ncc_test.c -lm
-    build/host/ncc_test_loop | grep -E "FAIL|^ncc: (all|FAILED)" | sed 's/^/(NCC_LOOP=1) /'
+    "$PY" tests/ncc_check_test.py
+    if command -v node >/dev/null 2>&1; then node web/ncc/manager_test.mjs; else echo "NCC Manager tests skipped (no node)"; fi
+    # The existing DSP left-shifts signed audio values (negative too). Leave only shift-base out of UBSan until
+    # those operations are audited; bounds, division, signed arithmetic overflow and invalid shift counts stay on.
+    # Every enabled sanitizer error is fatal, including in the otherwise hidden LOOP variant. Full logs stay below.
+    echo "UBSan: fatal errors enabled; existing signed left shifts (shift-base) excluded pending DSP audit"
+    cc -O1 -w -fsanitize=undefined -fno-sanitize=shift-base -fno-sanitize-recover=all -Ibuild/gen -Ifirmware/src -o build/host/ncc_test tests/ncc_test.c -lm
+    "$PY" tools/ncc_check.py --log build/host/ncc_test.log --summary '^ncc: all ok$' -- build/host/ncc_test
+    cc -O1 -w -fsanitize=undefined -fno-sanitize=shift-base -fno-sanitize-recover=all -DNCC_LOOP=1 -Ibuild/gen -Ifirmware/src -o build/host/ncc_test_loop tests/ncc_test.c -lm
+    "$PY" tools/ncc_check.py --log build/host/ncc_test_loop.log --summary '^ncc: all ok$' --prefix '(NCC_LOOP=1) ' -- build/host/ncc_test_loop
     cc -O2 -w -DFELUCCA_LIVEUI=1 -DNCC_SPLIT_DEFAULT=0 -Ibuild/gen -Ifirmware/src -o build/host/regress_liveui tests/regress.c -lm
-    build/host/regress_liveui tests/ncc_golden.txt tests/cpu_baseline.txt | grep "golden renders" | sed 's/^/(NCC) /'
+    "$PY" tools/ncc_check.py --log build/host/regress_liveui.log --summary '^regress: [0-9]+ golden renders' --prefix '(NCC) ' --mac-cpu-noise -- build/host/regress_liveui tests/ncc_golden.txt tests/cpu_baseline.txt
     cc -O2 -w -Ibuild/gen -Ifirmware/src -o build/host/regress tests/regress.c -lm
-    build/host/regress tests/golden.txt tests/cpu_baseline.txt | grep "golden renders" | sed 's/^/(Felucca) /'
+    "$PY" tools/ncc_check.py --log build/host/regress.log --summary '^regress: [0-9]+ golden renders' --prefix '(Felucca) ' --mac-cpu-noise -- build/host/regress tests/golden.txt tests/cpu_baseline.txt
+    cc -O2 -w -DFELUCCA_LIVEUI=1 -Ibuild/gen -Ifirmware/src -o build/host/ncc_extra_cpu tests/ncc_extra_cpu.c -lm
+    "$PY" tools/ncc_check.py --log build/host/ncc_extra_cpu.log --summary '^ncc extra cpu:' -- build/host/ncc_extra_cpu
     cc -O1 -w -Ibuild/gen -Ifirmware/src -o build/host/editor_test tests/editor_test.c -lm
-    build/host/editor_test | tail -1
-    echo "(2 CPU entries over budget on the Mac are its measuring noise, not a fault)" ;;
+    "$PY" tools/ncc_check.py --log build/host/editor_test.log --summary '^editor test passed$' -- build/host/editor_test ;;
 build)
-    colima_up && mirror
-    (cd "$MIRROR" && FELUCCA_LIVEUI=1 "$PY" tools/build.py | grep -E "image|package|FAIL")
+    mkdir -p build
+    colima_up
+    mirror
+    (cd "$MIRROR" && FELUCCA_LIVEUI=1 "$PY" "$REPO/tools/ncc_check.py" --log "$REPO/build/ncc-build.log" \
+        --summary 'image|package|FAIL' -- "$PY" tools/build.py)
     cp "$MIRROR/build/felucca.fwsc" build/ncc.fwsc && echo "-> build/ncc.fwsc" ;;
 release)
     [ -n "${2:-}" ] || { echo "release X.Y"; exit 2; }
-    colima_up && mirror head
-    (cd "$MIRROR" && FELUCCA_LIVEUI=1 "$PY" tools/build.py --release "$2" | grep -E "image|package|FAIL")
+    mkdir -p build
+    colima_up
+    mirror head
+    (cd "$MIRROR" && FELUCCA_LIVEUI=1 "$PY" "$REPO/tools/ncc_check.py" --log "$REPO/build/ncc-release.log" \
+        --summary 'image|package|FAIL' -- "$PY" tools/build.py --release "$2")
     rm -rf build/rel && mkdir -p build/rel && cp -R "$MIRROR/build/release-$2" build/rel/
     (cd build/rel && zip -qr "ncc-$2.zip" "release-$2" && cat "release-$2/SHA256SUMS") ;;
 info)
@@ -81,6 +95,10 @@ flash)
     f=${2:-build/ncc.fwsc}
     printf "Install %s on the FM-1? Only with Remco's OK. [y/N] " "$f"; read -r a; [ "$a" = y ] || exit 1
     echo y | "$PYMIDI" tools/fm1_install.py "$f" | tr '\033' '\n' | grep -v "^\[K\(writing\|checking\)" ;;
+emu-test)
+    NO_SERVE=1 sh tools/ncc_demo.sh
+    node web/emu/ncc_test.mjs build/emu-demo/felucca.wasm build/emu-demo/performance.ppm
+    "$PY" -c 'from pathlib import Path; from PIL import Image; [Image.open(p).save(p.with_suffix(".png")) for p in Path("build/emu-demo").glob("performance*.ppm")]' ;;
 emu)
     if [ "${2:-}" = demo ]; then DEMO=1 NO_SERVE=1 sh tools/ncc_demo.sh; else NO_SERVE=1 sh tools/ncc_demo.sh; fi
     serve build/emu-demo 8767 ;;

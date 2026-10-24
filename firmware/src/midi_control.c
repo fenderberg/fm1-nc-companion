@@ -12,9 +12,10 @@ typedef struct {
     uint8_t ready, semis, cents;
     uint8_t rpn_msb, rpn_lsb;
 } midi_channel_t;
-static midi_channel_t midi_ch[16];
+#define MIDI_NCH (16u + 2u * FELUCCA_LIVEUI)    /* NC: private Dual note owners; no physical CC targets */
+static midi_channel_t midi_ch[MIDI_NCH];
 /* Low bits: track + 1. High bit: key released, held by its channel's pedal. */
-static uint8_t midi_sel_on[16][128];
+static uint8_t midi_sel_on[MIDI_NCH][128];
 #define midi_notes midi_sel_on
 static uint16_t midi_owners[NTRK];           /* avoids rescanning all 2048 entries for CC123 */
 #define MIDI_PEDAL_NOTE 0x80u
@@ -32,6 +33,10 @@ static midi_channel_t *midi_channel(uint32_t ch)
 
 static uint32_t midi_targets(uint32_t ch)
 {
+#if FELUCCA_LIVEUI
+    if (ch >= 16u)
+        return 1u << (ch - 16u);                   /* NC: a private owner belongs to one part only */
+#endif
     return midi_channel(ch)->targets | (1u << trk_index(midi_track(ch)));
 }
 
@@ -55,7 +60,7 @@ static void midi_expression_channel(uint32_t ch)
 static int midi_note_held(const track_t *t, uint32_t note)
 {
     uint32_t ch, id = trk_index(t) + 1u;
-    for (ch = 0; ch < 16u; ch++)
+    for (ch = 0; ch < MIDI_NCH; ch++)
         if ((midi_notes[ch][note] & 0x7Fu) == id && !mchord_of(ch, note, id))
             return 1;
     return mchord_held(id, note);
@@ -65,6 +70,10 @@ static int midi_note_held(const track_t *t, uint32_t note)
 static int midi_local_held(const track_t *t, uint32_t note)
 {
     uint32_t k, i;
+#if FELUCCA_LIVEUI
+    if (ncc_local_held(trk_index(t), note))
+        return 1;                                 /* NC: local Dual snapshots */
+#endif
     for (k = 0; k < 27u; k++)
         if (kb_chn[k] && kb_trk[k] == trk_index(t))
             for (i = 0; i < kb_chn[k]; i++)
@@ -75,8 +84,12 @@ static int midi_local_held(const track_t *t, uint32_t note)
 
 static void midi_release(uint32_t ch, uint32_t note)
 {
-    uint32_t id = midi_notes[ch][note] & 0x7Fu;
+    uint32_t state = midi_notes[ch][note], id = state & 0x7Fu;
     midi_notes[ch][note] = 0;
+#if FELUCCA_LIVEUI
+    if (id && id <= NCM_PARTS && !(state & MIDI_PEDAL_NOTE) && ncc_midi_down[id - 1u])
+        ncc_midi_down[id - 1u]--;                   /* NC: pedal-held roots do not extend a physical chord gesture */
+#endif
     if (id) {
         midi_owners[id - 1u]--;
         if (!--midi_ch[ch].owned[id - 1u])
@@ -103,6 +116,9 @@ static void midi_release(uint32_t ch, uint32_t note)
  * note holds already sounds: not started again */
 static void midi_play(track_t *t, uint32_t ch, uint32_t note, uint32_t vel)
 {
+#if FELUCCA_LIVEUI
+    ncd_begin(t);                                 /* NC: one physical strike, even when CHORD expands it */
+#endif
     uint8_t nn[CHORD_MAX];
     uint32_t n = chord_build(t, note, nn), i, f = 0;
     if (n > 1u || nn[0] != note)
@@ -113,7 +129,11 @@ static void midi_play(track_t *t, uint32_t ch, uint32_t note, uint32_t vel)
         nn[0] = (uint8_t)note;
     }
     for (i = 0; i < n; i++)
-        if (!midi_note_held(t, nn[i]) && !midi_local_held(t, nn[i]))
+        if ((!midi_note_held(t, nn[i]) && !midi_local_held(t, nn[i]))
+#if FELUCCA_LIVEUI
+            || ncd_retrigger(t)                    /* NC: a fresh strike even if another source holds this pitch */
+#endif
+        )
             input_on(t, nn[i], vel);
     if (n > 1u || nn[0] != note) {
         mchord_t *m = &mchord[f];
@@ -126,30 +146,44 @@ static void midi_play(track_t *t, uint32_t ch, uint32_t note, uint32_t vel)
     }
 }
 
-static void midi_note_event(uint32_t ch, uint32_t note, uint32_t vel)
+/* NC: explicit part/optional expression lets Dual reuse ownership without duplicating controllers. */
+static void midi_note_event_to(track_t *t, uint32_t ch, uint32_t note, uint32_t vel, int expression)
 {
     midi_channel_t *c = midi_channel(ch);
     uint32_t id = midi_notes[ch][note] & 0x7Fu;
     if (vel) {
-        track_t *t = midi_track(ch);
         /* Repeated notes replace the previous press, including a pedal-held one. */
         if (id)
             midi_release(ch, note);
-        midi_expression(t, c);
+        if (expression)
+            midi_expression(t, c);
         if (t != TSEL)
             midi_hint = (uint8_t)(trk_index(t) + 1u);
         midi_seen |= (uint8_t)(1u << trk_index(t));   /* (1.5.5: only noted; the UI does the rest) */
         c->targets |= (uint8_t)(1u << trk_index(t));
         midi_play(t, ch, note, vel);
+#if FELUCCA_LIVEUI
+        if (trk_index(t) < NCM_PARTS)
+            ncc_midi_down[trk_index(t)]++;         /* NC: counted after the strike checked previous physical owners */
+#endif
         midi_notes[ch][note] = (uint8_t)(trk_index(t) + 1u);
         midi_owners[trk_index(t)]++;
         c->owned[trk_index(t)]++;
     } else if (id) {
-        if (c->pedal && !drum_track(&trk[id - 1u]))
+        if (c->pedal && !drum_track(&trk[id - 1u])) {
+#if FELUCCA_LIVEUI
+            if (id <= NCM_PARTS && !(midi_notes[ch][note] & MIDI_PEDAL_NOTE) && ncc_midi_down[id - 1u])
+                ncc_midi_down[id - 1u]--;          /* NC: release ends this physical root even while the pedal holds it */
+#endif
             midi_notes[ch][note] |= MIDI_PEDAL_NOTE;
-        else
+        } else
             midi_release(ch, note);
     }
+}
+
+static void midi_note_event(uint32_t ch, uint32_t note, uint32_t vel)
+{
+    midi_note_event_to(midi_track(ch), ch, note, vel, 1);
 }
 
 static void midi_pedal_up(uint32_t ch)
@@ -166,7 +200,7 @@ static void midi_pedal_up(uint32_t ch)
 static void __attribute__((noinline)) midi_forget_track(uint32_t track)
 {
     uint32_t ch, note;
-    for (ch = 0; ch < 16u; ch++) {
+    for (ch = 0; ch < MIDI_NCH; ch++) {
         if (!(midi_ch[ch].targets & (1u << track)))
             continue;
         for (note = 0; note < 128u; note++)
@@ -176,6 +210,9 @@ static void __attribute__((noinline)) midi_forget_track(uint32_t track)
         midi_ch[ch].owned[track] = 0;
     }
     midi_owners[track] = 0;
+#if FELUCCA_LIVEUI
+    ncc_input_forget(track);                       /* NC: private/local ownership and Drone bookkeeping */
+#endif
     mchord_forget(track);
     midi_bend_q8[track] = midi_bend_target[track] = 0;
 }
@@ -200,6 +237,10 @@ static int midi_track_held(uint32_t track)
     uint32_t k;
     if (midi_owners[track])
         return 1;
+#if FELUCCA_LIVEUI
+    if (ncc_local_any(track))
+        return 1;                                 /* NC: either layer may own a local key */
+#endif
     for (k = 0; k < 27u; k++)
         if ((fm1_in.notes & (1u << k)) && kb_trk[k] == track)
             return 1;
@@ -400,6 +441,10 @@ static volatile uint8_t *const mpc_io;
  * channel aftertouch, Program Change, so they stay free for other instruments. */
 static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint32_t d1, uint32_t d2)
 {
+#if FELUCCA_LIVEUI
+    if ((st == 0x90u || st == 0x80u) && ncc_note_event(ch, d1, st == 0x90u ? d2 : 0))
+        return;                                   /* NC: filter notes only, before the ordinary channel route */
+#endif
     if (song.g[G_ROUTE] != 1 && !midi_in_block(ch))
         return;
     if (st == 0x90u || st == 0x80u)
@@ -414,6 +459,9 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
 #endif
         mod_midi(midi_track(ch), st, d1, d2);
         midi_control(ch, d1, d2);
+#if FELUCCA_LIVEUI
+        ncc_control(ch, d1, d2);                   /* NC: each part keeps its pedal/reset/panic behaviour */
+#endif
     } else if (st == 0xD0u)
         mod_midi(midi_track(ch), st, d1, d2);
     else if (st == 0xC0u && mpc_io)                /* Program Change: the main loop loads it (ui.c midi_pc_poll) */

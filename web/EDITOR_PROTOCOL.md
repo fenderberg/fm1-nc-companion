@@ -1235,3 +1235,51 @@ device gone at ~0.3 s, the MIDI port gone at ~0.57 s and back at ~1.15 s; ON -> 
 at ~0.6 s while the MIDI port was not seen to disappear at all (so do not wait for a disconnect event: after
 a real change, wait ~1.5 s and open again). What the editor sends in that window is lost, `WATCH` ends with the
 bus reset (send `INFO` and `WATCH` again after reconnecting), and a backup in progress answers rc 5 (stale).
+
+## NCC development extensions (commands 96..100)
+
+Available only with `FELUCCA_LIVEUI=1` (Novation Circuit Companion). The envelope is the same:
+`F0 7D 46 4C cmd args... F7`, reply uses the request's command. `v14` below means the existing signed 14-bit value:
+LSB first, offset by 8192; strings are zero-terminated 7-bit ASCII. Byte fields have no offset.
+
+| Command | Request arguments | Reply payload |
+|---|---|---|
+| 96 NCC_INFO | none | `"NCC", version string, category count, category strings, engine count, (engine byte, name string)*, [performance version, capability bits]` |
+| 97 NCC_LIB | `start v14, count byte` (0..16) | `start v14, count byte, total v14, (kind, engine, category, name string)*` |
+| 98 NCC_LOAD | `part byte, library index v14` | `part, rc` (0 loaded, 1 invalid arguments) |
+| 99 NCC_PARTS | none | `part count, (library index v14, category filter, engine filter, MIDI channel, engine, name string)*, split, clock, BPM low7, BPM high7, [performance version, Dual, L mode, L on, R mode, R on]` |
+| 100 NCC_SET | `operation, arguments...` (table below) | `operation, rc` (0 accepted, 1 invalid arguments) |
+
+Parts are 0=L / 1=R. A PARTS library index of -1 means no matching entry. The current engine order is FM6 (12),
+JUNO/ANALOG (0), PHASE (2), TRIO (6), ACID (14), PHYS (9), GRAIN (8), VOICE (5), LOFI (3), WHEEL (7), NOISE (11),
+SAMPLE (4). LOOP (15) is appended only when built with NCC_LOOP=1. Read the INFO list instead of assuming indices.
+The engine filter is **position in that list + 1**, with 0=ALL; it is not the stored engine ID.
+
+Categories: ALL=0, BASS=1, PAD=2, LEAD=3, KEYS=4, PLUCK=5, BEAT=6, OTHER=7. Library kinds: factory preset=0,
+NCC patch=1, DX7 bank voice=2, user preset=3, user loop=4. Current built-ins total 161, excluding banks/users/loops.
+Library indices can change when the bank or user slots change; refresh the list before loading an index.
+
+| SET operation | Arguments | Meaning |
+|---|---|---|
+| 0 | `part, channel` | Channel 0..15 = MIDI 1..16, 16=OMNI, 17=OFF |
+| 1 | `split` | 1=SPLIT, 0=STEREO |
+| 2 | `clock` | 0=internal, 1=USB, 2=TRS MIDI |
+| 3 | `part, category filter, engine filter` | Change filters only; does not load a sound |
+| 4 | `Dual` | 0=OFF, 1=CH3 notes to both, 2=CH4 notes to both |
+| 5 | `part, mode, on` | Drone mode 0=STACK / 1=REPLACE; on 0/1 |
+
+INFO/PARTS trailers are append-only. Current performance version is 1, capability bits 0=Dual, 1=Drone modes,
+2=zero delay/reverb default sends (value 7 supports all three). A missing trailer means those extensions are absent;
+keep older channel/output/clock controls available and disable unsupported controls. Older clients may ignore trailers.
+BPM is the unoffset value `low7 | high7 << 7`, clamped to 0..300 before encoding.
+
+Dual fans out **notes only** from one exclusive physical channel (CH3 or CH4), plus the panel keys. Controllers,
+sustain, Program Change and effects retain their usual part targets. Changing source stops old held input.
+REPLACE groups notes until all physical keys are released; sustain does not extend the gesture. A replacement
+fades out ~51 ms, then in ~51 ms. Drone on/off and sounding notes are not stored. New sound loads reset only that
+part's delay/reverb sends; project restore and undo preserve saved wet settings.
+
+No storage format change: marked retired G_SYNC bits hold
+`64 | Dual | (L_replace << 2) | (R_replace << 3) | (remember_CH4 << 4)`.
+Old/unmarked or invalid data uses OFF/STACK. The source and modes persist; the remembered source is used by SCL
+when enabling Dual. The active source takes precedence for older marked values without the remember bit.

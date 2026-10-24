@@ -502,6 +502,41 @@ EXPORT void web_test_heavy(void)
 
 EXPORT uint32_t web_test_user_preset(uint32_t i) { return (uint32_t)up_used(i); }
 
+#if FELUCCA_LIVEUI
+/* NC: read-only observations for the browser's NCC integration tests; inputs still use the real panel/MIDI API. */
+EXPORT uint32_t web_test_ncc_state(void)
+{
+    return ncc_dual_mode() | ncd_mode(0) << 2 | ncd_mode(1) << 3 |
+           (uint32_t)(ncd_want[0] != 0) << 4 | (uint32_t)(ncd_want[1] != 0) << 5;
+}
+EXPORT uint32_t web_test_ncc_gate(uint32_t part, uint32_t note)
+{
+    uint32_t i, n = 0;
+    if (part < NCM_PARTS)
+        for (i = 0; i < NVOICE; i++)
+            n += trk[part].v[i].active && trk[part].v[i].gate && trk[part].v[i].note == note;
+    return n;
+}
+EXPORT uint32_t web_test_ncc_sends(uint32_t part)
+{
+    return part < NCM_PARTS ? (uint32_t)trk[part].p[P_DLY] | (uint32_t)trk[part].p[P_REV] << 7 : 0;
+}
+EXPORT uint32_t web_test_ncc_held(uint32_t part) { return part < NCM_PARTS ? trk[part].nheld : 0; }
+EXPORT uint32_t web_test_ncc_engine(uint32_t part) { return part < NCM_PARTS ? trk[part].eng_req : 255u; }
+EXPORT int32_t web_test_ncc_macro(uint32_t part, uint32_t m)
+{
+    if (part < NCM_PARTS && m < NCM_N && ncm_map(&trk[part]))
+        return ncm_get(&trk[part], ncm_destination(&trk[part], ncm_map(&trk[part]), m, 0).id);
+    return NCM_UNSET;
+}
+EXPORT uint32_t web_test_ncc_view(void) { return lv.page | (uint32_t)lv.sub << 8; }
+EXPORT int32_t web_test_ncc_knob(uint32_t k)
+{
+    int32_t lo, hi;
+    return lv_get(lv_knob(k & 3u), &lo, &hi);
+}
+#endif
+
 EXPORT uint16_t *web_screen(void) { return web_fb; }
 EXPORT uint32_t web_screen_draws(void) { return web_draws; }
 EXPORT uint32_t web_now_ms(void) { return fm1_ms; }

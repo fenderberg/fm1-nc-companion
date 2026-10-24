@@ -169,12 +169,16 @@ static uint32_t kb_map(const track_t *t, uint32_t k)
 }
 
 #include "chord.c"
+#if FELUCCA_LIVEUI
+#include "ncc_settings.c"                       /* NC: stored performance choices and input adapters */
+#endif
 
 /* ------------------------------------------------------------- arp --- */
 #if FELUCCA_LIVEUI
 static uint32_t ncc_arp_phase(const track_t *t);   /* NC: NCC's arp grid and Drone-hold (ncc_seq.c, after input_off) */
-static int ncd_again(track_t *t, uint32_t note);
+static int ncd_again(track_t *t, uint32_t note, uint32_t vel);
 static int ncd_holds(const track_t *t, uint32_t note);
+static int ncd_retrigger(const track_t *t);
 #endif
 static void arp_add(track_t *t, uint32_t note)
 {
@@ -631,7 +635,7 @@ static __attribute__((noinline)) void cin_keep(track_t *t, uint32_t note, uint32
 static void input_on(track_t *t, uint32_t note, uint32_t vel)
 {
 #if FELUCCA_LIVEUI
-    if (ncd_again(t, note))                         /* NC: Drone-hold, a droning note again: let go (ncc_seq.c) */
+    if (ncd_again(t, note, vel))                    /* NC: Drone-hold / replacing a drone (ncc_seq.c) */
         return;
 #endif
     last_note = (uint8_t)note;
@@ -731,10 +735,17 @@ static void key_on(uint32_t k, track_t *t)
 {
     uint32_t n = chord_build(t, kb_note[k], kb_chord[k]), i, mc = trk_midi_ch(trk_index(t)), vel = kb_vel;
     kb_chn[k] = 0;
+#if FELUCCA_LIVEUI
+    ncd_begin(t);                                  /* NC: start one physical chord gesture before its tones */
+#endif
     in_key = (uint8_t)(k + 1u);                     /* (the arp keeps the key: arp_add) */
     for (i = 0; i < n; i++) {
         uint32_t x = kb_chord[k][i];
-        if (midi_local_held(t, x))
+        if (midi_local_held(t, x)
+#if FELUCCA_LIVEUI
+            && !ncd_retrigger(t)                       /* NC: REPLACE is a fresh strike */
+#endif
+        )
             continue;
         input_on(t, x, vel);
         midi_out_event(0x09u | (0x90u | mc) << 8 | x << 16 | vel << 24);
@@ -819,7 +830,12 @@ static void keyboard_block(void)
                 kb_note[k] = (uint8_t)kb_map(&trk[kb_trk[k]], k);
             if (kb_note[k] == KB_SILENT)
                 continue;
-            key_on(k, &trk[kb_trk[k]]);
+#if FELUCCA_LIVEUI
+            if (ncc_dual)
+                ncc_key_on(k);                         /* NC: independent L/R snapshots */
+            else
+#endif
+                key_on(k, &trk[kb_trk[k]]);
 #ifdef FM1_INPUT_LAT
             kb_lat(k);
 #endif
@@ -831,6 +847,10 @@ static void keyboard_block(void)
             }
             if (kb_note[k] == KB_SILENT)
                 continue;
+#if FELUCCA_LIVEUI
+            if (ncc_key_off(k))                         /* NC: release the parts this key actually started */
+                continue;
+#endif
             key_off(k, &trk[kb_trk[k] % NTRK]);
         }
     }
@@ -877,6 +897,10 @@ static void seq_stop(void)
 {
     uint32_t i;
     song.playing = 0;
+#if FELUCCA_LIVEUI
+    if (ncc_dual)
+        ncc_input_stop();                              /* NC: Stop/cable loss must not leave either layer held */
+#endif
     cin_left = 0;                                  /* (a count-in: cancelled, nothing recorded) */
     cin_flush = 0;
     memset(cin_n, 0, sizeof cin_n);
@@ -1238,6 +1262,9 @@ static track_t *midi_track(uint32_t ch)
 }
 
 #include "midi_control.c"
+#if FELUCCA_LIVEUI
+#include "ncc_input.c"                          /* NC: notes-only Dual; controllers keep their own destinations */
+#endif
 #include "midi_clock.c"
 
 /* the count-in: its first beat now (accented) */
@@ -1388,6 +1415,9 @@ static void events_block(uint32_t n)
         t->armp = t->p[P_AMODE];
         t->aholdp = t->p[P_AHOLD];
     }
+#if FELUCCA_LIVEUI
+    ncc_input_block();                                 /* NC: apply routing changes before any input, on this core */
+#endif
     keyboard_block();
     while (mi_r != mi_w) {                            /* USB-MIDI (and TRS) in */
         uint32_t at = mi_r % MQ, pkt = midi_in_q[at], status = (pkt >> 8) & 0xFFu;

@@ -84,6 +84,7 @@ static const ncc_snd_t NCC_SND[] = {
     {AC, "SQUELCH LEAD", {1, 44, 112, 90, 50, 100, 60, 64}, {0, 64, 100, 22}, 0, 1, {20, 0, 35, 15}, 40, 0, 0, 0},
     {AC, "ACID PLUCK", {1, 40, 60, 70, 30, 60, 10, 64}, {0, 50, 0, 30}, 0, 1, {0, 0, 40, 25}, 40, 0, 0, 0},
     {AC, "SOFT BASS", {1, 32, 40, 44, 70, 40, 12, 32}, {0, 64, 100, 20}, 0, 1, {0, 0, 0, 5}, 40, 0, 0, 0},
+#include "ncc_extra_presets.c"                         /* NC: extra engines, append-only sound IDs */
 };
 #undef J
 #undef PH

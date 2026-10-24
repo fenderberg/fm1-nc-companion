@@ -1,5 +1,16 @@
 # Credits
 
+## NCC fork
+
+Novation Circuit Companion (NCC), maintained by [Fenderberg](https://github.com/fenderberg/fm1-nc-companion), adds a
+Circuit Tracks performance interface to Felucca: per-engine macro tables, two-part note layering, chord drones,
+Juno chorus, split output, ACID and a unified sound library with NCC patches. The seven additional engines reuse
+Felucca's existing DSP; their Circuit mappings, presets and NCC arithmetic adapters do not replace upstream credit.
+The NOISE adapter retains the MIT engine's attribution, and the existing licence texts remain applicable.
+Development uses Claude Code and Codex; musical direction and decisions belong to the owner.
+
+The upstream credits below are retained.
+
 Felucca is Leo Kuroshita's ([@kurogedelic](https://github.com/kurogedelic), [Hügelton Instruments](https://hugelton.com)). It uses and
 thanks the work below; each keeps its own licence (see [LICENSE](LICENSE), [LICENSING.md](LICENSING.md) and [LICENSES/](LICENSES/)).
 

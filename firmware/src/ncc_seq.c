@@ -16,14 +16,21 @@
  * DRONE-HOLD (SEQ, per part). While on, a note's note-off is not let through: it rings on. More notes pile up (to the
  * voice cap, the engine's stealing as always); a note that drones played again lets that note go; Drone-hold off, or
  * the transport's Stop (Drone-hold stays on for what comes next), lets every droning note go through its release. With the arp on, the arp holds the droning notes as it holds pressed
- * ones. The macros keep working on them. */
+ * ones. REPLACE keeps a whole gesture: add notes while any physical key is down; once all are released, the next
+ * strike replaces the held chord. Retire old arp/mono input, fade the old chord out, then fade queued notes in (~51 ms each way).
+ * The macros keep working on both modes. */
 
 #define NCD_N 16u                       /* droning notes per part */
 static volatile uint8_t ncd_want[NCM_PARTS];   /* main: Drone-hold on (SEQ) */
+static uint32_t ncd_retired[NCM_PARTS][4];     /* replaced input notes: their late offs must not touch a new arp */
+static uint8_t ncd_starting;
+static uint8_t ncd_new[NCM_PARTS];           /* first tone of a fresh physical gesture (chord expansion counts once) */
 static struct {
     uint8_t on, n;                      /* the ISR's own copy of ncd_want; the notes droning */
     uint8_t note[NCD_N];
     uint8_t hold;                       /* P_AHOLD as last seen (HOLD off: the latched notes go) */
+    uint8_t vel[NCD_N], key[NCD_N], wait;
+    uint16_t pending;                   /* queued tones after the musical fade (MONO too) */
 } ncd[NCM_PARTS];
 static uint32_t ncc_bar;                /* samples into the bar (at this block's start) */
 static uint32_t ncc_pulse, ncc_since;   /* the external clock's pulses since its Start (the first is 0), the samples the
@@ -40,12 +47,83 @@ static int ncd_find(uint32_t part, uint32_t note)
 }
 
 /* input_on: 1 when the note drones already (then let go here); else it is kept as droning */
-static int ncd_again(track_t *t, uint32_t note)
+static int ncd_retrigger(const track_t *t)
+{
+    uint32_t part = trk_index(t);
+    return part < NCM_PARTS && ncd_mode(part) && (ncd[part].on | ncd_want[part]);
+}
+static void ncd_begin(const track_t *t)
+{
+    uint32_t part = trk_index(t);
+    if (part < NCM_PARTS)
+        ncd_new[part] = (uint8_t)!ncc_physical_held(part);
+}
+/* Canceling a queued gesture must also stop its still-rendering predecessor. Restore the gain gradually;
+ * panic/routing/soundload already request a one-block voice kill and keep their ordinary timing. */
+static void ncd_abort_fade(uint32_t part)
+{
+    uint32_t i;
+    if (ncd_fade[part].phase != NCD_FADE_OUT)
+        return;
+    for (i = 0; i < NVOICE; i++)
+        if (trk[part].v[i].active)
+            voice_kill(&trk[part].v[i]);
+    ncd_fade_in(part);
+}
+static void ncd_forget(uint32_t part)
+{
+    uint32_t i;
+    ncd_abort_fade(part);
+    ncd[part].n = ncd[part].pending = ncd_new[part] = 0;
+    for (i = 0; i < 4u; i++)
+        ncd_retired[part][i] = 0;
+}
+static void ncd_replace(track_t *t, uint32_t part)
+{
+    uint32_t i, note, sounding = 0;
+    for (i = 0; i < ncd[part].n; i++) {
+        note = ncd[part].note[i];
+        ncd_retired[part][note >> 5] |= 1u << (note & 31u);
+    }
+    for (i = 0; i < t->nheld; i++) {
+        note = t->held[i];
+        ncd_retired[part][note >> 5] |= 1u << (note & 31u);
+    }
+    t->nheld = t->arp_phys = t->nmono = t->mono_note = t->xp_n = 0;
+    arp_forget(t);
+    for (i = 0; i < NVOICE; i++)
+        sounding |= t->v[i].active;
+    ncd[part].wait = (uint8_t)(sounding || ncd_fade[part].phase == NCD_FADE_OUT ? ncd_fade_out(part) : 1u);
+    ncd[part].n = ncd[part].pending = 0;
+}
+static int ncd_again(track_t *t, uint32_t note, uint32_t vel)
 {
     uint32_t part = trk_index(t);
     int i;
-    if (part >= NCM_PARTS || !(ncd[part].on | ncd_want[part]))   /* (asked for: from this note on, before the block's */
+    if (ncd_starting || part >= NCM_PARTS || !(ncd[part].on | ncd_want[part]))   /* (asked for: from this note on, before the block's */
         return 0;                                                   /* ncc_seq_block has seen it) */
+    ncd_retired[part][note >> 5] &= ~(1u << (note & 31u));
+    if (ncd_mode(part)) {
+        if (ncd_new[part] || !ncd[part].n) {
+            ncd_replace(t, part);
+        }
+        ncd_new[part] = 0;
+        ncd_retired[part][note >> 5] &= ~(1u << (note & 31u));
+        i = ncd_find(part, note);
+        if (i < 0) {
+            if (ncd[part].n >= NCD_N)
+                return 1;                              /* bounded chord; never start an untracked drone */
+            i = ncd[part].n++;
+            ncd[part].note[i] = (uint8_t)note;
+        }
+        if (ncd[part].wait || ncd[part].pending || ncd_fade[part].phase == NCD_FADE_OUT) {
+            ncd[part].pending |= (uint16_t)(1u << i);
+            ncd[part].vel[i] = (uint8_t)vel;
+            ncd[part].key[i] = in_key;
+            return 1;
+        }
+        return 0;                                      /* add/restrike a tone in the current gesture */
+    }
     if ((i = ncd_find(part, note)) >= 0) {
         ncd[part].note[i] = ncd[part].note[--ncd[part].n];
         arp_remove(t, note);
@@ -61,7 +139,13 @@ static int ncd_again(track_t *t, uint32_t note)
 static int ncd_holds(const track_t *t, uint32_t note)
 {
     uint32_t part = trk_index(t);
-    return part < NCM_PARTS && (ncd[part].on | ncd_want[part]) && ncd_find(part, note) >= 0;
+    if (part >= NCM_PARTS)
+        return 0;
+    if ((ncd_retired[part][note >> 5] >> (note & 31u)) & 1u) {
+        ncd_retired[part][note >> 5] &= ~(1u << (note & 31u));
+        return 1;
+    }
+    return (ncd[part].on | ncd_want[part]) && (ncd_mode(part) || ncd_find(part, note) >= 0);
 }
 
 /* arp_add, the first note held: where the arp is in its step (arp_pos), so it fires on the grid */
@@ -78,13 +162,22 @@ static uint32_t ncc_arp_phase(const track_t *t)
 static void ncd_release(uint32_t part)
 {
     track_t *t = &trk[part];
-    uint32_t i;
-    for (i = 0; i < ncd[part].n; i++)
-        if (!midi_note_held(t, ncd[part].note[i])) {
+    uint32_t i, keep = 0;
+    for (i = 0; i < ncd[part].n; i++) {
+        if (!midi_note_held(t, ncd[part].note[i]) && !midi_local_held(t, ncd[part].note[i])) {
             arp_remove(t, ncd[part].note[i]);
             trk_note_off(t, ncd[part].note[i]);
+        } else if (ncd[part].pending >> i & 1u) {
+            ncd[part].note[keep] = ncd[part].note[i];
+            ncd[part].vel[keep] = ncd[part].vel[i];
+            ncd[part].key[keep++] = ncd[part].key[i];
         }
-    ncd[part].n = 0;
+    }
+    ncd[part].n = (uint8_t)keep;
+    ncd[part].pending = (uint16_t)((1u << keep) - 1u);  /* Drone off during a fade: queued physical tones still play */
+    ncd_new[part] = 0;
+    if (!ncd[part].pending)
+        ncd_abort_fade(part);                            /* no physical tone survived Drone off */
 }
 
 /* events_block, before the arps step: Drone-hold off, HOLD off, the transport's Start and Stop, the bar's place */
@@ -98,6 +191,7 @@ static void ncc_seq_block(uint32_t clock_mode, uint32_t seq_n)
         ncc_bar = beat_n * beat_samples() + beat_pos;
     for (part = 0; part < NCM_PARTS; part++) {
         track_t *t = &trk[part];
+        ncd_fade_tick(part);                             /* one writer, before either render core reads it */
         if (ncd[part].on != ncd_want[part]) {
             ncd[part].on = ncd_want[part];
             if (!ncd[part].on)
@@ -105,6 +199,7 @@ static void ncc_seq_block(uint32_t clock_mode, uint32_t seq_n)
         }
         if (!song.playing && ncc_playing) {             /* Stop: the arp and the drone stop */
             ncd_release(part);
+            ncd_forget(part);
             t->nheld = 0;
             if (t->arp_note || t->arp_ch[0])
                 arp_off(t);
@@ -115,6 +210,35 @@ static void ncc_seq_block(uint32_t clock_mode, uint32_t seq_n)
         if (song.playing && !ncc_playing && t->p[P_AMODE] && t->nheld) {
             t->arp_pos = 0xFFFFFFFu;                    /* Start: from the first step, with the bar */
             t->arp_idx = 0xFFFFFFFFu;
+        }
+        if (ncd[part].pending) {
+            if (ncd[part].wait)
+                ncd[part].wait--;
+            else {
+                uint8_t key = in_key;
+                uint32_t i, pending = ncd[part].pending;
+                ncd[part].pending = 0;
+                if (ncd_fade[part].phase == NCD_FADE_OUT) {
+                    /* The previous block reached exactly zero. Slots (including PHYS/GRAIN and MONO) can now
+                     * be reused without overlap, extra voice cost, or a discontinuity in their output. */
+                    uint32_t v;
+                    for (v = 0; v < NVOICE; v++) {
+                        t->v[v].active = t->v[v].gate = t->v[v].stage = 0;
+                        t->v[v].env = t->v[v].env_out = 0;
+                    }
+                    ncd_fade_in(part);
+                }
+                ncd_starting = 1;
+                for (i = 0; i < ncd[part].n; i++)
+                    if (pending >> i & 1u) {
+                        in_key = ncd[part].key[i];
+                        input_on(t, ncd[part].note[i], ncd[part].vel[i]);
+                    }
+                ncd_starting = 0;
+                in_key = key;
+                if (!(ncd[part].on | ncd_want[part]))
+                    ncd[part].n = 0;
+            }
         }
     }
     ncc_playing = song.playing;

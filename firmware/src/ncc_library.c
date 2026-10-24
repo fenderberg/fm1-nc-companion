@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* NCC (Novation Circuit Companion, FELUCCA_LIVEUI=1): the sound library. Every sound of NCC's five engines in one list
+/* NCC (Novation Circuit Companion, FELUCCA_LIVEUI=1): the sound library. Every sound of NCC's offered engines in one list
  * (LV_ENGS' order: per engine NCC's own sounds (ncc_presets.c), its presets, FM6's voice bank, then the engine's user
  * presets), each with a category by what it is for: BASS, PAD, LEAD, KEYS, PLUCK (OTHER: a
  * user sound or a bank voice whose name does not tell). On SOUND, SELECT filters by category and ALGORITHM by engine
@@ -9,7 +9,7 @@
  * PLUCK .., at last 303 / ACID -> BASS), else the engine's own (ACID: BASS), else OTHER: one rule for the factory sounds (tests/ncc_test.c: none of
  * them OTHER), the user presets and a loaded DX7 bank alike, and no table to keep in step with the engines.
  *
- * Main loop only. The list is built when it is used (nl_build: ~100 entries, from the presets in flash and the user
+ * Main loop only. The list is built when it is used (nl_build: up to NL_MAX entries, from the presets in flash and the user
  * presets' RAM mirror); the bank voices' names are read from flash once per bank (nl.bsig). */
 
 enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_BEAT, NC_OTHER, NC_N };
@@ -19,20 +19,23 @@ typedef struct {
     uint8_t kind, eng, k, cat;          /* NLK_*, ENGINES[] index, the preset / NCC sound / bank voice / user slot /
                                          * user loop (LOOP: slot * 16 + zone, eng_loop.c) */
 } nl_snd_t;
-#define NL_MAX 192u                     /* (factory 88 + bank 32 + user loops 48 + user presets of these engines) */
+#define NL_MAX 384u                     /* NC: extra engines and full bank/user/loop lists, without silent truncation */
+_Static_assert(NCC_NSND + 128u + FM6_NBANK + UP_SLOTS + LU_N <= NL_MAX, "NCC library capacity");
 #define NL_NAME 11u                     /* a bank voice's name: 10 ASCII + 0 */
 
 static const struct {
     const char *kw;
     uint8_t cat;
 } NL_KW[] = {                           /* the first that starts a word of the name wins */
-    {"BEAT", NC_BEAT}, {"BREAK", NC_BEAT}, {"LOOP", NC_BEAT}, {"DRUM", NC_BEAT}, {"GROOVE", NC_BEAT},
+    {"BEAT", NC_BEAT}, {"BREAK", NC_BEAT}, {"LOOP", NC_BEAT}, {"DRUM", NC_BEAT}, {"GROOVE", NC_BEAT}, {"TOM", NC_BEAT},
+    {"VOX LEAD", NC_LEAD},
     {"BASS", NC_BASS}, {"SUB", NC_BASS}, {"FRETLESS", NC_BASS},
     {"PAD", NC_PAD}, {"STR", NC_PAD}, {"CHOIR", NC_PAD}, {"SWEEP", NC_PAD}, {"WIND", NC_PAD}, {"ATMO", NC_PAD},
-    {"VOX", NC_PAD}, {"VOICE", NC_PAD},
+    {"VOX", NC_PAD}, {"VOICE", NC_PAD}, {"BOW", NC_PAD}, {"FROZEN", NC_PAD}, {"SHIMMER", NC_PAD}, {"WHISPER", NC_PAD},
     {"LEAD", NC_LEAD}, {"HOOVER", NC_LEAD}, {"SCREAM", NC_LEAD}, {"RAVE", NC_LEAD}, {"WIRE", NC_LEAD},
     {"SYNC", NC_LEAD}, {"SOLO", NC_LEAD}, {"BRASS", NC_LEAD}, {"BRS", NC_LEAD}, {"HORN", NC_LEAD}, {"RESO", NC_LEAD},
     {"SYNBRASS", NC_LEAD}, {"SYNTHBRASS", NC_LEAD}, {"HARMONICA", NC_LEAD}, {"FLUTE", NC_LEAD},
+    {"SAX", NC_LEAD}, {"GLITCH", NC_LEAD}, {"ARCADE", NC_LEAD},
     {"EP", NC_KEYS}, {"KEY", NC_KEYS}, {"TINE", NC_KEYS}, {"ORGAN", NC_KEYS}, {"POLY", NC_KEYS}, {"PIANO", NC_KEYS},
     {"RHODE", NC_KEYS}, {"CLAV", NC_KEYS},
     {"PLUCK", NC_PLUCK}, {"BELL", NC_PLUCK}, {"MARIMBA", NC_PLUCK}, {"CHIME", NC_PLUCK}, {"HARP", NC_PLUCK},
@@ -68,7 +71,8 @@ static uint32_t nl_cat(const char *s, uint32_t e)
             if (!kw[j])
                 return NL_KW[r].cat;
         }
-    return e == ENGI_LOOP ? NC_BEAT : e == ENGI_ACID ? NC_BASS : NC_OTHER;
+    return e == ENGI_LOOP ? NC_BEAT : e == ENGI_ACID ? NC_BASS : e == 8u || e == 11u ? NC_PAD :
+           e == 7u || e == ENGI_SAMPLE ? NC_KEYS : e == 3u ? NC_LEAD : e == ENGI_PHYS ? NC_PLUCK : e == 5u ? NC_PAD : NC_OTHER;
 }
 
 /* the names of the bank's voices (once per bank: a flash read each) */

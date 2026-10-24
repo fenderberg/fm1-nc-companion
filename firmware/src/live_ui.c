@@ -6,7 +6,9 @@
  *   two parts   L = track 1, FM6; R = track 2, ANALOG; tracks 3 and 4 muted and deaf. No sequencer: the Circuit
  *               Tracks plays them, MIDI IN TRACK, L on channel 3 and R on 4 (its MIDI 1 / MIDI 2 tracks) unless the
  *               project has TRACK already; the clock from USB (with none coming, the arp runs on BPM: seq.c)
- *   pages       SOUND (HOME), ARP, FX: KNOB 1..4 set the focused part's (LV_KNOBS); SELECT turns ARP's and FX's pages
+ *   pages       SOUND (HOME), ARP, FX, SETUP (GLO), sound editing (EDIT); SELECT turns each family's pages
+ *   SCL         Dual on/off on its remembered source; GLO page 2 chooses OFF/CH3/CH4
+ *   EDIT        focused engine, envelope, LFO, voice/chord controls; FM6 operators (ncc_pages.c)
  *   sounds      one library of the five engines' sounds (ncc_library.c; LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID:
  *               the ones the Circuit's knobs map onto, perf_layer.c NCM_MAP), each with a category (BASS PAD LEAD KEYS
  *               PLUCK, OTHER). On SOUND, SELECT filters the focused part's list by category, ALGORITHM (any page) by
@@ -46,11 +48,13 @@
 
 static const uint8_t LV_ENG[LV_PARTS] = {ENGI_FM6, ENGI_ANALOG};   /* (a part with an engine not in LV_ENGS) */
 static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, ENGI_ACID,
+                                  ENGI_PHYS, 8, 5, 3, 7, 11, ENGI_SAMPLE,
 #if NCC_LOOP
                                   ENGI_LOOP,           /* (core.h NCC_LOOP: coming soon) */
 #endif
 };
 static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID",
+                                          "PHYS", "GRAIN", "VOICE", "LOFI", "WHEEL", "NOISE", "SAMPLE",
 #if NCC_LOOP
                                           "LOOP",
 #endif
@@ -70,8 +74,10 @@ static const char *lv_eng_name(uint32_t e)
 }
 static const char LV_NAME[LV_PARTS] = {'L', 'R'};
 
-enum { PG_SOUND, PG_ARP, PG_FX, PG_N };
-enum { LK_NONE, LK_TP, LK_G, LK_OCT, LK_AMODE, LK_ARATE, LK_ITYPE, LK_PERF, LK_INS, LK_JUNO, LK_DRIFT };
+enum { PG_SOUND, PG_ARP, PG_FX, PG_GLO, PG_EDIT, PG_N };
+enum { LK_NONE, LK_TP, LK_G, LK_OCT, LK_AMODE, LK_ARATE, LK_ITYPE, LK_PERF, LK_INS, LK_JUNO, LK_DRIFT, LK_DRONE,
+       LK_CHANNEL, LK_OUTPUT, LK_DUAL, LK_DRONESTATE, LK_FOP };
+static const char *const LV_DRONE[] = {"STACK", "REPLACE"};
 #define LV_NSUBMAX 6
 typedef struct {
     uint8_t kind, id;                   /* LK_*, the P_* / G_* id (LK_PERF: perf_k's index) */
@@ -83,7 +89,7 @@ static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
     [PG_SOUND] = {{{LK_TP, P_LEVEL, "LEVEL"}, {LK_OCT, 0, "OCTAVE"}, {LK_TP, P_VOICE, "VOICE"}, {LK_TP, P_GLIDE, "GLIDE"}}},
     [PG_ARP] = {{{LK_AMODE, P_AMODE, "MODE"}, {LK_ARATE, P_ARATE, "RATE"}, {LK_TP, P_AOCT, "OCTAVES"},
                  {LK_TP, P_AGATE, "GATE"}},
-                {{LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, {LK_TP, P_AORDER, "ORDER"}, LK_EMPTY}},
+                {{LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, {LK_TP, P_AORDER, "ORDER"}, {LK_DRONE, 0, "DRONE"}}},
     [PG_FX] = {{{LK_TP, P_DIST, "DRIVE"}, {LK_TP, P_CHOR, "CHORUS"}, {LK_TP, P_DLY, "DELAY"}, {LK_TP, P_REV, "REVERB"}},
                {{LK_G, G_DTIME, "TIME"}, {LK_G, G_DFDBK, "FEEDBK"}, {LK_G, G_DCOLOR, "COLOR"}, {LK_G, G_DMIX, "MIX"}},
                {{LK_G, G_RTYPE, "TYPE"}, {LK_G, G_RSIZE, "SIZE"}, {LK_G, G_RDAMP, "DAMP"}, {LK_TP, P_REV, "SEND"}},
@@ -341,20 +347,28 @@ static void lv_focus(uint32_t part)
     track_select(part);
 }
 
+#include "ncc_pages.c"                                 /* settings and sound editing through NCC's own adapters */
+
 /* ---------------------------------------------------------- the knobs --- */
 static const lv_knob_t *lv_knob(uint32_t k)
 {
+    if (lv.page == PG_GLO)
+        return &LV_SETTINGS[lv.sub % NELEM(LV_SETTINGS)][k & 3u];
+    if (lv.page == PG_EDIT)
+        return &LV_EDIT[lv_edit_index()][k & 3u];
     return &LV_KNOBS[lv.page % PG_N][lv.sub % LV_NSUBMAX][k & 3u];
 }
 static const param_desc_t *lv_desc(const lv_knob_t *kb)
 {
     if (kb->kind == LK_INS)                             /* A B C as the INSERT's type names them */
         return ins_desc(TSEL->p[P_ITYPE], kb->id - P_IA);
-    return kb->kind == LK_G ? &GP[kb->id] : param_desc_of(eng_idx(TSEL->eng_req), kb->id);
+    return kb->kind == LK_G ? &GP[kb->id] : track_desc(TSEL, kb->id);
 }
 static const char *lv_label(const lv_knob_t *kb)
 {
-    const char *l = kb->kind == LK_INS ? lv_desc(kb)->label : kb->label;
+    const char *l = kb->kind == LK_INS || (lv.page == PG_EDIT && kb->kind == LK_TP) ? lv_desc(kb)->label : kb->label;
+    if (kb->kind == LK_FOP && kb->id == FO_CRS && fop_bytes(song.sel)[FP_MODE])
+        l = "FIXED";
     return l ? l : "";                                  /* (a page's empty places) */
 }
 /* the knob's value and its range */
@@ -389,6 +403,27 @@ static int32_t lv_get(const lv_knob_t *kb, int32_t *lo, int32_t *hi)
         *lo = 0;
         *hi = 15;
         return (clamp(TSEL->p[P_ED_FX], 0, 63) >> 2) & 15;
+    case LK_DRONE:
+        *lo = 0;
+        *hi = 1;
+        return (int32_t)ncd_mode(song.sel % LV_PARTS);
+    case LK_CHANNEL:
+        *lo = 0; *hi = 17;
+        i = mch_get(kb->id);
+        return (int32_t)(i < 16u ? i : i == MCH_OMNI ? 16u : 17u);
+    case LK_OUTPUT:
+        *lo = 0; *hi = 1;
+        return NCC_SPLIT() ? 0 : 1;
+    case LK_DUAL:
+        *lo = 0; *hi = 2;
+        return (int32_t)ncc_dual_mode();
+    case LK_DRONESTATE:
+        *lo = 0; *hi = 2;
+        return ncd_want[kb->id] ? 1 + (int32_t)ncd_mode(kb->id) : 0;
+    case LK_FOP:
+        *lo = 0;
+        *hi = kb->id == FO_OP ? 5 : kb->id == FO_STG ? 3 : (int32_t)fm6_max(fop_byte(kb->id));
+        return kb->id == FO_OP ? fop_op : kb->id == FO_STG ? fop_stg : fm6_patch[song.sel][fop_byte(kb->id)];
     case LK_NONE:
         *lo = *hi = 0;
         return 0;
@@ -426,6 +461,27 @@ static void lv_text(const lv_knob_t *kb, char *b)
     case LK_DRIFT:
         fmt_int(b, v);
         return;
+    case LK_DRONE:
+        str_cpy(b, LV_DRONE[v], 16);
+        return;
+    case LK_CHANNEL:
+        if (v >= 16)
+            str_cpy(b, v == 16 ? "OMNI" : "OFF", 16);
+        else
+            fmt_int(b, v + 1);
+        return;
+    case LK_OUTPUT:
+        str_cpy(b, v ? "STEREO" : "SPLIT", 16);
+        return;
+    case LK_DUAL:
+        str_cpy(b, v == 1 ? "CH3" : v == 2 ? "CH4" : "OFF", 16);
+        return;
+    case LK_DRONESTATE:
+        str_cpy(b, v ? LV_DRONE[v - 1] : "OFF", 16);
+        return;
+    case LK_FOP:
+        lv_fop_text(kb->id, v, b);
+        return;
     default:
         param_format(lv_desc(kb), v, b, &unit);
         if (unit && str_len(b) + str_len(unit) < 15u)
@@ -446,6 +502,12 @@ static void lv_turn(uint32_t k, int32_t s)
     if (hi - lo > 60 && !(kb->kind == LK_INS && lv_desc(kb)->names))
         s *= 2;                                         /* (0..127 in two turns or so) */
     v = clamp(from + s, lo, hi);
+    if (v == from)
+        return;
+    if (lv.page == PG_GLO || lv.page == PG_EDIT)
+        lv.pop_ms = 0, lv.say = 0;                     /* a new value must not leave an old button message below it */
+    if (lv.page == PG_EDIT && kb->kind == LK_TP)
+        edit_undo_take(t, kb->id, UNDO_SOUND);
     switch (kb->kind) {
     case LK_OCT:
         song.octave = (int8_t)v;
@@ -460,6 +522,31 @@ static void lv_turn(uint32_t k, int32_t s)
         break;
     case LK_ARATE:
         t->p[P_ARATE] = LV_RATES[v];
+        break;
+    case LK_DRONE:
+        ncd_set_mode(part, (uint32_t)v);
+        break;
+    case LK_CHANNEL:
+        mch_set(kb->id, v < 16 ? (uint32_t)v : v == 16 ? MCH_OMNI : MCH_OFF);
+        break;
+    case LK_OUTPUT:
+        song.g[G_ENGGO] = (int16_t)(v ? NCC_SPLIT_DEFAULT : !NCC_SPLIT_DEFAULT);
+        break;
+    case LK_DUAL:
+        ncc_set_dual((uint32_t)v);
+        break;
+    case LK_DRONESTATE:
+        if (v)
+            ncd_set_mode(kb->id, (uint32_t)(v - 1));
+        ncd_want[kb->id] = (uint8_t)(v != 0);
+        break;
+    case LK_FOP:
+        if (kb->id == FO_OP)
+            fop_op = (uint8_t)v;
+        else if (kb->id == FO_STG)
+            fop_stg = (uint8_t)v;
+        else
+            fop_write(fop_byte(kb->id), (uint32_t)v);
         break;
     case LK_ITYPE:
         t->p[P_ITYPE] = (int16_t)v;
@@ -480,8 +567,12 @@ static void lv_turn(uint32_t k, int32_t s)
     default: {
         const param_desc_t *d = lv_desc(kb);
         t->p[kb->id] = (int16_t)(d->names ? enum_step(d, from, v) : v);
+        if (lv.page == PG_EDIT && t->eng_req == ENGI_FM6 && kb->id == P_E7 && t->p[P_E7] != from)
+            ncc_sends_zero(t);                         /* choosing another FM6 slot is a sound load */
     }
     }
+    if (lv.page == PG_EDIT && kb->kind == LK_TP)
+        motion_undo_done(t);
 }
 
 /* ---------------------------------------------------------- the panel --- */
@@ -536,8 +627,16 @@ static void live_input(void)
         else
             lv.prev = lv.page, lv.page = PG_FX, lv.sub = 0;
     }
+    if ((pressed >> panel.btn[B_GLO]) & 1u)
+        lv_open(PG_GLO);
+    if ((pressed >> panel.btn[B_EDIT]) & 1u)
+        lv_open(PG_EDIT);
     if ((pressed >> panel.btn[B_HOME]) & 1u)
         lv.page = PG_SOUND, lv.sub = 0;
+    if ((pressed >> panel.btn[B_SCL]) & 1u) {
+        ncc_set_dual(ncc_dual_mode() ? 0u : ncc_dual_source());
+        lv_say(ncc_dual_mode() == 1u ? "DUAL: CH3 TO L+R" : ncc_dual_mode() == 2u ? "DUAL: CH4 TO L+R" : "DUAL OFF", "");
+    }
     if ((pressed >> panel.btn[B_ARP]) & 1u)
         lv_arp_button();
     if (lv.fx && lv.page != PG_FX && !perf_latch_on)
@@ -575,8 +674,8 @@ static void live_input(void)
         lv.apend = (int8_t)clamp(lv.apend + s, -12, 12);
         lv.fpend_ms = fm1_ms | 1u;
     }
-    if ((s = panel_enc(EN_SELECT)) != 0 && LV_NSUB[lv.page % PG_N] > 1u)   /* the page's pages, a step a turn */
-        lv.sub = (uint8_t)clamp((int32_t)lv.sub + (s > 0 ? 1 : -1), 0, LV_NSUB[lv.page % PG_N] - 1);
+    if ((s = panel_enc(EN_SELECT)) != 0 && lv_nsub(lv.page) > 1u)   /* the page's pages, a step a turn */
+        lv.sub = (uint8_t)clamp((int32_t)lv.sub + (s > 0 ? 1 : -1), 0, (int32_t)lv_nsub(lv.page) - 1);
     else if (s && lv.page == PG_SOUND && song.sel < LV_PARTS) {   /* the category filter (after a rest) */
         lv.cpend = (int8_t)clamp(lv.cpend + s, -12, 12);
         lv.fpend_ms = fm1_ms | 1u;
@@ -595,6 +694,8 @@ static void live_input(void)
         }
         lv.snd[k] = snd;
     }
+    if (lv.sub >= lv_nsub(lv.page))
+        lv.sub = (uint8_t)(lv_nsub(lv.page) - 1u);       /* a sound/focus change may hide engine-specific edit pages */
     for (k = 0; k < 4u; k++)
         if ((s = panel_enc(EN_K1 + k)) != 0)
             lv_turn(k, s);
@@ -617,6 +718,9 @@ static void live_leds(void)
     led_put(nl, panel.btn[B_REC], t->p[P_AHOLD] != 0);
     led_put(nl, panel.btn[B_SEQ], ncd_want[part] != 0);
     led_put(nl, panel.btn[B_FX], lv.fx || perf_act != 0u);
+    led_put(nl, panel.btn[B_SCL], ncc_dual_mode() != 0u);
+    led_put(nl, panel.btn[B_GLO], lv.page == PG_GLO);
+    led_put(nl, panel.btn[B_EDIT], lv.page == PG_EDIT);
     led_put(nb, panel.btn[B_ENV], (ncm_throw & 1u) != 0);
     led_put(nb, panel.btn[B_LFO], (ncm_throw & 2u) != 0);
     for (c = 0; c < FM1_NCOL; c++) {

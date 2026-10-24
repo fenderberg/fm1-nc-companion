@@ -11,6 +11,9 @@
  * over one block (stage 4: the envelope goes to 0, the block's amplitude ramp
  * declicks it); one of the part's own is restarted in place, as before. Extra UNISON
  * voices only start when there is room. */
+#if FELUCCA_LIVEUI
+#include "ncc_drone_fade.c"                            /* NC: engine-independent REPLACE amplitude transition */
+#endif
 static uint32_t vage;                                   /* voice ages: one clock for every part */
 static int32_t lfo_wave(track_t *t, uint32_t ph)
 {
@@ -734,6 +737,9 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
                 m.amp1 = mulq15(m.amp1, 32767 - mulq15(p[P_LPOL] ? lfo : (lfo + 32768) >> 1, p[P_LD_AMP] * 258));
             if (fade)                                   /* linear to 0 over the fade */
                 m.amp1 = m.amp1 * (int32_t)(t->xf - 1u) / (int32_t)XF_BLOCKS;
+#if FELUCCA_LIVEUI
+            m.amp1 = ncd_fade_amp(ti, m.amp1);          /* NC: ~50 ms out/in, same ramps for FM6 and ADSR engines */
+#endif
             m.amp0 = v->env_out;
             v->env_out = m.amp1;
         }
