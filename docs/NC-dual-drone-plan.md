@@ -179,5 +179,5 @@ een losse identiteitscontrole en alleen-lezen NCC INFO/LIB/PARTS slagen: twaalf 
 `build/ncc-device-check-smooth.json`. De vorige paneelbuild (573408 B) is hiermee vervangen.
 
 Nog niet zelf beluisterd: overgangen, nieuwe patches, fysieke knoppen en zware Dual-combinaties vragen een
-praktijktest. Er is geen nieuwe release of website gepubliceerd. Een volgende flash of publicatie vereist
+praktijktest. De publieke release en webinstaller zijn nu NCC 0.4 (`FM-1_704`), met dezelfde firmwarelogica. Een volgende flash of publicatie vereist
 opnieuw expliciet akkoord.

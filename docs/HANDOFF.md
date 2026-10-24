@@ -4,7 +4,7 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 
 ## Current source, installed firmware and public release
 
-- Current development source: **twelve engines, 161 built-in sounds**, independent L/R parts, note-only Dual,
+- Current 0.4 source: **twelve engines, 161 built-in sounds**, independent L/R parts, note-only Dual,
   STACK/REPLACE chord drones, SCL/GLO/EDIT controls and zero delay/reverb sends on sound selection.
 - Installed on Remco's FM-1: development identity **FM-1_700**, package SHA-256
   `f5b0b041a7906ed590e13e4c44fad83316cf337f1460da8e32885ee6e58f3ec2`.
@@ -24,6 +24,24 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
   was separate from main. This covers the release, its source documentation and website deployment. The device
   already runs the same firmware logic, with its write/restart and library checks recorded above; no additional
   device flash is part of publication. Listening and hardware timing limitations below remain explicit.
+
+## Release 0.4 publication
+
+- Release package: `ncc-0.4.fwsc`, identity `FM-1_704`; image **576724 B**, RAM **61704 / 73728 B**,
+  pool **359464 / 368640 B**. The four-byte image difference from the installed development build is release
+  metadata; firmware source is unchanged. SHA-256:
+  `075b9d84b3f7a29b6595debaf1ded6e6681342a6895f3e54f9302195bfcfcb77`.
+- Tag/release: https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.4 . Assets include the firmware,
+  licence/app ZIP, complete source archive with engine submodule and download checksums. GitHub's automatic source
+  ZIP alone omits submodule contents. The source archive uses the tagged tree and engine commit c46e0086.
+- `sh tools/ncc_dev.sh release 0.4` builds committed HEAD. `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.4` builds the
+  matching installer/Manager/manual/demo; the emulator identifies as v0.4 without a preview suffix. Pages publishing
+  preserves its branch history via a normal push. The public site is built from that release package.
+- Release validation: host/NCC/Manager/editor/runner tests and v0.4 Wasm integration pass; package identity, loader,
+  bundle licences and checksums checked. Generated installer uses FM-1_704 and the exact release package; home and
+  manual describe 0.4. Logs: `build/release-0.4-{tests,emu,build,site}.log`.
+- Device remains on the previously installed FM-1_700, with the same firmware logic and the device checks above.
+  This publication does not claim a new release-package flash or an audible/hardware-deadline test.
 
 ## Performance controls and state
 

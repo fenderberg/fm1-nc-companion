@@ -99,7 +99,10 @@ Bij SAMPLE houdt iedere ingedrukte noot zijn oorspronkelijke samplezone; stemmin
 - Nog op de echte FM-1: luisteren naar patches/overgangen, Circuit-knoppen en zware Dual-combinaties uitproberen.
   De firmware is met expliciet akkoord geflasht; alleen-lezen controle op de FM-1 bevestigt alle twaalf engines en
   161 ingebouwde sounds (193 entries inclusief de DX7-bank). Log: `build/ncc-device-check-smooth.json`.
-  Niet gepusht of gepubliceerd. Een volgende flash vraagt opnieuw expliciet OK.
+  Broncode en documentatie staan op `main`. De publieke versie is [NCC 0.4](https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.4),
+  met release-identiteit `FM-1_704`; de bovenstaande devbuild blijft op Remco’s apparaat staan.
+  Releasepakket: 576724 B image, zelfde RAM/pool; details in [HANDOFF.md](HANDOFF.md).
+  Een volgende flash of publicatie vraagt opnieuw expliciet OK.
 
 DRUM en SLICE zijn eveneens te koppelen, maar blijven hier buiten het voorstel: de Circuit heeft al drums en
 SLICE vraagt extra samplevoorbereiding. LOOP blijft zoals afgesproken verborgen; DIGITAL is een vervangen engine.
