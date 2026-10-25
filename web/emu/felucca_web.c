@@ -409,9 +409,16 @@ EXPORT void web_enc(uint32_t role, int32_t n)
         web_enc_steps[panel.enc[role] % 7u] += n * panel.dir[role];
 }
 EXPORT void web_master(uint32_t v) { web_master_adc = v > 1023u ? 1023u : v; }
-/* a channel message from Web MIDI, as a USB-MIDI packet arrives (usb.c midi_enqueue): 0 = the ring was full */
+/* a channel message from Web MIDI, as a USB-MIDI packet arrives (usb.c midi_enqueue): 0 = the ring was full.
+ * NC: and the clock's realtime bytes (F8 clock, FA Start, FB Continue, FC Stop, CIN 0xF), so a real Circuit Tracks
+ * drives NCC's arp and tempo in the browser; the first message from outside stops the demo's own Circuit */
 EXPORT uint32_t web_midi(uint32_t status, uint32_t d1, uint32_t d2)
 {
+#if NCC_DEMO
+    ncc_demo_off();
+#endif
+    if (status == 0xF8u || status == 0xFAu || status == 0xFBu || status == 0xFCu)   /* NC */
+        return (uint32_t)midi_enqueue(0xFu | status << 8, 1);
     if (status < 0x80u || status >= 0xF0u)
         return 1;
     return (uint32_t)midi_enqueue((status >> 4) | status << 8 | (d1 & 127u) << 16 | (d2 & 127u) << 24, 1);

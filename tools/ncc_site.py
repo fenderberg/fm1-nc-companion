@@ -6,9 +6,11 @@ the same bar: Home, Manual, Install, Manager, Try it.
   index.html                  the front page: the story, the features with the emulator's pictures, a video, the FAQ,
                               what's new (CHANGELOG.md)
   manual/index.html           docs/MANUAL.md as a page, with its contents on the side
+  cheatsheet/                 every button on one printable page, and as ncc-cheatsheet.pdf (A4, printed by Chrome)
   webapp/installer/           Felucca's web installer (web/make_site.py) in NCC's words and style; Felucca's credits kept
   webapp/manager/             the NCC Manager (tools/ncc_manager.sh's build), in the site's style
-  webapp/try/                 the emulator with NCC and its demo Circuit (tools/ncc_demo.sh, DEMO=1): the purple FM-1
+  webapp/try/                 the emulator with NCC and its demo Circuit (tools/ncc_demo.sh, DEMO=1): the purple FM-1,
+                              and how to play it from your own Circuit Tracks (Web MIDI)
   webapp/editor/              Felucca's editor (as make_site.py puts it; not in the bar)
   firmware/                   the package, LICENSE, LICENSING.md, LICENSES/
   style.css, img/             web/site's
@@ -28,8 +30,9 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[1]
 REPO = "https://github.com/fenderberg/fm1-nc-companion"
 VIDEO = ""                              # a YouTube embed URL once there is a demo video ("" = the placeholder)
-PAGES = [("", "Home"), ("manual/", "Manual"), ("webapp/installer/", "Install"), ("webapp/manager/", "Manager"),
-         ("webapp/try/", "Try it")]
+PAGES = [("", "Home"), ("manual/", "Manual"), ("cheatsheet/", "Cheat sheet"), ("webapp/installer/", "Install"),
+         ("webapp/manager/", "Manager"), ("webapp/try/", "Try it")]
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"   # (prints the cheat sheet's PDF, if it's there)
 
 
 def nav(root, cur):
@@ -129,36 +132,29 @@ def markdown(text, rel):
 # ------------------------------------------------------------------------------------------------- the pages ---
 def home(version, changelog):
     img = "img/"
-    pending = re.search(r"^## Unreleased\n(.*?)(?=^## |\Z)", changelog, re.M | re.S)
-    development = bool(pending and pending.group(1).strip())
-    notice = (f'<p class="lead">These features describe the current development source. The installer provides '
-              f'release {html.escape(version)}; see its release notes below for the features in that package. '
-              f'<a href="{REPO}/blob/main/CHANGELOG.md">Development changelog</a>.</p>' if development else "")
     feats = [
         ("green", "Two parts, two tracks", "Part L listens to the Circuit's MIDI 1 track, part R to MIDI 2. The Circuit "
          "plays the notes and sends the clock; NCC has no sequencer of its own.", ""),
         ("blue", "Split to its two inputs", "L comes out on the left, R on the right: mix, mute and effect each part on the "
          "Circuit itself.", ""),
-        ("pink", "The Circuit's knobs just work", "Its eight macros are mapped to what their labels mean on every engine, "
-         "smoothly, and the screen shows what each one does.", "screen-sound.png"),
+        ("pink", "The Circuit's knobs just work", "Its eight macros do what their labels say on every engine, smoothly, "
+         "and the screen shows what each one does.", "screen-sound.png"),
         ("amber", "Sounds by role", "SELECT picks the category (bass, pad, lead, keys, pluck), ALGORITHM the engine, "
          "PRESETS the sound. 161 sounds, and your own.", ""),
-        ("cyan", "Twelve engines", "FM6, Juno, phase distortion, TRIO, ACID, physical models, granular, formant voices, "
-         "LOFI, tonewheel organ, noise and samples. Every engine has eight Circuit macros.", ""),
-        ("red", "Coming soon: drum loops", "One-bar loops that always fit the Circuit's bar, opened by any note and chopped "
-         "by its steps, with shuffle, reverse, stutter and crush on the knobs.", ""),
-        ("purple", "Built for jamming", "OCT- / OCT+ switch between your two sounds, an arp locked to the clock with HOLD, "
-         "and STACK or whole-chord REPLACE Drone with a smooth 50 ms fade-out and 50 ms fade-in.", "screen-arp.png"),
-        ("pink", "Dual sounds", "SCL layers the existing L/R sounds from MIDI channel 3 or 4. Each keeps its own arp, "
-         "Drone and Circuit knob controls.", ""),
-        ("amber", "Settings and sound editing", "GLO opens channels, output, clock and performance settings. EDIT opens "
-         "the selected sound's engine, envelopes, LFO and voice controls, including FM6 operators.", ""),
-        ("blue", "Dry sound defaults", "Every newly selected sound starts without delay or reverb. Turn the sends up "
-         "whenever you want; both parts use the existing shared effect buses.", ""),
-        ("green", "Effects one tap away", "Sends, delay, reverb, chorus, an insert and performance effects on the keys, plus "
-         "echo and reverb throws.", "screen-sends.png"),
+        ("cyan", "Twelve engines", "DX7-style FM, a Juno, Casio CZ, a SID-ish trio, a 303, plucked and bowed strings, "
+         "granular clouds, singing vowels, game-console chips, a tonewheel organ, noise and samples.", ""),
+        ("purple", "Dual: one track, two sounds", "Tap SCL and one Circuit track plays both parts: an arp on one, a pad "
+         "on the other, each with its own sound.", ""),
+        ("pink", "Arp and Drone", "An arp locked to the Circuit's clock, with HOLD. Drone keeps notes ringing, or holds "
+         "a whole chord until the next one crossfades in.", "screen-arp.png"),
+        ("green", "Effects one tap away", "Sends, delay, reverb, chorus and an insert, performance effects on the keys, "
+         "echo and reverb throws. New sounds start dry.", "screen-sends.png"),
+        ("amber", "Dig deeper when you want", "GLO holds the settings, EDIT the sound's own parameters, down to FM6's "
+         "six operators. You never need them to play.", ""),
         ("blue", "NCC Manager", "A web page over USB: sounds on L and R, your own sounds, DX7 banks, backups and "
          "settings.", ""),
+        ("red", "Coming soon: drum loops", "One-bar loops that always fit the Circuit's bar, chopped by its steps, with "
+         "shuffle, reverse, stutter and crush on the knobs.", ""),
     ]
     cards = "\n".join(f'<div class="card" style="--c:var(--{c})"><h3>{t}</h3><p>{d}</p></div>' for c, t, d, _ in feats)
     shots = "\n".join(f'<figure><img src="{img}{f}" alt="{html.escape(cap)}"><figcaption>{cap}</figcaption></figure>'
@@ -168,16 +164,19 @@ def home(version, changelog):
     faq = [
         ("What do I need?", "An M-VAVE FM-1, a Novation Circuit Tracks, a MIDI connection to the FM-1's TRS input or USB "
          "(with a USB MIDI host adapter or computer), and a stereo-to-two-mono cable into the Circuit's audio inputs."),
+        ("Can I try it before installing?", "Yes, in your browser: the Try it page runs NCC itself. Plug your Circuit "
+         "Tracks into the computer by USB and it plays the browser's FM-1, knobs, clock and all. "
+         '<a href="webapp/try/#circuit">How to hook it up</a>.'),
         ("Does it work without a Circuit Tracks?", "Yes. The FM-1's keys play the parts, the arp runs on its own tempo, and "
-         "any MIDI keyboard or sequencer on channels 3 and 4 works too. Or try it in your browser first."),
+         "any MIDI keyboard or sequencer on channels 3 and 4 works too."),
         ("How do I go back to the original firmware?", "On the Install page, open “Return to official V15” and pick M-VAVE's "
          "FM-1.fwsc, or use M-VAVE's own updater. Your music is backed up first."),
         ("Which browser?", "Chrome or Edge on a computer. The installer and the manager need Web MIDI with SysEx, which "
          "Safari and Firefox don't offer."),
         ("The arp runs out of time with the Circuit.", "Press Stop and Start on the Circuit once: NCC counts its bar from the "
-         "Circuit's Start. Since 0.3 it follows the Circuit's clock pulses, so it can't drift away afterwards."),
-        ("Can I use my own sounds?", "Yes: send DX7 banks to FM6 with the manager, and store your own sounds in the 32 user "
-         "slots. Your own drum loops come with the LOOP engine, soon."),
+         "Circuit's Start, and follows its clock from there on."),
+        ("Can I use my own sounds?", "Yes: send DX7 banks to FM6 with the manager, and store your own sounds in its 32 user "
+         "slots."),
         ("Is it safe?", "It installs like M-VAVE's own updates, and the way back is always there. Still, installing "
          "firmware is at your own risk; if an install is cut off, run it again (hold OCT- while switching on for the "
          "update mode)."),
@@ -203,7 +202,8 @@ def home(version, changelog):
     <p class="lead">Free firmware that turns the M-VAVE FM-1 into a two-part synth for the Novation Circuit Tracks:
       every sound hands-on from the Circuit's eight knobs.</p>
     <div class="btns"><a class="pad lit green" href="webapp/installer/">Install {html.escape(version)}</a>
-      <a class="pad lit pink" href="webapp/try/">Try it in your browser</a><a class="pad" href="manual/">Read the manual</a></div>
+      <a class="pad lit pink" href="webapp/try/">Try it in your browser</a><a class="pad" href="manual/">Read the manual</a>
+      <a class="pad" href="cheatsheet/">Cheat sheet</a></div>
     <div class="grid8" aria-hidden="true">{grid}</div>
   </div>
   <img class="shot" src="{img}fm1-purple.png" alt="NCC on a purple FM-1, in the browser emulator">
@@ -218,8 +218,7 @@ def home(version, changelog):
     groovebox. NCC strips it down to one job: being the Circuit's companion. Less to learn, more to play.</p>
 </div>
 
-<h2><span class="label">What it does</span>{"Development features" if development else "Features"}</h2>
-{notice}
+<h2><span class="label">What it does</span>Features</h2>
 <div class="cards">
 {cards}
 </div>
@@ -257,6 +256,64 @@ def manual(text):
     return page("../", "manual/", "NCC manual", f'<div class="manual"><aside class="toc"><div class="label">Contents</div>'
                 f'{side}</aside><article class="doc">{body}</article></div>', "The NCC manual: hooking up, sounds, "
                 "the Circuit's knobs, arp, Drone, effects, the manager, installing.")
+
+
+# (colour, title, [(button, what it does)]): every control on one A4 page; keep it in step with MANUAL.md's cheat sheet
+SHEET = [
+    ("green", "Hook it up", [("MIDI 1", "channel 3: part <b>L</b>"), ("MIDI 2", "channel 4: part <b>R</b>"),
+                             ("Out", "Y-cable to the Circuit's audio in 1 (L) and 2 (R)"),
+                             ("Template", "the Circuit's factory MIDI template"),
+                             ("Clock", "over USB; TRS on GLO &gt; SETUP, KNOB 4")]),
+    ("amber", "Pick a sound", [("HOME", "SOUND page"), ("SELECT", "category: BASS PAD LEAD KEYS PLUCK BEAT"),
+                               ("ALGORITHM", "engine"), ("PRESETS", "sound (loads when you stop)"),
+                               ("KNOB 1–4", "LEVEL, OCTAVE, VOICE, GLIDE"), ("", "all three stop at the ends")]),
+    ("blue", "Parts and pages", [("OCT-", "focus on L"), ("OCT+", "focus on R"), ("GLO", "settings"),
+                                 ("EDIT", "the sound's own parameters"),
+                                 ("PLAY", "next page, hold: previous (0.4: turn SELECT)"),
+                                 ("GLO + SEQ", "SPLIT ↔ STEREO")]),
+    ("pink", "Play live", [("ARP", "arp on, its page; again: off"), ("REC", "HOLD the arp"), ("SEQ", "Drone on / off"),
+                           ("ARP p2 K4", "Drone STACK or REPLACE"), ("SCL", "Dual: one track plays L and R"),
+                           ("Stop", "the Circuit's Stop clears arp and drone")]),
+    ("cyan", "Effects", [("FX", "SENDS › DELAY › REVERB › CHORUS › INSERT › PERFORM › off"),
+                         ("SENDS", "DRIVE, CHORUS, DELAY, REVERB"), ("Keys in FX", "repeats, sweeps, tape stop, freeze"),
+                         ("ENV hold", "echo throw"), ("LFO hold", "reverb throw"), ("New sound", "starts dry")]),
+    ("purple", "The Circuit's knobs", [("1 OSCILLATOR", "the wave, the tone"), ("2 OSC MOD", "detune, feedback, movement"),
+                                       ("3 AMP ENV", "attack + release"), ("4 FILTER ENV", "envelope to the brightness"),
+                                       ("5 FILTER FREQ", "cutoff, brightness"), ("6 RESONANCE", "resonance, character"),
+                                       ("7 MODULATION", "LFO, vibrato"), ("8 FX", "drive + send"),
+                                       ("", "middle = the sound as loaded")]),
+]
+
+
+def cheatsheet(version):
+    boxes = "\n".join(f'<section class="box" style="--c:var(--{c})"><h3>{t}</h3><dl>'
+                       + "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows) + "</dl></section>" for c, t, rows in SHEET)
+    body = f"""
+<div class="sheet-tools"><span class="label">Cheat sheet</span><h1>Every button on one page</h1>
+  <p class="lead">Print it and put it next to your Circuit. One A4, landscape.</p>
+  <div class="btns"><button class="pad lit green" type="button" onclick="print()">Print</button>
+    <a class="pad" href="ncc-cheatsheet.pdf" download>Download the PDF</a></div></div>
+<div class="sheet">
+  <header><b>NCC {html.escape(version)}</b> Novation Circuit Companion for the M-VAVE FM-1
+    <span>fenderberg.github.io/fm1-nc-companion</span></header>
+  <div class="boxes">
+{boxes}
+  </div>
+  <footer>Lost? Hold <b>OCT-</b> while switching on for the update mode; the web installer can always go back to M-VAVE's
+    firmware. The whole story: the manual.</footer>
+</div>
+"""
+    return page("../", "cheatsheet/", "NCC cheat sheet", body, "Every NCC button and combination on one printable page.")
+
+
+def sheet_pdf(out):
+    """the cheat sheet as a PDF, printed by headless Chrome (no Chrome: no PDF, the page's Print button still works)"""
+    if not os.path.exists(CHROME):
+        print("ncc_site: no Chrome, no cheat sheet PDF")
+        return
+    d = (out / "cheatsheet").resolve()
+    subprocess.run([CHROME, "--headless", "--disable-gpu", "--no-pdf-header-footer", f"--print-to-pdf={d / 'ncc-cheatsheet.pdf'}",
+                    (d / "index.html").as_uri()], check=True, capture_output=True)
 
 
 # --------------------------------------------------------------------------------------- the apps, in the style ---
@@ -306,7 +363,29 @@ TRY_CSS = """<style>
   :root { --bg: #0d0d0f; --fg: #ececf0; }
   main { color: #9a9aa6; }
   main a { color: #ececf0; }
+  .circuit { max-width: 860px; margin: 34px auto 10px; text-align: left; color: #d2d2da; font-size: 16px; line-height: 1.6; }
+  .circuit h2 { font-size: 26px; margin: 4px 0 8px; color: #ececf0; }
+  .circuit ol { padding-left: 22px; } .circuit li { margin: 6px 0; }
+  .circuit b { color: #ececf0; }
 </style>
+"""
+TRY_CIRCUIT = """<section class="circuit case" id="circuit">
+  <span class="label">Try it with your own Circuit</span>
+  <h2>Play this FM-1 from your Circuit Tracks</h2>
+  <p>This is NCC itself, running in your browser. Hook up your Circuit Tracks and hear what it would sound like, before
+    you install anything.</p>
+  <ol>
+    <li>Connect the Circuit Tracks to the computer with a USB cable, and open this page in <b>Chrome</b> or <b>Edge</b>.</li>
+    <li>Press <b>Switch on</b> above, and allow MIDI when the browser asks.</li>
+    <li>On the Circuit, put notes on the <b>MIDI 1</b> and <b>MIDI 2</b> tracks: MIDI 1 plays part L, MIDI 2 part R
+      (channels 3 and 4, the Circuit's default). Use the factory MIDI template.</li>
+    <li>Press <b>Play</b> on the Circuit. The built-in demo steps aside as soon as your Circuit sends anything, and the
+      arp follows the Circuit's clock (Clock Tx on in the Circuit's Setup view, as it is out of the box).</li>
+    <li>Turn the Circuit's <b>macro knobs</b>, and pick sounds with SELECT, ALGORITHM and PRESETS on the screen's FM-1.</li>
+  </ol>
+  <p>The sound comes out of your computer. Like it? <a href="../installer/">Install NCC</a> on a real FM-1, and see the
+    <a href="../../cheatsheet/">cheat sheet</a> for every button.</p>
+</section>
 """
 
 
@@ -374,6 +453,8 @@ def main(pkg, version, out):
     subprocess.run(["sh", str(SRC / "tools" / "ncc_demo.sh")], check=True, env={**env, "DEMO": "1", "EMU_VERSION": f"v{version}", "EMU_PREVIEW": "0"})
     shutil.copytree(SRC / "build" / "emu-demo", out / "webapp" / "try")
     themed(out / "webapp" / "try" / "index.html", "webapp/try/", TRY_CSS)
+    t = out / "webapp" / "try" / "index.html"
+    t.write_text(sub1(t.read_text(encoding="utf-8"), "\n<footer>", "\n" + TRY_CIRCUIT + "\n<footer>"), encoding="utf-8")
     shutil.copy(SRC / "web" / "site" / "style.css", out / "style.css")
     shutil.copytree(SRC / "web" / "site" / "img", out / "img")
     shutil.copy(SRC / "docs" / "ncc-emulator.jpg", out / "img" / "ncc-emulator.jpg")
@@ -381,6 +462,9 @@ def main(pkg, version, out):
     (out / "manual").mkdir()
     (out / "manual" / "index.html").write_text(manual((SRC / "docs" / "MANUAL.md").read_text(encoding="utf-8")),
                                                encoding="utf-8")
+    (out / "cheatsheet").mkdir()
+    (out / "cheatsheet" / "index.html").write_text(cheatsheet(version), encoding="utf-8")
+    sheet_pdf(out)
     (out / ".nojekyll").write_text("")
     print(f"ncc_site: {out}")
 

@@ -469,6 +469,10 @@ async function midiOn() {
       for (const input of access.inputs.values()) {
         input.onmidimessage = (e) => {
           const d = e.data;
+          if (d[0] === 0xF8 || d[0] === 0xFA || d[0] === 0xFB || d[0] === 0xFC) {   // NC: the clock, Start, Continue, Stop
+            send({ type: "midi", data: [d[0], 0, 0] });
+            return;
+          }
           if (d.length < 2 || d[0] < 0x80 || d[0] >= 0xF0) return;
           const k = knobsOn && (d[0] & 0xF0) === 0xB0 ? midiKnob(knobCC, d[1], d[2] || 0, knobMode) : null;
           if (!k) send({ type: "midi", data: [d[0], d[1], d[2] || 0] });

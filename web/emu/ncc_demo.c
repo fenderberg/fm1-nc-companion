@@ -6,7 +6,8 @@
  * velocity 120, slides as overlapping notes), and the Circuit's macros moving: R's FILTER FREQ (CC 71) and RESONANCE
  * (CC 74) in slow sweeps, L's MODULATION (CC 12) now and then. Four bars, round and round. The panel works as ever
  * (focus, PRESETS, ARP, FX ..): play along on the keys, turn the knobs.
- * Timing: the device's own millisecond (web_ms), the clock in microseconds (no drift), every note on a clock pulse. */
+ * Timing: the device's own millisecond (web_ms), the clock in microseconds (no drift), every note on a clock pulse.
+ * A real Circuit (Web MIDI: web_midi) takes over: ncc_demo_off lets the demo's notes go, sends Stop and stays quiet. */
 
 #define ND_PULSE_US 20833u              /* 120 BPM, 24 pulses a quarter */
 #define ND_STEPS 64u                    /* four bars of sixteenths */
@@ -27,6 +28,7 @@ static const uint8_t ND_BASS[ND_STEPS] = {
 
 static struct {
     uint8_t on;                         /* set up and running */
+    uint8_t off;                        /* a real Circuit took over (ncc_demo_off): quiet for good */
     uint32_t us, next;                  /* microseconds since the start, the next pulse */
     uint32_t pulse;                     /* pulses since Start */
     uint8_t bass, chord;                /* the bass note sounding (0 none), the chord's bar + 1 (0 none) */
@@ -83,9 +85,27 @@ static void nd_gate(uint32_t step, uint32_t sub)       /* within step: sub pulse
     }
 }
 
+/* web_midi: MIDI from outside (a real Circuit): the demo's notes go, the transport stops, the demo stays quiet */
+static void ncc_demo_off(void)
+{
+    uint32_t i;
+    if (nd.off)
+        return;
+    nd.off = 1;
+    if (!nd.on)
+        return;
+    if (nd.bass)
+        nd_send(0x83, nd.bass, 0);
+    for (i = 0; nd.chord && i < 4u; i++)
+        nd_send(0x82, ND_CHORD[nd.chord - 1u][i], 0);
+    nd_send(0xFC, 0, 0);                                /* Stop: the real Circuit's Start begins its bar */
+}
+
 /* web_ms, every millisecond once the device runs */
 static void ncc_demo_ms(void)
 {
+    if (nd.off)
+        return;
     if (!lv.ok)                                         /* (after the live UI's first pass: its defaults, then ours) */
         return;
     if (!nd.on)
