@@ -14,6 +14,13 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 - `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.4` builds successfully. Generated-page checks pass for local links,
   preview/Next labels, the unchanged official 0.4 package SHA-256 and the one-page cheat-sheet PDF.
   Logs: `build/main-site-update.log`, `build/main-push-test.log`.
+- Published: implementation/source commit **0e394df040a6d1f32cd316f6444fa7e1d9746642** pushed to **main**.
+  Pages commit **f463d3f8c3175814fc7f6fe0cc11823933350d89** built successfully. All nine checked live files match
+  the generated files byte for byte: home, manual, cheat sheet and PDF, installer, Manager, preview HTML/Wasm and
+  official 0.4 firmware. The firmware still hashes to `075b9d84b3f7a29b6595debaf1ded6e6681342a6895f3e54f9302195bfcfcb77`.
+  Evidence: `build/main-site-publish.log`, `build/main-site-live.json`. Fresh host tests pass, including both NCC
+  variants, unchanged 113/98 golden renders, Manager/editor/runner and the two documented Mac CPU exceptions.
+  Site: https://fenderberg.github.io/fm1-nc-companion/ . No additional device flash or GitHub release was performed.
 
 ## Uninstalled PLAY page navigation (2026-10-25)
 
@@ -30,7 +37,8 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 - Firmware build succeeds: `build/ncc.fwsc`, **FM-1_700**, image **578416 B**, RAM **61896 / 73728 B**,
   pool **359464 / 368640 B**. SHA-256 `6831f2a61d4f51c84f0b8ae5c675c2e516a16d6913ed88a41ead61eb794a818b`.
   Logs: `build/play-pages-test.log`, `build/play-pages-emu.log`, `build/play-pages-build.log`.
-- No device write, GitHub push or publication performed for this change. The FM-1 still runs the combined arp/
+- At implementation time no device write, GitHub push or publication was performed; source/site publication is
+  now recorded above. The FM-1 still runs the combined arp/
   REPLACE package below; its flash authorization was consumed. 303 slide/accent behavior is unchanged.
 
 ## REPLACE overlap and combined firmware update (2026-10-25)
