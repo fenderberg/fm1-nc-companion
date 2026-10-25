@@ -5,7 +5,7 @@ static void fade_setup(void)
     power(); fx_quiet();
     trk[1].p[P_ATK] = trk[1].p[P_DIST] = trk[1].p[P_CHOR] = 0;
     trk[1].p[P_SUS] = trk[1].p[P_REL] = 127;
-    trk[1].p[P_VOICE] = V_POLY;
+    trk[1].p[P_VOICE] = V_UNISON;          /* no spare voices: exercise the capacity fallback */
     ncd_set_mode(1, 1); ncd_want[1] = 1;
     midi(0x93, 60, 100); perf_blocks(3);
 }
@@ -37,7 +37,7 @@ static void drone_fade_test(void)
             }
         last = gain;
     }
-    ok("REPLACE fade: old audio follows a monotonic ~51 ms curve to a rendered zero endpoint",
+    ok("REPLACE fade: old audio follows a monotonic ~250 ms curve to a rendered zero endpoint",
        smooth && !last && !trk[1].v[0].env_out && old_peak > 1000u && quiet_peak < old_peak / 8u);
     blk();
     ok("REPLACE fade: reuse slots only after silence; new note starts with zero amplitude",
@@ -52,7 +52,7 @@ static void drone_fade_test(void)
         }
         last = gain;
     }
-    ok("REPLACE fade: new audio rises smoothly for ~51 ms, lands exactly at unity and remains sounding",
+    ok("REPLACE fade: new audio rises smoothly for ~250 ms, lands exactly at unity and remains sounding",
        smooth && gain == NCD_FADE_FULL && !ncd_fade[1].phase && new_peak > 1000u && note_playing(&trk[1], 67));
 
     fade_setup(); midi(0x83, 60, 0); blk();
@@ -93,14 +93,13 @@ static void drone_fade_test(void)
     for (k = 0; k < NELEM(LV_ENGS); k++) {
         uint32_t valid = 1;
         power(); fx_quiet(); set_engine_of(&trk[1], LV_ENGS[k]);
-        trk[1].p[P_VOICE] = V_POLY; trk[1].p[P_ATK] = 0; trk[1].p[P_SUS] = 127;
+        trk[1].p[P_VOICE] = V_UNISON; trk[1].p[P_ATK] = 0; trk[1].p[P_SUS] = 127;
         ncd_set_mode(1, 1); ncd_want[1] = 1;
         midi(0x93, 60, 100); perf_blocks(160);
         midi(0x83, 60, 0); midi(0x93, 64, 100); midi(0x93, 67, 100); perf_blocks(10);
         valid &= ncd_fade[1].phase == NCD_FADE_OUT && ncd_fade_gain(0) == NCD_FADE_FULL;
         perf_blocks(2u * NCD_FADE_BLOCKS);
-        valid &= !ncd[1].pending && (ENGINES[LV_ENGS[k]]->poly == 1u || note_playing(&trk[1], 64)) &&
-                 note_playing(&trk[1], 67) &&
+        valid &= !ncd[1].pending && note_playing(&trk[1], 67) &&
                  !note_playing(&trk[1], 60) && ncd_fade_gain(1) == NCD_FADE_FULL;
         ok("REPLACE fade: every engine shares the bounded transition; the other part stays at unity", valid);
     }

@@ -176,6 +176,7 @@ static uint32_t kb_map(const track_t *t, uint32_t k)
 /* ------------------------------------------------------------- arp --- */
 #if FELUCCA_LIVEUI
 static uint32_t ncc_arp_phase(const track_t *t);   /* NC: NCC's arp grid and Drone-hold (ncc_seq.c, after input_off) */
+static int ncc_arp_due(const track_t *t);         /* NC: pulse-locked steps; -1 uses the ordinary sample clock */
 static int ncd_again(track_t *t, uint32_t note, uint32_t vel);
 static int ncd_holds(const track_t *t, uint32_t note);
 static int ncd_retrigger(const track_t *t);
@@ -441,6 +442,9 @@ static void arp_step(track_t *t, uint32_t n, uint32_t gate_n)
 {
     uint32_t period;
     int32_t sw;
+#if FELUCCA_LIVEUI
+    int due = ncc_arp_due(t);                         /* NC: track the grid even while no keys are held */
+#endif
     if (t->arp_note) {
         if (t->arp_off <= gate_n)
             arp_off(t);
@@ -453,6 +457,13 @@ static void arp_step(track_t *t, uint32_t n, uint32_t gate_n)
         return;
     }
     period = div_samples((uint32_t)t->p[P_ARATE]);
+#if FELUCCA_LIVEUI
+    if (due >= 0) {                                  /* NC: attacks follow musical position, not a sample timer */
+        if (due)
+            arp_fire(t, period);
+        return;
+    }
+#endif
     sw = t->p[P_ASWING] * (int32_t)period / 250;
     t->arp_pos += n;
     if (t->arp_pos < period + (uint32_t)((t->arp_idx & 1u) ? sw : -sw) && t->arp_pos != 0xFFFFFFF + n)

@@ -133,6 +133,9 @@ static uint32_t voices_busy(void)                       /* sounding voices of al
             n += trk[p].v[i].active && trk[p].v[i].stage != 4u;
     return n;
 }
+#if FELUCCA_LIVEUI
+#include "ncc_drone_overlap.c"                         /* NC: bounded old/new chord overlap */
+#endif
 
 static uint32_t lowest_held(const track_t *t)           /* index of the lowest held note (the bass), NVOICE = none */
 {
@@ -226,7 +229,11 @@ static voice_t *voice_alloc(track_t *t, uint32_t note)
             return voice_reuse(t, v);
     }
     for (i = 0; i < np; i++) {
-        if (t->v[i].active && t->v[i].note == note)
+        if (t->v[i].active && t->v[i].note == note
+#if FELUCCA_LIVEUI
+            && !ncd_retiring(t, &t->v[i])               /* NC: a repeated pitch gets its own entrance */
+#endif
+        )
             return voice_reuse(t, &t->v[i]);
         nfree += !t->v[i].active;
     }
@@ -298,6 +305,9 @@ static void voice_start(track_t *t, voice_t *v, uint32_t note, uint32_t vel, int
     uint32_t ph0 = v->ph[0], ph1 = v->ph[1], ph2 = v->ph[2];
     int32_t s0 = v->s[0], s1 = v->s[1], s4 = v->s[4], s5 = v->s[5], s6 = v->s[6], s7 = v->s[7];
     uint32_t keep = e->keep;
+#if FELUCCA_LIVEUI
+    ncd_overlap_note(t, v);                            /* NC: no stale transition when a slot is reused */
+#endif
     v->note = (uint8_t)note;
     v->vel = (uint8_t)vel;
     v->gate = 1;
@@ -738,7 +748,7 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
             if (fade)                                   /* linear to 0 over the fade */
                 m.amp1 = m.amp1 * (int32_t)(t->xf - 1u) / (int32_t)XF_BLOCKS;
 #if FELUCCA_LIVEUI
-            m.amp1 = ncd_fade_amp(ti, m.amp1);          /* NC: ~50 ms out/in, same ramps for FM6 and ADSR engines */
+            m.amp1 = ncd_fade_amp(ti, ncd_overlap_amp(ti, i, m.amp1)); /* NC: overlap, or bounded fallback */
 #endif
             m.amp0 = v->env_out;
             v->env_out = m.amp1;

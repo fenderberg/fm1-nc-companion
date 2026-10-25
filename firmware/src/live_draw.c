@@ -286,8 +286,8 @@ static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
 
 static void lv_draw_foot(void)
 {
-    static const char *const HINT[PG_N] = {"", "SELECT: PAGE 2   REC: HOLD", "HOLD FX + KEY: PERFORM",
-                                          "SELECT: PAGE   HOME: SOUND", "SELECT: PAGE   OCT-/+: PART"};
+    static const char *const HINT[PG_N] = {"", "PLAY: PAGE   REC: HOLD", "HOLD FX + KEY: PERFORM",
+                                          "PLAY: PAGE   HOME: SOUND", "PLAY: PAGE   OCT-/+: PART"};
     uint32_t seen = ncm_seen, sig, mp = (seen >> 16) & 1u, m = (seen >> 8) & 7u;
     char s[24], r[24];
     int32_t v = 0;
@@ -319,7 +319,7 @@ static void lv_draw_foot(void)
         cv_text_in(0, 6, 240, &AF_S, l, lv.pend | lv.cpend | lv.apend ? LC_AMBER : LC_TEXT, LC_BG);
     } else if (!lv.pop_ms)
         cv_text_in(0, 6, 240, &AF_S, !lv.fx ? HINT[lv.page % PG_N] : lv.sub == LV_FX_PERF ?
-                   "KEYS: EFFECTS   FX: CLOSE" : "FX / SELECT: PAGES   HOME: CLOSE", LC_DIM, LC_BG);
+                   "KEYS: EFFECTS   FX: CLOSE" : "FX / PLAY: PAGES   HOME: CLOSE", LC_DIM, LC_BG);
     else if (lv.say)
         cv_text_in(0, 4, 240, &AF_M, lv.say, LC_TEXT, LC_BG);
     else {                                              /* a macro: the Circuit's legend, then what it does here */

@@ -5,6 +5,7 @@ The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and g
 
 This manual follows **NCC 0.4** (`FM-1_704`) and what is coming next. One difference to know about: in the next release
 you change pages with **PLAY** (tap for the next page, hold for the previous one); in 0.4 you **turn SELECT** instead.
+The longer, overlapping Drone transitions described below are coming next too.
 What changed when: [CHANGELOG.md](../CHANGELOG.md).
 
 ![NCC on the FM-1](ncc-emulator.jpg)
@@ -200,10 +201,13 @@ with **KNOB 4 on ARP page 2**, on **GLO > SETUP 2**, or in the Manager:
 | Mode | What it does | Badge |
 |---|---|---|
 | **STACK** | Each new note adds to the drone; play a note again to take it out. | `DR+` |
-| **REPLACE** | Play a chord and let go: the whole chord keeps droning. The next chord takes its place with a smooth crossfade. | `DR1` |
+| **REPLACE** | Play a chord and let go: the whole chord keeps droning. The next chord takes its place. | `DR1` |
 
 In REPLACE you can add notes for as long as you keep at least one key down. Use **VOICE = POLY** (SOUND page, KNOB 3)
 to drone whole chords. With ARP on, Drone holds the arp's notes, so the arp keeps running over them.
+
+Coming next: in POLY, with voices free, the old chord fades out while the new one comes in. Mono, unison, arp and
+full voice budgets use a slower fade out and in instead. The first chord starts straight away.
 
 Press SEQ again to release the drone. The Circuit's **Stop** clears it too; Drone stays on for the next notes.
 

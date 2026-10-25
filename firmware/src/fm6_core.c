@@ -332,15 +332,22 @@ typedef struct {                 /* msfa FmOpParams */
         out[i] STORE (int32_t)(((int64_t)fm6_sin(PH) * g) >> 15);               \
         phase = (int32_t)((uint32_t)phase + (uint32_t)freq);                    \
     }
+#if FELUCCA_LIVEUI
+/* NC: modulation crosses the signed phase boundary during sustained drones.
+ * Phases wrap modulo 2^32, just like the increment in FM6_OP_LOOP. */
+#define FM6_PHASE_ADD(a, b) ((int32_t)((uint32_t)(a) + (uint32_t)(b)))
+#else
+#define FM6_PHASE_ADD(a, b) ((a) + (b))
+#endif
 static __attribute__((noinline)) void fm6_op_run(int32_t *out, const int32_t *in, int32_t phase, int32_t freq,
                                                  int32_t g1, int32_t g2, int add)
 {
     int32_t dg = (g2 - g1 + (FM6_N >> 1)) >> FM6_LG_N, g = g1;
     uint32_t i;
     if (in && add)
-        FM6_OP_LOOP(phase + in[i], +=)
+        FM6_OP_LOOP(FM6_PHASE_ADD(phase, in[i]), +=)
     else if (in)
-        FM6_OP_LOOP(phase + in[i], =)
+        FM6_OP_LOOP(FM6_PHASE_ADD(phase, in[i]), =)
     else if (add)
         FM6_OP_LOOP(phase, +=)
     else
@@ -357,7 +364,7 @@ static __attribute__((noinline)) void fm6_op_fb(int32_t *out, int32_t phase, int
         int32_t s = (y0 + y) >> (shift + 1);
         g += dg;
         y0 = y;
-        y = (int32_t)(((int64_t)fm6_sin(phase + s) * g) >> 15);
+        y = (int32_t)(((int64_t)fm6_sin(FM6_PHASE_ADD(phase, s)) * g) >> 15);
         out[i] = add ? out[i] + y : y;
         phase = (int32_t)((uint32_t)phase + (uint32_t)freq);
     }

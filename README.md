@@ -36,8 +36,9 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
   LOOP, one-bar drum loops that always fit the bar.
 - **Built for jamming.** OCT- / OCT+ switch the FM-1's keys and knobs between your two sounds in one press. An arp
   locked to the Circuit's clock, with HOLD. A **Drone** button with STACK (build up notes) and REPLACE (hold only the
-  latest chord with about 50 ms fade-out and 50 ms fade-in). Effects one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
+  latest chord, with a smooth overlapping transition when voices are available). Effects one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
   throws.
+  SELECT only chooses sound categories on SOUND; PLAY browses settings/edit/arp/FX pages (tap next, hold previous).
 - **Dual sounds.** SCL switches Dual on/off; GLO chooses MIDI channel 3 or 4 as the note source for L and R together.
   Each part keeps its own patch, arp and Drone; the Circuit's knobs keep controlling their usual part.
 - **Settings and sound editing on the device.** GLO opens channels, clock, output and performance settings. EDIT

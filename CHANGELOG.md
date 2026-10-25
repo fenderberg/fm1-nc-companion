@@ -4,7 +4,7 @@
 
 - **PLAY turns the pages** of ARP, FX, GLO and EDIT: tap for the next, hold for the previous. SELECT is only the
   category, on SOUND.
-- **REPLACE drones crossfade** from one chord to the next, without a gap.
+- **REPLACE drones crossfade** from one chord to the next in POLY, when voices are free.
 - The arp stays exactly on the Circuit's clock, also when the tempo changes; Start restarts a held arp.
 - A rare overflow in FM6 fixed.
 

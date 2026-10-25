@@ -146,7 +146,7 @@ def home(version, changelog):
         ("purple", "Dual: one track, two sounds", "Tap SCL and one Circuit track plays both parts: an arp on one, a pad "
          "on the other, each with its own sound.", ""),
         ("pink", "Arp and Drone", "An arp locked to the Circuit's clock, with HOLD. Drone keeps notes ringing, or holds "
-         "a whole chord until the next one crossfades in.", "screen-arp.png"),
+         "a whole chord until the next one takes over.", "screen-arp.png"),
         ("green", "Effects one tap away", "Sends, delay, reverb, chorus and an insert, performance effects on the keys, "
          "echo and reverb throws. New sounds start dry.", "screen-sends.png"),
         ("amber", "Dig deeper when you want", "GLO holds the settings, EDIT the sound's own parameters, down to FM6's "
@@ -450,15 +450,22 @@ def main(pkg, version, out):
     subprocess.run(["sh", str(SRC / "tools" / "ncc_manager.sh")], check=True, env=env)
     shutil.copytree(SRC / "build" / "ncc-manager", out / "webapp" / "manager")
     themed(out / "webapp" / "manager" / "index.html", "webapp/manager/", MANAGER_CSS)
-    subprocess.run(["sh", str(SRC / "tools" / "ncc_demo.sh")], check=True, env={**env, "DEMO": "1", "EMU_VERSION": f"v{version}", "EMU_PREVIEW": "0"})
+    changelog = (SRC / "CHANGELOG.md").read_text(encoding="utf-8")
+    preview = bool(re.search(r"(?m)^## Unreleased\s*$", changelog))
+    subprocess.run(["sh", str(SRC / "tools" / "ncc_demo.sh")], check=True,
+                   env={**env, "DEMO": "1", "EMU_VERSION": f"v{version}", "EMU_PREVIEW": "1" if preview else "0"})
     shutil.copytree(SRC / "build" / "emu-demo", out / "webapp" / "try")
     themed(out / "webapp" / "try" / "index.html", "webapp/try/", TRY_CSS)
     t = out / "webapp" / "try" / "index.html"
-    t.write_text(sub1(t.read_text(encoding="utf-8"), "\n<footer>", "\n" + TRY_CIRCUIT + "\n<footer>"), encoding="utf-8")
+    demo = sub1(t.read_text(encoding="utf-8"), "\n<footer>", "\n" + TRY_CIRCUIT + "\n<footer>")
+    if preview:
+        demo = sub1(demo, "<main>", '<main>\n<p class="lead">You’re trying what’s next. '
+                    f'<a href="../installer/">Install {html.escape(version)}</a> is the current release.</p>')
+    t.write_text(demo, encoding="utf-8")
     shutil.copy(SRC / "web" / "site" / "style.css", out / "style.css")
     shutil.copytree(SRC / "web" / "site" / "img", out / "img")
     shutil.copy(SRC / "docs" / "ncc-emulator.jpg", out / "img" / "ncc-emulator.jpg")
-    (out / "index.html").write_text(home(version, (SRC / "CHANGELOG.md").read_text(encoding="utf-8")), encoding="utf-8")
+    (out / "index.html").write_text(home(version, changelog), encoding="utf-8")
     (out / "manual").mkdir()
     (out / "manual" / "index.html").write_text(manual((SRC / "docs" / "MANUAL.md").read_text(encoding="utf-8")),
                                                encoding="utf-8")

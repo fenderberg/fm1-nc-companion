@@ -1,5 +1,54 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Extended NCC panel and chord gestures: physical releases, not time windows or sustain, delimit REPLACE chords. */
+static void page_button_test(void)
+{
+    static const uint8_t OPEN[] = {B_ARP, B_FX, B_GLO, B_EDIT};
+    uint32_t i, mask = 1u << panel.btn[B_PLAY], playing, mode;
+    for (i = 0; i < NELEM(OPEN); i++) {
+        power(); lv_press(OPEN[i]);
+        mode = (uint32_t)trk[0].p[P_AMODE];
+        playing = song.playing;
+        t_turn(EN_SELECT, 3);
+        ok("pages: SELECT outside SOUND changes neither subpage nor category", !lv.sub && !lv.cpend);
+        fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+        ok("pages: PLAY press waits for short/long decision", !lv.sub);
+        fm1_in.buttons &= ~mask; lv_frame();
+        ok("pages: short PLAY advances one page without changing arp or transport",
+           lv.sub == 1u && (uint32_t)trk[0].p[P_AMODE] == mode && song.playing == playing && !transport_req);
+        fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+        fm1_ms += LV_PAGE_HOLD_MS - 32u; lv_frame();
+        ok("pages: holding PLAY below 500 ms does not advance", lv.sub == 1u);
+        lv_frame();
+        ok("pages: at 500 ms PLAY goes back once", !lv.sub);
+        lv_frames(700);
+        fm1_in.buttons &= ~mask; lv_frame();
+        ok("pages: long PLAY neither repeats nor advances on release", !lv.sub && !lv.page_down);
+        /* A delayed release also counts as long if no input pass ran at the threshold. */
+        lv_press(B_PLAY);
+        fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+        fm1_ms += LV_PAGE_HOLD_MS;
+        fm1_in.buttons &= ~mask; lv_frame();
+        ok("pages: a long release without an intermediate input pass still goes backwards", !lv.sub);
+        lv_press(B_PLAY);
+        fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+        lv_press(B_HOME);
+        fm1_in.buttons &= ~mask; lv_frame();
+        ok("pages: HOME cancels a pending page gesture", lv.page == PG_SOUND && !lv.sub && !lv.page_down);
+    }
+    power(); playing = song.playing;
+    lv_press(B_PLAY);
+    fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+    lv_frames(700); fm1_in.buttons &= ~mask; lv_frame();
+    ok("pages: PLAY does nothing on SOUND, including transport", lv.page == PG_SOUND && !lv.sub && song.playing == playing && !transport_req);
+    lv_press(B_EDIT);
+    for (i = 0; i < lv_nsub(PG_EDIT) + 2u; i++) lv_press(B_PLAY);
+    ok("pages: PLAY stops at the last visible edit page", lv.sub + 1u == lv_nsub(PG_EDIT));
+    fm1_ms = 0xFFFFFF00u;
+    fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+    lv_frames(600); fm1_in.buttons &= ~mask; lv_frame();
+    ok("pages: long PLAY also works across the millisecond counter wrap", lv.sub + 2u == lv_nsub(PG_EDIT));
+}
+
 static void replace_chord_test(void)
 {
     track_t *t;
@@ -71,7 +120,7 @@ static void settings_edit_test(void)
     ok("settings UI: output can be set to SPLIT", NCC_SPLIT());
     t_turn(EN_K4, 1);
     ok("settings UI: clock can select TRS", song.g[G_CLOCK] == 2);
-    t_turn(EN_SELECT, 1); t_turn(EN_K1, 2); t_turn(EN_K2, 5); t_turn(EN_K3, 2); t_turn(EN_K4, 1);
+    lv_press(B_PLAY); t_turn(EN_K1, 2); t_turn(EN_K2, 5); t_turn(EN_K3, 2); t_turn(EN_K4, 1);
     ok("settings UI: page 2 sets Dual, BPM and both Drone modes", ncc_dual_mode() == 2u && song.g[G_BPM] == 130 &&
        ncd_mode(0) && ncd_want[0] && !ncd_mode(1) && ncd_want[1]);
     dual_button();
@@ -83,14 +132,14 @@ static void settings_edit_test(void)
 
     power(); lv_focus(1); lv_press(B_EDIT);
     ok("edit UI: EDIT opens the selected part's engine controls", lv.page == PG_EDIT && lv_edit_index() == LE_ENGINE1);
-    t_turn(EN_SELECT, 1); before = trk[1].p[P_E4]; other = trk[0].p[P_E4];
+    lv_press(B_PLAY); before = trk[1].p[P_E4]; other = trk[0].p[P_E4];
     trk[1].p[P_DLY] = 53; trk[1].p[P_REV] = 54;
     t_turn(EN_K1, -5);
     ok("edit UI: cutoff edits only focused R and keeps adjusted sends", trk[1].p[P_E4] < before &&
        trk[0].p[P_E4] == other && trk[1].p[P_DLY] == 53 && trk[1].p[P_REV] == 54);
     undo_swap();
     ok("edit UI: parameter edits support the existing undo snapshot", trk[1].p[P_E4] == before);
-    lv_press(B_HOME); lv_press(B_EDIT); t_turn(EN_SELECT, 1); t_turn(EN_SELECT, 1);
+    lv_press(B_HOME); lv_press(B_EDIT); lv_press(B_PLAY); lv_press(B_PLAY);
     before = trk[1].p[P_ATK]; t_turn(EN_K1, 3);
     ok("edit UI: AMP ENV edits attack", lv_edit_index() == LE_AMP && trk[1].p[P_ATK] > before);
     lv_focus(0); lv.page = PG_EDIT;

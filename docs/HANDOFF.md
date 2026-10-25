@@ -1,18 +1,113 @@
 # Handoff: where NCC stands
 
-Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-24.
+Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-25.
 
-## Current source, installed firmware and public release
+## Main and website sync (2026-10-25)
 
-- Current 0.4 source: **twelve engines, 161 built-in sounds**, independent L/R parts, note-only Dual,
+- Remco authorized pushing the accumulated changes to main and updating the website, preserving its existing
+  text style: “push naar main. pas de ebsite aan. hou de (tekst)style aan die daar reeds gehanteerd werd.”
+- The site retains its short English copy, layout and current 0.4 installer. Unreleased arp/drone/PLAY changes
+  appear under **Next**, and the browser demo is explicitly marked as a preview of what comes next. The manual
+  and cheat sheet distinguish PLAY navigation from 0.4's SELECT. Drone wording now states that overlap needs
+  POLY/free voices; the home feature describes both released and upcoming behavior without promising overlap
+  in the 0.4 download. No new release or device flash is included in this publication.
+- `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.4` builds successfully. Generated-page checks pass for local links,
+  preview/Next labels, the unchanged official 0.4 package SHA-256 and the one-page cheat-sheet PDF.
+  Logs: `build/main-site-update.log`, `build/main-push-test.log`.
+
+## Uninstalled PLAY page navigation (2026-10-25)
+
+- Remco accepted the proposed controls with “voer dar uit”. SELECT now only filters categories on SOUND and has
+  no action on ARP/FX/GLO/EDIT. PLAY navigates those pages: short release moves forward; a 500 ms hold moves back
+  once, with no repeat or extra forward step on release. Navigation clamps at either end. SOUND ignores PLAY;
+  PLAY never starts/stops transport. GLO/EDIT/FX repeated presses retain their previous behavior; ARP is unchanged.
+- Gesture state is main-loop only, with no blocking waits. Changing family/subpage/part cancels a pending press.
+  Existing knob/page tests and emulator interactions now use PLAY. New tests cover all four families, SELECT
+  isolation, short/long thresholds, delayed release, cancellation, bounds and millisecond-counter wrap.
+- Host tests, both NCC variants with fatal UBSan, Manager/editor/runner and emulator integration pass. The real
+  Wasm test checks SELECT isolation and long PLAY/release. All 113 NCC / 98 plain golden renders are unchanged;
+  only the two established Mac CPU exceptions remain. Manual, screen hints, README and changelog are updated.
+- Firmware build succeeds: `build/ncc.fwsc`, **FM-1_700**, image **578416 B**, RAM **61896 / 73728 B**,
+  pool **359464 / 368640 B**. SHA-256 `6831f2a61d4f51c84f0b8ae5c675c2e516a16d6913ed88a41ead61eb794a818b`.
+  Logs: `build/play-pages-test.log`, `build/play-pages-emu.log`, `build/play-pages-build.log`.
+- No device write, GitHub push or publication performed for this change. The FM-1 still runs the combined arp/
+  REPLACE package below; its flash authorization was consumed. 303 slide/accent behavior is unchanged.
+
+## REPLACE overlap and combined firmware update (2026-10-25)
+
+- Remco reported that REPLACE still cut off notes and authorized fixing it and updating the FM-1: “daarnaast
+  kapt de drone functie in replace mode nog steeds de noten af als ik nieuwe noten speel. fix dat ook en update
+  firmware”. The combined build includes the arp clock correction below. No push/release/site authorized.
+- Root cause: the earlier ~51 ms fade silenced the entire part before starting the new chord. In POLY, when
+  enough engine/shared voice slots are free, REPLACE now retains the old voices for a ~250 ms smooth fade and
+  starts the new chord with its own ~80 ms minimum entrance (longer patch attacks remain). Repeated pitches get
+  separate voices. Existing retiring tails keep their deadlines during rapid gestures. Chord expansion queues
+  if outgoing tails temporarily occupy the required slots. No sample buffers or engine ABI/state format changes.
+- Mono/unison/arp or insufficient free voices use a ~250 ms out / ~250 ms in fallback. This still passes through
+  silence; it cannot provide overlapping chords in a monophonic engine or when every voice is occupied. Engine
+  caps (including PHYS/GRAIN's three) and the shared eight-voice budget are preserved. Per-voice event-core ramps
+  live in `ncc_drone_overlap.c`; render cores only read them. Panic/Stop/Drone off cancel retiring voices safely.
+- Longer sustained-note tests exposed signed overflow in FM6 phase modulation (`phase + in[i]`, also feedback).
+  NCC now explicitly wraps phase addition through uint32_t, matching its existing phase increment. Boundary
+  tests cover both signed limits. This resolves the FM6 finding recorded during the earlier arp investigation;
+  no engine submodule changes and no golden audio changes.
+- Host tests (both NCC variants, fatal UBSan), Manager/editor/runner and Wasm integration pass. All 113 NCC / 98
+  plain golden renders are unchanged; only the two established Mac CPU exceptions remain. New tests cover
+  rendered audio continuity, repeated pitches, triads, full capacity, cancellation and all twelve engines.
+  In the steady JUNO fixture the lowest 32-block transition-window absolute sample sum is 3180300, against
+  3175259 before replacement (no silent handover). This is host evidence, not a listening/deadline test.
+- Combined development package `build/ncc.fwsc`, identity **FM-1_700**: image **578200 B**, RAM **61896 / 73728 B**,
+  pool **359464 / 368640 B**. SHA-256 `f2eb255325eb756babbcec0556eeecc11644f8f73783650fa7516e880cdfa1b7`.
+  Logs: `build/drone-overlap-test.log`, `build/drone-overlap-emu.log`, `build/drone-overlap-build.log`,
+  `build/ncc-flash-overlap.log`, `build/ncc-device-before-overlap.json`.
+- **Installed successfully on Remco's FM-1.** Installer completed writing/restart and verified running
+  **FM-1_700**. Separate identity and read-only NCC_INFO/LIB/PARTS checks passed: twelve engines, 161 built-ins,
+  193 library entries including the existing bank. `build/ncc-device-after-overlap.json` records the package
+  checksum above. Channels 3/4, SPLIT, TRS clock, 120 BPM, Dual off and both remembered REPLACE modes survived.
+  Drone on/off is intentionally not stored: both parts restart with Drone off. L's displayed name changed from
+  ACID LEAD to ACID 303; R remains FM6/PAD (the known sound-name/category restore issue, not evidence of bitwise
+  patch equality). No sound loads, settings, notes or CCs were sent during post-flash checks. Logs also include
+  `build/drone-overlap-device-after.log`, `build/ncc-device-after-overlap.log`, `build/ncc-flash-overlap.sha256`.
+  This consumes the flash authorization above. Hardware listening/Circuit timing remains for Remco to check.
+
+## Unreleased arp clock correction (2026-10-25)
+
+- Remco reported arp drift against the Circuit clock. Reproduced actual off-grid arp attacks on both USB and
+  TRS with clock jitter and bar-by-bar tempo changes. The existing bar-position test passed while attacks drifted:
+  only the bar counter followed pulse position; the separate arp sample timer lost block overshoot and did not
+  rescale its phase with tempo corrections.
+- NCC's two arps now schedule attacks from Q8 MIDI pulse position. Straight rates and triplets land on their
+  exact incoming pulses; swing uses bounded interpolation inside a pulse. All ten rates, including 4BAR, share
+  the clock grid. Late chord entry keeps the one-eighth-step grace window. Delayed packet bursts emit at most
+  one catch-up attack per block. Internal-clock/fallback behavior and the plain Felucca build are preserved.
+  MIDI Start also resets held arps during playback; Stop still drops held notes.
+- `tests/ncc_arp_clock_test.c` checks actual step changes: sixteen bars of jitter/tempo changes per USB/TRS source,
+  plus all ten rates with zero/full swing and repeated Start. Both sources now produce 256/256 expected straight
+  steps with zero missed or off-grid attacks. `sh tools/ncc_dev.sh test` passes, including fatal UBSan and LOOP;
+  all 113 NCC / 98 plain golden renders are unchanged. Only the two documented Mac CPU-noise exceptions remain.
+- `sh tools/ncc_dev.sh build` passes: development `build/ncc.fwsc`, identity `FM-1_700`, image **577240 B**,
+  RAM **61736 / 73728 B**, pool **359464 / 368640 B**. Package SHA-256:
+  `6b909ebb0ad50d7b456502fe82ac8dbefec0b92cc91a3bcbf61191991d8f93c9`.
+  Logs: `build/arp-clock-before.log`, `build/arp-clock-after.log`, `build/arp-clock-build-run.log`,
+  `build/arp-clock-emu.log`. Emulator panel/MIDI checks pass; these are host simulations, not Circuit/FM-1
+  hardware timing or listening checks.
+- The original arp report did not authorize a flash. The later combined update above includes this correction;
+  public v0.4 remains unchanged. Check timing by listening with the Circuit before publishing this correction.
+- Separate DSP follow-up: the initial long clock stress on the default L/FM6 sound aborted in fatal UBSan
+  (`fm6_op_run`, signed addition overflow; local macOS report `ncc_test-2026-10-25-095533.ips`). Timing tests use
+  R/JUNO to isolate scheduling. Resolved by the explicit NCC phase wrapping in the combined drone update above.
+
+## Previous installation and public 0.4 release
+
+- Public 0.4 source: **twelve engines, 161 built-in sounds**, independent L/R parts, note-only Dual,
   STACK/REPLACE chord drones, SCL/GLO/EDIT controls and zero delay/reverb sends on sound selection.
-- Installed on Remco's FM-1: development identity **FM-1_700**, package SHA-256
+- Previous installation on Remco's FM-1: development identity **FM-1_700**, package SHA-256
   `f5b0b041a7906ed590e13e4c44fad83316cf337f1460da8e32885ee6e58f3ec2`.
   Image **576728 B**, RAM **61704 / 73728 B**, pool **359464 / 368640 B**.
-- Remco authorized the latest installation with “de replace drone is nu iets te plotseling. die mag vloeiender
+- Remco authorized that installation with “de replace drone is nu iets te plotseling. die mag vloeiender
   overgaan. doe dat en zet alles naar de fm1”. The installer completed the write/restart; separate identity and
   read-only NCC_INFO/LIB/PARTS checks passed. Twelve engines, **161 built-ins / 193 entries including 32 bank voices**.
-- Existing state restored: PHASE/BELL on CH3, JUNO/SOFT PAD on CH4, SPLIT, TRS clock, 121 BPM, Dual off;
+- State restored at that installation: PHASE/BELL on CH3, JUNO/SOFT PAD on CH4, SPLIT, TRS clock, 121 BPM, Dual off;
   R remembers REPLACE with Drone off. No notes, settings or sound loads sent during post-flash verification.
 - Logs (local, ignored by git): `build/ncc-flash-smooth.log`, `build/ncc-flash-smooth.sha256`,
   `build/ncc-device-check-smooth.json`, `build/drone-smooth-test-run.log`, `build/drone-smooth-emu-run.log`.
@@ -22,7 +117,7 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
   installed development build; no synth logic was changed for packaging.
 - Remco explicitly authorized the public release/webinstaller update with “doe dat” after being told publication
   was separate from main. This covers the release, its source documentation and website deployment. The device
-  already runs the same firmware logic, with its write/restart and library checks recorded above; no additional
+  already ran the same firmware logic at publication, with its write/restart and library checks recorded above; no additional
   device flash is part of publication. Listening and hardware timing limitations below remain explicit.
 
 ## Release 0.4 publication
@@ -46,7 +141,7 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 - Release validation: host/NCC/Manager/editor/runner tests and v0.4 Wasm integration pass; package identity, loader,
   bundle licences and checksums checked. Generated installer uses FM-1_704 and the exact release package; home and
   manual describe 0.4. Logs: `build/release-0.4-{tests,emu,build,site}.log`.
-- Device remains on the previously installed FM-1_700, with the same firmware logic and the device checks above.
+- At publication the device ran the previously installed FM-1_700, with the same firmware logic and the device checks above.
   This publication does not claim a new release-package flash or an audible/hardware-deadline test.
 
 ## Performance controls and state
@@ -60,14 +155,15 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
   STACK keeps its toggle behavior. REPLACE groups all notes until every physical key is released; the next strike
   replaces the whole chord. Sustain does not extend the physical gesture; CHORD expansion counts as one strike.
   Use POLY for simultaneous tones; MONO/LEGATO/UNISON and the existing shared voice cap retain their own behavior.
-- REPLACE now uses **70 blocks (~50.8 ms) out, then 70 in**. First strikes start next block at unity. Old voices render
-  until a zero-gain block has completed, then their slots are reused and the queued chord fades in. Fast gestures
-  replace the queue without restarting fade-out; a reversal during fade-in starts at the current gain. No extra
-  voices/sample buffers. Patch envelopes remain intact. Panic/Stop/Drone off/routing changes cancel safely.
+- REPLACE uses per-voice overlap in POLY when slots are free: **344 blocks (~250 ms)** for retiring notes,
+  **110 blocks (~80 ms)** minimum entrance for the new chord. The capacity/mono/unison/arp fallback uses 344 blocks
+  out, then 344 in. First strikes start next block at unity. Retiring voices render their zero endpoint before
+  reuse. Existing budgets and patch envelopes remain intact; no sample buffers. Fast strikes preserve retiring
+  deadlines; a fallback reversal starts at the current gain. Panic/Stop/Drone off/routing changes cancel safely.
 - `ncc_drone_fade.c` is included by voice.c; the event core alone updates gains before render cores read them.
   `ncc_seq.c` owns the bounded 16-tone queue. `ncc_input.c` uses private MIDI ownership slots 16=L/17=R and per-part
   local-key snapshots. Old note-offs, pedal ownership and focus/chord changes cannot strand or steal another layer.
-- **GLO**: two pages, SELECT/GLO cycles. Page 1 channels/output/clock; page 2 Dual/BPM/L Drone/R Drone.
+- **GLO**: two pages, PLAY navigates and GLO cycles. Page 1 channels/output/clock; page 2 Dual/BPM/L Drone/R Drone.
   **EDIT**: engine descriptors, envelopes, LFO, voices and chord; JUNO filter and FM6 operator/envelope/mode pages.
   FM6 edits use the existing patch writer and OWN slot. Sound edits support undo and preserve intentionally wet sends.
 - Every newly selected NCC/factory/DX7/user sound starts with P_DLY=P_REV=0; the other part and shared tails remain.

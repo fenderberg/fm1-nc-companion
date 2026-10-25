@@ -67,6 +67,43 @@ static void lv_open(uint32_t page)
     else
         lv.sub = (uint8_t)((lv.sub + 1u) % lv_nsub(page));
 }
+#define LV_PAGE_HOLD_MS 500u
+static void lv_page_step(int32_t direction)
+{
+    lv.sub = (uint8_t)clamp((int32_t)lv.sub + direction, 0, (int32_t)lv_nsub(lv.page) - 1);
+    lv.pop_ms = 0;
+    lv.say = 0;
+}
+/* Decide short on release, long once at the threshold. No sleep, repeat or transport
+ * request. A changed family/subpage/part cancels the pending gesture, so HOME and
+ * other page buttons cannot leave a delayed action on the newly opened screen. */
+static void lv_page_button(uint32_t pressed, uint32_t buttons)
+{
+    uint32_t mask = 1u << panel.btn[B_PLAY];
+    if (pressed & mask) {
+        lv.page_down = lv_nsub(lv.page) > 1u;
+        lv.page_ms = fm1_ms;
+        lv.page_family = lv.page;
+        lv.page_sub = lv.sub;
+        lv.page_part = song.sel;
+    }
+    if (!lv.page_down)
+        return;
+    if (lv.page_family != lv.page || lv.page_sub != lv.sub || lv.page_part != song.sel) {
+        lv.page_down = 0;
+        return;
+    }
+    if (lv.page_down == 1u && fm1_ms - lv.page_ms >= LV_PAGE_HOLD_MS) {
+        lv_page_step(-1);
+        lv.page_sub = lv.sub;
+        lv.page_down = 2;                             /* release must not also move forward */
+    }
+    if (!(buttons & mask)) {
+        if (lv.page_down == 1u)
+            lv_page_step(1);
+        lv.page_down = 0;
+    }
+}
 static const char *lv_page_name(void)
 {
     if (lv.page == PG_EDIT)

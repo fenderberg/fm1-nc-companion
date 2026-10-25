@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* NC: REPLACE's musical fade, shared by all engines without extra voices or DSP/sample buffers. The event
  * core alone advances these gains before handing parts to either render core; renderers only read them.
- * A smoothstep ramp takes 70 blocks (~50.8 ms) each way. Engine amplitude ramps interpolate each block's
+ * A smoothstep ramp takes 344 blocks (~250 ms) each way when overlap cannot fit. Engine amplitude ramps interpolate each block's
  * endpoints per sample. Phase 0 is unity (including zero-initialized boot); ordinary notes are unchanged. */
 #define NCD_FADE_PARTS 2u
-#define NCD_FADE_BLOCKS 70u
+#define NCD_FADE_BLOCKS 344u
 #define NCD_FADE_FULL 32768u
 enum { NCD_FADE_IDLE, NCD_FADE_OUT, NCD_FADE_IN };
 static struct {
     uint16_t gain, from;
-    uint8_t phase, pos;
+    uint16_t pos;
+    uint8_t phase;
 } ncd_fade[NCD_FADE_PARTS];
 
 static uint32_t ncd_fade_gain(uint32_t part)

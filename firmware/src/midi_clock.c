@@ -17,6 +17,7 @@ static __attribute__((noinline)) void midi_clock_transport(uint32_t status, uint
         midi_clock.start_ms = ms;
 #if FELUCCA_LIVEUI
         ncc_pulse = ncc_since = 0;                 /* NC: the bar from here, in pulses (ncc_seq.c) */
+        ncc_arp_restart = 1;                      /* NC: Start resets held arps even when already playing */
 #endif
         seq_start();
     } else if (status == 0xFBu) {                  /* Continue: preserve the step */

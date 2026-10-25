@@ -24,7 +24,7 @@
  *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
  *   ARP GRID   a note mid-step starts the arp on the next step of the bar, a little late at once; no clock: BPM
  *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
- *   FX UI      FX opens its mode on SENDS (the keys PERFORM's, no button held), FX taps and SELECT its pages SENDS DELAY
+ *   FX UI      FX opens its mode on SENDS (the keys PERFORM's, no button held), FX taps and PLAY its pages SENDS DELAY
  *              REVERB (+ R's send) CHORUS INSERT PERFORM (the insert's knobs named by its type), FX after the last /
  *              HOME close it; ENV / LFO throws
  *   SPLIT DAC  one part with FLANGER and Juno chorus, no sends: the other side of the output after MASTER exactly 0;
@@ -117,6 +117,8 @@ static void power(void)
     memset((void *)ncd_want, 0, sizeof ncd_want);
     memset(ncd, 0, sizeof ncd);
     memset(ncd_fade, 0, sizeof ncd_fade);
+    memset(ncd_overlap, 0, sizeof ncd_overlap);
+    memset(ncd_overlapping, 0, sizeof ncd_overlapping);
     memset(ncd_retired, 0, sizeof ncd_retired);
     memset(ncd_new, 0, sizeof ncd_new);
     memset(ncc_midi_down, 0, sizeof ncc_midi_down);
@@ -615,9 +617,9 @@ static void arp_ui_test(void)
     ok("arp UI: KNOB 3 the octaves (1 -> 3)", t->p[P_AOCT] == 3);
     t_turn(EN_K4, 5);
     ok("arp UI: KNOB 4 the gate (64 -> 74: two a detent)", t->p[P_AGATE] == 74);
-    t_turn(EN_SELECT, 1);
+    lv_press(B_PLAY);
     t_turn(EN_K1, 10);
-    ok("arp UI: SELECT page 2, KNOB 1 the swing", lv.sub == 1u && t->p[P_ASWING] == 20);
+    ok("arp UI: PLAY page 2, KNOB 1 the swing", lv.sub == 1u && t->p[P_ASWING] == 20);
     lv_press(B_HOME);
     lv_press(B_ARP);
     ok("arp UI: ARP from another page: its page, the arp stays on", lv.page == PG_ARP && t->p[P_AMODE] == 3);
@@ -727,19 +729,19 @@ static void fx_ui_test(void)
     t_turn(EN_K1, 1); t_turn(EN_K3, 5);
     ok("FX UI: FX again: DELAY, KNOB 1 its time, KNOB 3 its colour", lv.fx && lv.sub == 1u &&
        (uint32_t)song.g[G_DTIME] != i && song.g[G_DCOLOR] != GP[G_DCOLOR].def);
-    t_turn(EN_SELECT, 1);
+    lv_press(B_PLAY);
     i = (uint32_t)song.g[G_RTYPE];
     {
         int32_t rev = t->p[P_REV];
         t_turn(EN_K1, -1); t_turn(EN_K3, 5); t_turn(EN_K4, 3);
-        ok("FX UI: SELECT: REVERB, KNOB 1 its type, KNOB 3 its damping, KNOB 4 R's reverb send", lv.sub == 2u &&
+        ok("FX UI: PLAY: REVERB, KNOB 1 its type, KNOB 3 its damping, KNOB 4 R's reverb send", lv.sub == 2u &&
            (uint32_t)song.g[G_RTYPE] != i && song.g[G_RDAMP] != GP[G_RDAMP].def && t->p[P_REV] > rev);
     }
     lv_press(B_FX);
     t_turn(EN_K3, 2); t_turn(EN_K4, 3);
     ok("FX UI: CHORUS: KNOB 3 R's Juno chorus (II), KNOB 4 its drift (3)", lv.sub == 3u && (t->p[P_ED_FX] & 3) == 2 &&
        ((t->p[P_ED_FX] >> 2) & 15) == 3);
-    t_turn(EN_SELECT, 1);
+    lv_press(B_PLAY);
     t_turn(EN_K1, 1);
     ok("FX UI: INSERT: KNOB 1 its type (SOFT), KNOB 2..4 named as the type names them (DRIVE TONE LEVEL)",
        lv.sub == 4u && t->p[P_ITYPE] == 1 && !strcmp(lv_label(lv_knob(1)), "DRIVE") && !strcmp(lv_label(lv_knob(3)), "LEVEL"));
@@ -749,8 +751,8 @@ static void fx_ui_test(void)
     lv_press(B_FX);
     t_turn(EN_K1, -10);
     ok("FX UI: PERFORM, the last page: KNOB 1 the FILTER macro", lv.sub == LV_FX_PERF && perf_k[0] < 0);
-    t_turn(EN_SELECT, 3);
-    ok("FX UI: SELECT stops at the last page", lv.sub == LV_FX_PERF);
+    lv_press(B_PLAY);
+    ok("FX UI: PLAY stops at the last page", lv.sub == LV_FX_PERF);
     lv_press(B_FX);
     ok("FX UI: FX on the last page: the mode closes (back to SOUND), the keys play, the macros back to 0", !lv.fx &&
        lv.page == PG_SOUND && kb_lock == 0u && perf_k[0] == 0 && led_is(B_FX, 0));
@@ -1434,7 +1436,7 @@ static void engine_ui_test(void)
     ok("sounds: the parts' engines come back with the project", trk[0].eng_req == ENGI_FM6 && trk[1].eng_req == ENGI_TRIO);
     lv_press(B_ARP);
     t_turn(EN_SELECT, 1);
-    ok("sounds: SELECT on ARP is its page 2, not the filter", lv.sub == 1u && !lv.cpend);
+    ok("sounds: SELECT on ARP changes neither page nor filter", lv.sub == 0u && !lv.cpend);
 }
 
 static void engine_macro_test(void)
@@ -1637,6 +1639,8 @@ static void ext_pulses(uint32_t n)
 }
 /* the bar on the external clock: 16 bars of pulses whose USB times jitter (the tempo's measurement wobbles), the
  * Circuit's every bar start (pulse 0, 96, 192 ..) is NCC's bar start too: ncc_bar near 0, no drift */
+#include "ncc_arp_clock_test.c"
+
 static void bar_lock_test(void)
 {
     uint32_t k, b, worst = 0, bar, rnd = 12345u;
@@ -1801,6 +1805,8 @@ int main(void)
     acid_test();
     stop_test();
     bar_lock_test();
+    arp_clock_test();
+    arp_clock_rates_test();
     splash_test();
     bpm0_test();
     performance_test();

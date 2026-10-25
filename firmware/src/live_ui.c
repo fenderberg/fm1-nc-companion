@@ -6,7 +6,7 @@
  *   two parts   L = track 1, FM6; R = track 2, ANALOG; tracks 3 and 4 muted and deaf. No sequencer: the Circuit
  *               Tracks plays them, MIDI IN TRACK, L on channel 3 and R on 4 (its MIDI 1 / MIDI 2 tracks) unless the
  *               project has TRACK already; the clock from USB (with none coming, the arp runs on BPM: seq.c)
- *   pages       SOUND (HOME), ARP, FX, SETUP (GLO), sound editing (EDIT); SELECT turns each family's pages
+ *   pages       SOUND (HOME), ARP, FX, SETUP (GLO), sound editing (EDIT); PLAY steps each family's pages
  *   SCL         Dual on/off on its remembered source; GLO page 2 chooses OFF/CH3/CH4
  *   EDIT        focused engine, envelope, LFO, voice/chord controls; FM6 operators (ncc_pages.c)
  *   sounds      one library of the five engines' sounds (ncc_library.c; LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID:
@@ -25,7 +25,7 @@
  *               while held add); off with no key down lets the latched chord go (ncc_seq.c). Its LED
  *   SEQ         Drone-hold of the focused part (ncc_seq.c). Its LED.   GLO + SEQ: SPLIT (the default) <-> STEREO
  *   FX          a tap opens the FX mode on its SENDS page, each tap after it the next page, the tap after the last
- *               closes it (so do HOME and ARP); SELECT turns its pages too. In it the white keys are PERFORM's effects
+ *               closes it (so do HOME and ARP); PLAY steps its pages too. In it the white keys are PERFORM's effects
  *               (perform.c; seq.c kb_lock: the layer locked open), each held while its key is. Its pages: SENDS (the
  *               focused part's drive and sends), DELAY, REVERB (the bus's; KNOB 4 the part's reverb send), CHORUS (the
  *               bus's, and the part's Juno chorus and drift), INSERT (the part's: its type and A B C as the type names
@@ -83,7 +83,7 @@ typedef struct {
     uint8_t kind, id;                   /* LK_*, the P_* / G_* id (LK_PERF: perf_k's index) */
     const char *label;
 } lv_knob_t;
-/* KNOB 1..4 per page and its pages (SELECT) */
+/* KNOB 1..4 per page and its pages (PLAY) */
 #define LK_EMPTY {LK_NONE, 0, ""}
 static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
     [PG_SOUND] = {{{LK_TP, P_LEVEL, "LEVEL"}, {LK_OCT, 0, "OCTAVE"}, {LK_TP, P_VOICE, "VOICE"}, {LK_TP, P_GLIDE, "GLIDE"}}},
@@ -97,14 +97,16 @@ static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
                {{LK_ITYPE, P_ITYPE, "TYPE"}, {LK_INS, P_IA, ""}, {LK_INS, P_IB, ""}, {LK_INS, P_IC, ""}},
                {{LK_PERF, 0, "FILTER"}, {LK_PERF, 1, "CRUSH"}, {LK_PERF, 2, "THROW"}, {LK_PERF, 3, "DEPTH"}}},
 };
-static const uint8_t LV_NSUB[PG_N] = {1, 2, 6};        /* the pages SELECT turns, per page */
+static const uint8_t LV_NSUB[PG_N] = {1, 2, 6};        /* subpages per family (GLO/EDIT: lv_nsub) */
 static const char *const LV_FX_PAGE[6] = {"SENDS", "DELAY", "REVERB", "CHORUS", "INSERT", "PERFORM"};
 #define LV_FX_PERF 5u                   /* the FX mode's PERFORM page (the key map on the screen), its last */
 static const uint8_t LV_RATES[] = {0, 1, 4, 2, 5, 3};   /* RATE on KNOB 2: 1/4 1/8 8T 1/16 16T 1/32 (N_DIV) */
 
 static struct {
     uint8_t ok;                         /* lv_setup done */
-    uint8_t page, sub;                  /* PG_*, its page (SELECT) */
+    uint8_t page, sub;                  /* PG_*, its subpage (PLAY) */
+    uint8_t page_down, page_family, page_sub, page_part; /* pending short/long PLAY gesture */
+    uint32_t page_ms;
     uint8_t prev;                       /* the page the FX mode was opened from */
     uint8_t fx;                         /* the FX mode (its layer: the keys PERFORM's) */
     uint8_t hot;                        /* the knob turned last + 1 (0 none) */
@@ -674,9 +676,8 @@ static void live_input(void)
         lv.apend = (int8_t)clamp(lv.apend + s, -12, 12);
         lv.fpend_ms = fm1_ms | 1u;
     }
-    if ((s = panel_enc(EN_SELECT)) != 0 && lv_nsub(lv.page) > 1u)   /* the page's pages, a step a turn */
-        lv.sub = (uint8_t)clamp((int32_t)lv.sub + (s > 0 ? 1 : -1), 0, (int32_t)lv_nsub(lv.page) - 1);
-    else if (s && lv.page == PG_SOUND && song.sel < LV_PARTS) {   /* the category filter (after a rest) */
+    lv_page_button(pressed, btn);                      /* PLAY: short next / long previous; never transport */
+    if ((s = panel_enc(EN_SELECT)) != 0 && lv.page == PG_SOUND && song.sel < LV_PARTS) {
         lv.cpend = (int8_t)clamp(lv.cpend + s, -12, 12);
         lv.fpend_ms = fm1_ms | 1u;
     }

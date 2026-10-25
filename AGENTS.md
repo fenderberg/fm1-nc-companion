@@ -21,7 +21,8 @@ Firmware that makes the FM-1 a live companion to a **Novation Circuit Tracks (NC
 - The FM-1 has **two parts**: L on MIDI channel 3 (the NC's MIDI 1), R on channel 4 (MIDI 2); output **SPLIT** by
   default (L left, R right, for the NC's two audio inputs).
 - The FM-1's panel is for **live jamming**: picking sounds (SELECT = category, ALGORITHM = engine, PRESETS = sound;
-  none of them goes round), the arp (locked to the clock, HOLD on REC), Drone (SEQ), effects (FX opens on SENDS,
+  none of them goes round; SELECT only acts on SOUND), pages on PLAY (tap next, hold 0.5 s previous),
+  the arp (locked to the clock, HOLD on REC), Drone (SEQ), effects (FX opens on SENDS,
   throws on ENV / LFO). **No sequencer.** The NC is the boss.
 - **Live tweaking without glitches is the most important requirement.** Less to learn, more to play.
 
@@ -44,7 +45,7 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
   `volatile`, one writer per variable.
 - **Main loop** returns within a few ms (USB, updater, watchdog). **Screen**: draw only what changed.
 - **Flash**: an erase silences audio ~50 ms: only save when quiet.
-- **Memory is tight**: current dev image 576728 B of ~618 KB; RAM 61704 / 73728 B; pool 359464 / 368640 B. Check the
+- **Memory is tight**: current dev image 578416 B of ~618 KB; RAM 61896 / 73728 B; pool 359464 / 368640 B. Check the
   size report of every build.
 - No register access outside `firmware/hal/`, no calls into chip ROM (the build refuses both).
 
@@ -60,6 +61,7 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
 | `firmware/src/ncc_sample_data.c` | Validated built-in/user XIP sample addressing |
 | `firmware/src/ncc_presets.c` | NCC's own sounds (`NCC_SND`: engine, values) |
 | `firmware/src/ncc_drone_fade.c` | Smooth REPLACE fade-out/in shared by all engines; event core writes, render cores read |
+| `firmware/src/ncc_drone_overlap.c` | Per-voice REPLACE crossfade within the existing engine/shared voice budgets |
 | `firmware/src/ncc_seq.c` | Arp on the clock's grid, Drone, the bar in clock pulses (`ncc_bar`). Included by `seq.c`, audio ISR |
 | `firmware/src/ncc_input.c`, `ncc_settings.c` | Dual note ownership, local key snapshots, stored Dual/Drone modes; included by `seq.c` |
 | `firmware/src/ncc_pages.c` | Settings on GLO and focused sound editing on EDIT, using existing descriptors and FM6 patch writer |
@@ -75,7 +77,7 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
 | `tests/ncc_test.c`, `tests/ncc_*.c` | NCC behavior/audio tests; extra engine CPU comparisons |
 
 Hooks marked `/* NC: */` in `felucca.c`, `main.c`, `fx.c`, `seq.c`, `midi_clock.c`, `midi_control.c`, `voice.c`,
-`eng_fm6.c`, `ui_draw.c`, `editor.c`, `engines.c`, `core.h`, `tools/build.py`, `web/emu/*`.
+`eng_fm6.c`, `fm6_core.c`, `ui_draw.c`, `editor.c`, `engines.c`, `core.h`, `tools/build.py`, `web/emu/*`.
 
 Stored without a format change: a part's Juno character in `P_ED_FX` (chorus | drift << 2); SPLIT in `G_ENGGO`
 (`NCC_SPLIT()`, `core.h`; 1 = STEREO); Dual/Drone modes in retired `G_SYNC` (marked bits, `ncc_settings.c`).
