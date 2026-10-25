@@ -188,7 +188,7 @@ def home(version, changelog):
     def ver(m):                                         # (a version newer than the one installed: coming)
         v = m.group(1)
         newer = v == "Unreleased" or tuple(map(int, re.findall(r"\d+", v))) > tuple(map(int, re.findall(r"\d+", version)))
-        return (f'<h3><span class="pad lit {"amber" if newer else "green"}">{v}</span>'
+        return (f'<h3><span class="pad lit {"amber" if newer else "green"}">{"Next" if v == "Unreleased" else v}</span>'
                 + ('<span class="label">coming soon</span>' if newer else "") + "</h3>")
     log = re.sub(r'<h2 id="[^"]*">([^<]*)</h2>', ver, log)
     video = (f'<div class="video"><iframe src="{VIDEO}" title="NCC demo" allowfullscreen></iframe></div>' if VIDEO else
