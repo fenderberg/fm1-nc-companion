@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NCC cheat sheet</title><meta name="description" content="Every NCC button and combination on one printable page."><link rel="stylesheet" href="../style.css"></head><body>
+<header class="ncc-nav"><div class="in"><a class="brand" href="../"><i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i>NCC</a><nav><a href="../">Home</a><a href="../manual/">Manual</a><a href="../cheatsheet/" aria-current=page>Cheat sheet</a><a href="../webapp/installer/">Install</a><a href="../webapp/manager/">Manager</a><a href="../webapp/try/">Try it</a><a href="https://github.com/fenderberg/fm1-nc-companion">GitHub</a></nav></div></header>
+<main class="wrap">
+
+<div class="sheet-tools"><span class="label">Cheat sheet</span><h1>Every button on one page</h1>
+  <p class="lead">Print it and put it next to your Circuit. One A4, landscape.</p>
+  <div class="btns"><button class="pad lit green" type="button" onclick="print()">Print</button>
+    <a class="pad" href="ncc-cheatsheet.pdf" download>Download the PDF</a></div></div>
+<div class="sheet">
+  <header><b>NCC 0.4</b> Novation Circuit Companion for the M-VAVE FM-1
+    <span>fenderberg.github.io/fm1-nc-companion</span></header>
+  <div class="boxes">
+<section class="box" style="--c:var(--green)"><h3>Hook it up</h3><dl><dt>MIDI 1</dt><dd>channel 3: part <b>L</b></dd><dt>MIDI 2</dt><dd>channel 4: part <b>R</b></dd><dt>Out</dt><dd>Y-cable to the Circuit's audio in 1 (L) and 2 (R)</dd><dt>Template</dt><dd>the Circuit's factory MIDI template</dd><dt>Clock</dt><dd>over USB; TRS on GLO &gt; SETUP, KNOB 4</dd></dl></section>
+<section class="box" style="--c:var(--amber)"><h3>Pick a sound</h3><dl><dt>HOME</dt><dd>SOUND page</dd><dt>SELECT</dt><dd>category: BASS PAD LEAD KEYS PLUCK BEAT</dd><dt>ALGORITHM</dt><dd>engine</dd><dt>PRESETS</dt><dd>sound (loads when you stop)</dd><dt>KNOB 1–4</dt><dd>LEVEL, OCTAVE, VOICE, GLIDE</dd><dt></dt><dd>all three stop at the ends</dd></dl></section>
+<section class="box" style="--c:var(--blue)"><h3>Parts and pages</h3><dl><dt>OCT-</dt><dd>focus on L</dd><dt>OCT+</dt><dd>focus on R</dd><dt>GLO</dt><dd>settings</dd><dt>EDIT</dt><dd>the sound's own parameters</dd><dt>PLAY</dt><dd>next page, hold: previous (0.4: turn SELECT)</dd><dt>GLO + SEQ</dt><dd>SPLIT ↔ STEREO</dd></dl></section>
+<section class="box" style="--c:var(--pink)"><h3>Play live</h3><dl><dt>ARP</dt><dd>arp on, its page; again: off</dd><dt>REC</dt><dd>HOLD the arp</dd><dt>SEQ</dt><dd>Drone on / off</dd><dt>ARP p2 K4</dt><dd>Drone STACK or REPLACE</dd><dt>SCL</dt><dd>Dual: one track plays L and R</dd><dt>Stop</dt><dd>the Circuit's Stop clears arp and drone</dd></dl></section>
+<section class="box" style="--c:var(--cyan)"><h3>Effects</h3><dl><dt>FX</dt><dd>SENDS › DELAY › REVERB › CHORUS › INSERT › PERFORM › off</dd><dt>SENDS</dt><dd>DRIVE, CHORUS, DELAY, REVERB</dd><dt>Keys in FX</dt><dd>repeats, sweeps, tape stop, freeze</dd><dt>ENV hold</dt><dd>echo throw</dd><dt>LFO hold</dt><dd>reverb throw</dd><dt>New sound</dt><dd>starts dry</dd></dl></section>
+<section class="box" style="--c:var(--purple)"><h3>The Circuit's knobs</h3><dl><dt>1 OSCILLATOR</dt><dd>the wave, the tone</dd><dt>2 OSC MOD</dt><dd>detune, feedback, movement</dd><dt>3 AMP ENV</dt><dd>attack + release</dd><dt>4 FILTER ENV</dt><dd>envelope to the brightness</dd><dt>5 FILTER FREQ</dt><dd>cutoff, brightness</dd><dt>6 RESONANCE</dt><dd>resonance, character</dd><dt>7 MODULATION</dt><dd>LFO, vibrato</dd><dt>8 FX</dt><dd>drive + send</dd><dt></dt><dd>middle = the sound as loaded</dd></dl></section>
+  </div>
+  <footer>Lost? Hold <b>OCT-</b> while switching on for the update mode; the web installer can always go back to M-VAVE's
+    firmware. The whole story: the manual.</footer>
+</div>
+
+</main>
+<footer class="ncc-foot"><div class="in">NCC is free software (GPL-3.0), built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita (Hügelton Instruments). Novation and Circuit Tracks are trademarks of Focusrite Audio Engineering Ltd; M-VAVE and FM-1 are trademarks of their respective owners. NCC is not affiliated with or endorsed by any of them. Installing firmware is at your own risk.</div></footer>
+</body></html>

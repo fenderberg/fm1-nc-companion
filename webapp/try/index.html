@@ -83,6 +83,10 @@ footer small { font-size: 11px; opacity: .8; }
   :root { --bg: #0d0d0f; --fg: #ececf0; }
   main { color: #9a9aa6; }
   main a { color: #ececf0; }
+  .circuit { max-width: 860px; margin: 34px auto 10px; text-align: left; color: #d2d2da; font-size: 16px; line-height: 1.6; }
+  .circuit h2 { font-size: 26px; margin: 4px 0 8px; color: #ececf0; }
+  .circuit ol { padding-left: 22px; } .circuit li { margin: 6px 0; }
+  .circuit b { color: #ececf0; }
 </style>
 <style>
   html, body { background: #0d0d0f !important; }
@@ -97,7 +101,7 @@ footer small { font-size: 11px; opacity: .8; }
 </style>
 </head>
 <body>
-<header class="ncc-nav"><div class="in"><a class="brand" href="../../"><i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i>NCC</a><nav><a href="../../">Home</a><a href="../../manual/">Manual</a><a href="../../webapp/installer/">Install</a><a href="../../webapp/manager/">Manager</a><a href="../../webapp/try/" aria-current=page>Try it</a><a href="https://github.com/fenderberg/fm1-nc-companion">GitHub</a></nav></div></header>
+<header class="ncc-nav"><div class="in"><a class="brand" href="../../"><i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i>NCC</a><nav><a href="../../">Home</a><a href="../../manual/">Manual</a><a href="../../cheatsheet/">Cheat sheet</a><a href="../../webapp/installer/">Install</a><a href="../../webapp/manager/">Manager</a><a href="../../webapp/try/" aria-current=page>Try it</a><a href="https://github.com/fenderberg/fm1-nc-companion">GitHub</a></nav></div></header>
 
 <main>
 <div class="device" id="device">
@@ -121,6 +125,24 @@ footer small { font-size: 11px; opacity: .8; }
     <option value="sign">relative sign bit</option>
   </select></span>
 </p>
+
+<section class="circuit case" id="circuit">
+  <span class="label">Try it with your own Circuit</span>
+  <h2>Play this FM-1 from your Circuit Tracks</h2>
+  <p>This is NCC itself, running in your browser. Hook up your Circuit Tracks and hear what it would sound like, before
+    you install anything.</p>
+  <ol>
+    <li>Connect the Circuit Tracks to the computer with a USB cable, and open this page in <b>Chrome</b> or <b>Edge</b>.</li>
+    <li>Press <b>Switch on</b> above, and allow MIDI when the browser asks.</li>
+    <li>On the Circuit, put notes on the <b>MIDI 1</b> and <b>MIDI 2</b> tracks: MIDI 1 plays part L, MIDI 2 part R
+      (channels 3 and 4, the Circuit's default). Use the factory MIDI template.</li>
+    <li>Press <b>Play</b> on the Circuit. The built-in demo steps aside as soon as your Circuit sends anything, and the
+      arp follows the Circuit's clock (Clock Tx on in the Circuit's Setup view, as it is out of the box).</li>
+    <li>Turn the Circuit's <b>macro knobs</b>, and pick sounds with SELECT, ALGORITHM and PRESETS on the screen's FM-1.</li>
+  </ol>
+  <p>The sound comes out of your computer. Like it? <a href="../installer/">Install NCC</a> on a real FM-1, and see the
+    <a href="../../cheatsheet/">cheat sheet</a> for every button.</p>
+</section>
 
 <footer>
   <small class="version">v0.4</small><br>
@@ -495,6 +517,10 @@ async function midiOn() {
       for (const input of access.inputs.values()) {
         input.onmidimessage = (e) => {
           const d = e.data;
+          if (d[0] === 0xF8 || d[0] === 0xFA || d[0] === 0xFB || d[0] === 0xFC) {   // NC: the clock, Start, Continue, Stop
+            send({ type: "midi", data: [d[0], 0, 0] });
+            return;
+          }
           if (d.length < 2 || d[0] < 0x80 || d[0] >= 0xF0) return;
           const k = knobsOn && (d[0] & 0xF0) === 0xB0 ? midiKnob(knobCC, d[1], d[2] || 0, knobMode) : null;
           if (!k) send({ type: "midi", data: [d[0], d[1], d[2] || 0] });
