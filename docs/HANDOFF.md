@@ -22,9 +22,10 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
   auto-mode permission classifier ("Create Public Surface"); Remco's explicit follow-up authorized it and the
   retry succeeded, publishing `gh-pages` commit `a09c571`. Live checks confirm the home page shows 0.5 and the
   live firmware download's checksum matches the release.
-- GitHub **Issues enabled** on the repository (`gh repo edit --enable-issues`), so reports like the Reddit one no
-  longer need a separate channel; Discussions remains off (not asked for). Not documented anywhere in-repo yet
-  (nothing referenced "issues disabled" in the site/README to begin with).
+- GitHub **Issues and Discussions enabled** on the repository (`gh repo edit --enable-issues --enable-discussions`,
+  the latter a follow-up "zet discussions ook aan"), so reports like the Reddit one no longer need a separate
+  channel. Not documented anywhere in-repo yet (nothing referenced "issues disabled" in the site/README to begin
+  with).
 - This release was not flashed to the device separately: the FM-1 already runs this exact source (installed
   earlier the same session, recorded above) under its development identity FM-1_700; only identity/version
   metadata differs between that build and the FM-1_705 release package.
