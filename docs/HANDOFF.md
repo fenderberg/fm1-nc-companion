@@ -2,6 +2,19 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-25.
 
+## Main and website sync (2026-11-01)
+
+- Remco authorized "push deze versie naar de main. update de documentatie en de website". Added short MANUAL.md
+  lines for the new preset/engine-switch arp and drone behavior (Arp and HOLD, Drone sections). Committed and
+  pushed source commit **4163974** to `main`: the DX7 bank Mac build fix, the corrected `arp_seq_notes_test`, the
+  preset/engine-switch arp and drone feature with its test, and `.gitattributes`.
+- `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.4` built the site from the unchanged, already-published 0.4 package
+  (checksum verified against the official release, unchanged). The new changelog line appears under the home
+  page's **Next** section; the manual's Arp/Drone sections carry the new text. Published to `gh-pages` commit
+  **866f2b3**. Live checks (`curl`, after allowing a short CDN propagation delay) confirm the home page's new Next
+  line, the manual's new text and the live firmware download's checksum, all matching the build. No new release,
+  no additional device flash (the FM-1 was already updated earlier in this session, recorded above).
+
 ## Installed on Remco's FM-1 (2026-11-01)
 
 - Remco authorized the update with "update fm1". Package `build/ncc.fwsc`, identity `FM-1_700`, image **578736 B**,
