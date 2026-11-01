@@ -2,6 +2,102 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-25.
 
+## Installed on Remco's FM-1 (2026-11-01)
+
+- Remco authorized the update with "update fm1". Package `build/ncc.fwsc`, identity `FM-1_700`, image **578736 B**,
+  RAM **61896 / 73728 B**, pool **359464 / 368640 B**, SHA-256
+  `9e28adfda10372d91443c3bad6c4da563430c8e10890861641c227b16c210fd1`. This carries the preset/engine-switch arp and
+  drone fix below, the DX7 bank-replace/remove fix and the Mac build fix for it (both from the earlier 2026-10-27
+  work, now compiling and host-tested), and the test-only arp-grid investigation from this session. The arp clock
+  lock, REPLACE overlap and PLAY-page navigation already installed on 2026-10-25 are unchanged by this update.
+- `sh tools/ncc_dev.sh flash` completed: writing reached 100%, the FM-1 restarted and `sh tools/ncc_dev.sh info`
+  confirms it is running `FM-1_700`. No deeper NCC_INFO/LIB/PARTS protocol check, no notes/CCs/settings were sent
+  and no device listening test was done this time; identity and the write/restart outcome are what was verified.
+  Not committed, not pushed, not released.
+
+## New: a preset or engine switch keeps the arp and a plain drone going (2026-11-01, uncommitted, host-tested only)
+
+- Remco asked: "nog 1 extra feature: behoud de arp als ik van presets switch" (keep the arp going when I switch
+  presets), confirmed in scope to cover ALGORITHM (engine) switches too and both the ARP and Drone-hold (SEQ).
+- Until now, picking a new PRESETS sound, a new ALGORITHM engine, SAVE-held UNDO/REDO of a sound, or loading a user
+  preset silenced the part and dropped everything it was holding (`panic_req`, seq.c `events_block`): a held arp
+  stopped and had to be re-struck, a droning chord went silent for good.
+- Fix: a new `ncc_sound_req` bit (seq.c, set alongside `panic_req` at its four UI/upreset.c sound-change sites, and
+  explicitly cleared at the two real "every track" panic sites in main.c and project.c) marks a panic as a sound
+  change rather than a real reset. `events_block` still releases the currently sounding voice and its arp-note
+  bookkeeping (`trk_all_off`, `arp_forget`) either way, but for a sound change it no longer calls
+  `midi_forget_track` or clears `t->nheld` / `t->held[]` / `t->arp_phys`: the arp (already stepping from
+  `t->held[]`) simply continues on the new sound at its next step. Without the arp, a droning chord's notes are
+  replayed at once by a new helper, `ncc_sound_kept` (ncc_seq.c): it skips if a fade/overlap/pending REPLACE
+  transition is already under way, so it never fights that machinery. `trk_note_on` (used for the replay, same as
+  the engine-switch crossfade's own queued-note replay) already defers correctly through an actual engine change
+  (voice.c `engine_block`), so no new crossfade logic was needed. Panic, OTA and project load still clear
+  everything, unchanged.
+- New test `preset_keep_arp_test` (tests/ncc_test.c): a held note's arp survives a same-engine preset switch and a
+  full engine (ALGORITHM) switch and keeps sounding on the new sound either way; releasing the key still stops it
+  normally; a plain (non-arp) drone note is replayed at once on a new preset; a real Panic still clears a held arp
+  as before (regression). All pass; `sh tools/ncc_dev.sh test` is clean (`ncc: all ok`), 113 NCC / 98 plain golden
+  renders unchanged, no CPU regressions beyond the two established Mac exceptions, fatal UBSan clean.
+- Firmware builds: `build/ncc.fwsc`, identity `FM-1_700`, image **578736 B**, RAM **61896 / 73728 B**, pool
+  **359464 / 368640 B**. **Not flashed, not committed.** No device/emulator listening test done; this is host
+  evidence only (arp timing, note continuity and voice state), not a confirmation of how it actually sounds live.
+
+## Mac-side follow-up on the Reddit report and the arp investigation (2026-11-01, uncommitted)
+
+- Remco shared a second Reddit reply (2026-11-01): after running a while, the unit "suddenly develops severe
+  latency and loses MIDI clock sync and stable timing (only a reboot restores it)". Remco linked this to the arp.
+  His FM-1 was connected but **no device flash was done this session**; everything below is host-only.
+- The Windows-written changes from 2026-10-27 did not actually compile on the Mac: `fm6_bank_changed()`
+  (fm6_vbank.c) calls `nl_bank_changed()` before `ncc_library.c` is `#include`d (via live_ui.c, later in the unity
+  build), so the compiler saw an implicit declaration and then a conflicting static one. Fixed with a forward
+  declaration in fm6_vbank.c (marked NC), matching the pattern other NC hooks use. With that fix,
+  `sh tools/ncc_dev.sh test` compiles and the DX7 bank-replace/remove fix and the Manager changes from 2026-10-27
+  test clean; `fm6bank_test.c`'s new `remove_test` also passes standalone (`cc tests/fm6bank_test.c`, "fm6bank: all
+  ok"). The full `tests/run_tests.sh` suite (the two Mac-specific exceptions aside) was not rerun this session.
+- `arp_seq_notes_test` (added 2026-10-27, never run) **initially failed** on the Mac. Chasing it down: the test
+  itself had a bug, not `ncc_seq.c`. `arp_add` (seq.c) seeds `t->arp_idx` to its sentinel (0xFFFFFFFF) on every
+  fresh gesture, before any attack happens; the test's detection (`trk[1].arp_idx != pidx`) counted that harmless
+  reset as a step, and flagged it "off grid" because it lands on the note's own pulse, not the arp's. Excluding the
+  sentinel from the comparison (ncc_arp_clock_test.c) makes the test pass **with `ncc_seq.c` unchanged** — short,
+  long, legato and micro-step-late sequencer notes, both rates, both clock sources, swing and tempo changes all
+  land exactly on the grid with no missed or stray attacks. I also tried two real changes to `ncc_arp_due`/
+  `ncc_arp_phase` (keeping the pulse grid valid across a brief note gap, and later a stricter one-attack-per-slot
+  rule) while chasing the false failure; neither was needed once the test itself was fixed, so neither is kept —
+  `firmware/src/ncc_seq.c` has no diff from committed HEAD.
+- Conclusion: the 2026-10-27 "drifts once the sequencer plays its notes" hypothesis did not hold up under host
+  testing once the test's own bug was removed; the pulse-grid logic in `ncc_seq.c` checks out for everything this
+  test throws at it (a few minutes of simulated play). The new Reddit report's symptom (severe, growing latency
+  and lost clock sync after a while, needing a reboot) sounds like something else — a long-uptime issue (a leak,
+  an unbounded counter, or a stall), not a quantization edge case, and this test's ~3000-pulse runs are far too
+  short to reach it. **Still to do:** a long-duration host simulation (hours of simulated MIDI/clock traffic, not
+  minutes) looking for anything that grows or stalls, and more detail from the reporter (how long before it
+  happens, whether it needs the arp or Drone specifically, which engine/mode, USB or TRS clock).
+- Firmware still builds clean with these fixes: `build/ncc.fwsc`, identity `FM-1_700`, image **578480 B**,
+  RAM **61896 / 73728 B**, pool **359464 / 368640 B**. Not flashed.
+
+## Reddit report: DX7 bank names, bank removal (2026-10-27, uncommitted, not yet host-tested in C)
+
+- A user (Reddit, video with a Circuit Tracks) reported: an imported Dexed .syx "corrupts" and cannot be wiped;
+  the Tracks' template CCs intermittently stop responding; no patch editing in the Manager.
+- Cause of the first: `nl_bank_names` cached the bank's names keyed only on `fm6_bank_used`; a full bank over a full
+  bank (0xFFFFFFFF both times) kept the old names/categories over the new voices. Fix: `nl_bank_changed()`
+  (ncc_library.c), called from `fm6_bank_changed` (fm6_vbank.c, marked NC). The Manager gains **Remove the bank**:
+  BEGIN + END without voices (CRC 0), already supported and documented by the existing protocol, so it also works
+  on 0.4 firmware. Tests: `bank_replace_test` (ncc_test.c), `remove_test` (fm6bank_test.c), Manager mock test.
+- Written on Windows without a C compiler: **only `node web/ncc/manager_test.mjs` was run (passes)**. Run
+  `sh tools/ncc_dev.sh test` and `tests/run_tests.sh` (fm6bank) on the Mac before committing.
+- Remco (2026-10-27): the arp keeps time with held keys but drifts once the Circuit's sequencer plays its notes. No
+  cause found by reading ncc_seq.c (attacks follow the pulse grid; a fresh note waits for the next slot or plays at
+  once within 1/8 step). Added `arp_seq_notes_test` (ncc_arp_clock_test.c): sequencer-like notes (short, long,
+  legato, micro steps, note before/after its clock), 1/16 and 1/32, USB and TRS. **Not run yet** (Mac).
+- Felucca's editor (web/editor.html) against NCC firmware, by reading: the firmware answers all its commands,
+  including FM6_GET/PUT on track 0/1 (L/R patch editing). The editor skips the globals NCC repurposes (G_ENGGO "SET",
+  G_SYNC "SYNC"). Not checked yet: its hard-coded 14-engine table against NCC's 16 (ACID = 14), and P_ED_FX (Juno
+  character) exposed as an ordinary parameter. Not tried on a device or the emulator.
+- Still open from the report: the CC dropouts (no cause found in the code yet; plan: a host stress test with a
+  Tracks-like stream over USB and TRS, plus questions to the reporter) and FM6 patch editing (first check whether
+  Felucca's editor, still on the site at `webapp/editor/`, works with NCC).
+
 ## Main and website sync (2026-10-25)
 
 - Remco authorized pushing the accumulated changes to main and updating the website, preserving its existing
@@ -245,6 +341,11 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 ## Working environment
 
 - Owner Remco / GitHub Fenderberg; answer Dutch, code/docs/comments English except Dutch design records.
+- The whole working copy (including `.git`) is shared via Dropbox between Remco's MacBook and a Windows PC. Work
+  on one machine at a time, and start only after Dropbox has finished syncing; never run git or an assistant on
+  both at once. `.gitattributes` keeps LF everywhere (Windows git has core.autocrlf=true; a CRLF script breaks
+  on the Mac) and `core.fileMode false` in `.git/config` hides Windows' lost executable bits. Build, test and
+  flash on the Mac: the Windows toolchain/test setup is not established yet.
 - Apple silicon Mac; repository in Dropbox. Colima with Rosetta, toolchain `~/.jieli/toolchain`, SDK
   `~/fw-AC79_AIoT_SDK`; builds in `~/.cache/ncc-build`. Setup: `sh tools/setup_env.sh`.
 - Framework Python 3.13 for generators/builds (Pillow/fontTools); Homebrew Python for mido/python-rtmidi.

@@ -7,6 +7,9 @@
 - **REPLACE drones crossfade** from one chord to the next in POLY, when voices are free.
 - The arp stays exactly on the Circuit's clock, also when the tempo changes; Start restarts a held arp.
 - A rare overflow in FM6 fixed.
+- **A new DX7 bank shows its own names**: after a bank replaced another, the list kept the old names and categories.
+- The Manager can **remove the DX7 bank**.
+- **A preset or engine switch keeps the arp and a plain drone going**, instead of silencing the part.
 
 ## 0.4
 

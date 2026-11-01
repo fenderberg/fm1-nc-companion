@@ -119,7 +119,8 @@ footer { color: #4b3a63; font-size: 12px; margin-top: 18px; }
     <h2>DX7 bank (FM6)</h2>
     <p class="hint">FM6 plays real DX7 voices. Send a 32-voice bank (.syx) and its voices appear in the Sounds list
       under FM6, sorted by their names.</p>
-    <div class="row"><strong>On the FM-1:</strong> <span id="bankNow">-</span></div>
+    <div class="row"><strong>On the FM-1:</strong> <span id="bankNow">-</span>
+      <button id="dxRemove" disabled>Remove the bank</button></div>
     <div class="drop" id="dxDrop">Drop a .syx file here, or <button id="dxPick">choose one</button>
       <input type="file" id="dxFile" accept=".syx,.SYX" hidden></div>
     <div id="dxPreview"></div>

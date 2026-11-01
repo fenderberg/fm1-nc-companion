@@ -1064,6 +1064,9 @@ static int project_restore_runtime(const project_t *input)
     proj_perc(p);                                       /* .. or SAMPLE PERC tracks */
     transport_req = 2;
     panic_req = (1u << NTRK) - 1u;
+#if FELUCCA_LIVEUI
+    ncc_sound_req = 0;                                  /* NC: a project load resets every track (ncc_seq.c) */
+#endif
     fm1_irq_off();                                      /* the audio ISR must not see half a project */
     seq_stop();
     transport_req = 0;

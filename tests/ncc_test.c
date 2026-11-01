@@ -1314,6 +1314,40 @@ static void full_bank_test(void)
     fm6_bank_used = 0;
     nl.bok = 0;
 }
+/* a full bank replaced by another full one (a Dexed .syx over the first: the used mask 0xFFFFFFFF both times), then
+ * the bank removed (FM6B_BEGIN, END without voices): the list names and types the new voices, then has none */
+static int stub_bank32b(uint32_t k, uint8_t *pk)
+{
+    memset(pk, 0, FM6_PACKED);
+    memcpy(pk + 118, k & 1u ? "WARM PAD  " : "SOLO LEAD ", 10);
+    return 0;
+}
+static void bank_replace_test(void)
+{
+    uint32_t i, fresh = 0, pads = 0, banked = 0;
+    memset(&nl, 0, sizeof nl);
+    fm6_bank_read = stub_bank32;
+    fm6_bank_used = 0xFFFFFFFFu;
+    nl_build();
+    fm6_bank_read = stub_bank32b;                       /* the new bank (fm6_vbank.c fvb_end: fm6_bank_changed) */
+    nl_bank_changed();
+    nl_build();
+    for (i = 0; i < nl.n; i++)
+        if (nl.s[i].kind == NLK_BANK) {
+            fresh += (uint32_t)str_eq(nl.bname[nl.s[i].k], nl.s[i].k & 1u ? "WARM PAD" : "SOLO LEAD");
+            pads += nl.s[i].cat == NC_PAD;
+        }
+    ok("sounds: a full DX7 bank over another: the new voices' names and types, none of the old", fresh == 32u &&
+       pads == 16u);
+    fm6_bank_used = 0;                                  /* removed: an empty bank committed */
+    nl_bank_changed();
+    nl_build();
+    for (i = 0; i < nl.n; i++)
+        banked += nl.s[i].kind == NLK_BANK;
+    ok("sounds: the DX7 bank removed: none of its voices left in the list", banked == 0u);
+    fm6_bank_read = 0;
+    nl.bok = 0;
+}
 static void engine_ui_test(void)
 {
     track_t *t = &trk[0];
@@ -1708,6 +1742,80 @@ static void stop_test(void)
     blk();
 }
 
+/* A preset or engine switch keeps the arp and a plain drone going (Remco: "behoud de arp als ik van presets
+ * switch"): t->nheld/held[] and Drone's ncd[] list are not forgotten (ui.c ncc_sound_req, seq.c events_block).
+ * Only the currently sounding voice is released; without the arp a droning chord is replayed at once
+ * (ncc_seq.c ncc_sound_kept). A real Panic or project load still clears everything as before. */
+static void preset_keep_arp_test(void)
+{
+    track_t *l = &trk[0], *r = &trk[1];
+    uint32_t i, sounding;
+    power();
+    song.g[G_CLOCK] = 0;                                 /* internal clock/tempo: a plain, steady arp */
+    set_engine_of(r, ENGI_ANALOG);
+    r->p[P_AMODE] = 1; r->p[P_ARATE] = 2; r->p[P_VOICE] = V_POLY;
+    midi(0x93, 60, 100);
+    for (i = 0; i < 40u; i++)
+        blk();
+    ok("preset switch: a held note starts the arp", r->nheld == 1u && r->held[0] == 60u);
+    apply_preset_to(r, 1);                               /* PRESETS: same engine, a different sound */
+    blk();
+    ok("preset switch: the held note survives a preset switch", r->nheld == 1u && r->held[0] == 60u);
+    sounding = 0;
+    for (i = 0; i < 400u; i++) {
+        blk();
+        sounding |= (uint32_t)note_playing(r, 60);
+    }
+    ok("preset switch: the arp keeps sounding on the new preset", sounding != 0u);
+    set_engine_of(r, ENGI_PHASE);                        /* ALGORITHM: a different engine entirely */
+    blk();
+    ok("preset switch: the held note survives an engine switch too", r->nheld == 1u && r->held[0] == 60u);
+    sounding = 0;
+    for (i = 0; i < 400u; i++) {
+        blk();
+        sounding |= (uint32_t)note_playing(r, 60);
+    }
+    ok("preset switch: the arp keeps sounding on the new engine", sounding != 0u);
+    midi(0x83, 60, 0);
+    for (i = 0; i < 10u; i++)
+        blk();
+    ok("preset switch: releasing the key stops the arp normally", r->nheld == 0u && !r->arp_note);
+
+    power();                                             /* plain Drone-hold (no arp): replayed at once */
+    song.g[G_CLOCK] = 0;
+    set_engine_of(r, ENGI_ANALOG);
+    r->p[P_VOICE] = V_POLY;
+    ncd_want[1] = 1;
+    midi(0x93, 55, 100);
+    blk();
+    midi(0x83, 55, 0);
+    for (i = 0; i < 20u; i++)
+        blk();
+    ok("preset switch: a plain drone sounds before the switch", note_playing(r, 55));
+    apply_preset_to(r, 1);
+    sounding = 0;
+    for (i = 0; i < 10u; i++) {
+        blk();
+        sounding |= (uint32_t)note_playing(r, 55);
+    }
+    ok("preset switch: a plain drone is replayed at once on the new preset", sounding != 0u);
+    ncd_want[1] = 0;
+    blk();
+
+    power();                                             /* a real Panic still clears a held arp as before */
+    song.g[G_CLOCK] = 0;
+    set_engine_of(l, ENGI_ANALOG);
+    l->p[P_AMODE] = 1; l->p[P_ARATE] = 2;
+    midi(0x92, 48, 100);
+    for (i = 0; i < 40u; i++)
+        blk();
+    ok("preset switch: before Panic, the arp is held", l->nheld == 1u);
+    panic_req = 1u;
+    for (i = 0; i < 10u; i++)
+        blk();
+    ok("preset switch: Panic still forgets a held arp, unlike a sound change", l->nheld == 0u);
+}
+
 static void splash_test(void)
 {
     uint32_t i, fit = 1;
@@ -1792,6 +1900,7 @@ int main(void)
     split_dac_test();
     engine_ui_test();
     full_bank_test();
+    bank_replace_test();
     ncc_sounds_test();
     loop_test();
     editor_ncc_test();
@@ -1804,9 +1913,11 @@ int main(void)
     macro_map_test();
     acid_test();
     stop_test();
+    preset_keep_arp_test();
     bar_lock_test();
     arp_clock_test();
     arp_clock_rates_test();
+    arp_seq_notes_test();
     splash_test();
     bpm0_test();
     performance_test();

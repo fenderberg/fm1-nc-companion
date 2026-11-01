@@ -100,6 +100,11 @@ static void nl_bank_names(void)
     nl.bok = (uint8_t)ok;
 }
 
+/* fm6_vbank.c, main loop: a bank came in or went (the editor's FM6B_END). Its names are read again at the next
+ * nl_build: bank for bank the used mask alone cannot tell (a full bank over a full one is 0xFFFFFFFF both times,
+ * and the list kept the old bank's names and categories over the new voices) */
+static void nl_bank_changed(void) { nl.bok = 0; }
+
 static void nl_add(uint32_t kind, uint32_t e, uint32_t k, const char *name)
 {
     if (nl.n < NL_MAX)

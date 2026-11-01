@@ -464,6 +464,9 @@ static int up_load(uint32_t k)
     up_values(r, v);
     load_begin(t, UNDO_SOUND);                          /* (ui.c: the copy for SAVE held = undo) */
     panic_req |= (uint8_t)(1u << song.sel);
+#if FELUCCA_LIVEUI
+    ncc_sound_req |= (uint8_t)(1u << song.sel);         /* NC: a sound swap keeps the arp and drone (ncc_seq.c) */
+#endif
 #if !FELUCCA_FM4
     if (r->engine == ENGI_DIGITAL) {                    /* a DIGITAL sound (kept as it was stored): FM6 */
         int16_t p[P_COUNT];

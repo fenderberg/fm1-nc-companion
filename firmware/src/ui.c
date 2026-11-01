@@ -1108,6 +1108,9 @@ static void undo_swap(void)
     if (undo.what & UNDO_SOUND) {
         uint8_t e = t->eng_req, pr = t->preset, u = t->user;
         panic_req |= (uint8_t)(1u << trk_index(t));
+#if FELUCCA_LIVEUI
+        ncc_sound_req |= (uint8_t)(1u << trk_index(t));   /* NC: a sound swap keeps the arp and drone (ncc_seq.c) */
+#endif
         t->eng_req = undo.eng;
         t->preset = undo.preset;
         t->user = undo.user;
@@ -1329,6 +1332,9 @@ static void fm4_load_preset(track_t *t, uint32_t k)
     uint32_t i;
     load_begin(t, UNDO_SOUND);
     panic_req |= (uint8_t)(1u << trk_index(t));
+#if FELUCCA_LIVEUI
+    ncc_sound_req |= (uint8_t)(1u << trk_index(t));       /* NC: a sound swap keeps the arp and drone (ncc_seq.c) */
+#endif
     t->user = 0;
     if (t == TSEL)
         sync_reload = 1;
@@ -1360,6 +1366,9 @@ static void apply_preset_to(track_t *t, uint32_t pi)
     }
     load_begin(t, UNDO_SOUND);
     panic_req |= (uint8_t)(1u << trk_index(t));       /* MONO/POLY may change: release what sounds */
+#if FELUCCA_LIVEUI
+    ncc_sound_req |= (uint8_t)(1u << trk_index(t));   /* NC: a sound/engine swap keeps the arp and drone (ncc_seq.c) */
+#endif
     t->user = 0;
     if (t == TSEL)
         sync_reload = 1;

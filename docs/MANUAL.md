@@ -131,7 +131,8 @@ PHYS, GRAIN and VOICE are heavier on the chip, so they play fewer notes at once 
 FM6 plays real DX7 voices. Thousands of DX7 banks (`.syx`, 32 voices each) are around, for example the archive on
 [Dave Benson's DX7 page](https://homepages.abdn.ac.uk/d.j.benson/pages/html/dx7.html). Drop one on the **DX7 bank**
 tab of the [NCC Manager](#ncc-manager-web-page) and send it to the FM-1: its 32 voices show up in the library under
-FM6, sorted by their names ("E.PIANO 1" is KEYS, "SYN-BASS 1" is BASS, "STRINGS 1" is PAD).
+FM6, sorted by their names ("E.PIANO 1" is KEYS, "SYN-BASS 1" is BASS, "STRINGS 1" is PAD). A new bank replaces the
+old one; **Remove the bank** takes it off. A part playing one of its voices keeps that sound.
 
 ## Coming soon: drum loops
 
@@ -192,6 +193,8 @@ working on top of it.
 - **REC** = **HOLD**: the arp keeps playing after you let go. A new chord replaces the held one; press REC again to
   release.
 - The Circuit's **Stop** stops the arp; its **Start** begins the pattern again from the top.
+- Picking a new sound (SOUND's PRESETS or ALGORITHM) does not stop a running arp: it keeps stepping through the held
+  notes, now with the new sound.
 
 ## Drone
 
@@ -210,6 +213,7 @@ Coming next: in POLY, with voices free, the old chord fades out while the new on
 full voice budgets use a slower fade out and in instead. The first chord starts straight away.
 
 Press SEQ again to release the drone. The Circuit's **Stop** clears it too; Drone stays on for the next notes.
+Picking a new sound keeps a droning chord going too, replayed at once on the new sound.
 
 ## Settings (GLO)
 
@@ -299,7 +303,7 @@ A web page to manage the FM-1 from your computer over USB, in Chrome or Edge: op
 - **Sounds:** the whole library by category and engine, with a search box. **L** / **R** puts a sound on that part.
 - **My sounds:** the 32 user slots. Store what L or R plays now, load, rename, erase, and save them all to a file (or
   load such a file back).
-- **DX7 bank:** drop a 32-voice `.syx`, see its voices and their categories, and send it to FM6.
+- **DX7 bank:** drop a 32-voice `.syx`, see its voices and their categories, and send it to FM6, or remove it.
 - **Backup:** everything on the FM-1 in one file, and back.
 - **Settings:** MIDI channels, SPLIT or STEREO, the clock source, Dual and each part's Drone mode.
 

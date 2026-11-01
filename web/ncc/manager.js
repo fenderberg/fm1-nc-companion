@@ -314,8 +314,10 @@ function dxFile(file) {
   }).catch((e) => say("That file can't be used: " + e.message, "bad"));
 }
 function renderDx() {
+  const nv = dev?.bank ? dev.bank.voices.filter((v) => v.used).length : 0;   /* (a removed bank: one without voices) */
   $("bankNow").textContent = !dev ? "-" : !dev.bank ? "(this firmware has no voice bank)" :
-    dev.bank.has ? `${dev.bank.name.trim() || "a bank"}, ${dev.bank.voices.filter((v) => v.used).length} voices` : "no bank yet";
+    dev.bank.has && nv ? `${dev.bank.name.trim() || "a bank"}, ${nv} voices` : "no bank";
+  $("dxRemove").disabled = !nv;
   const box = $("dxPreview");
   box.replaceChildren();
   $("dxSend").disabled = !dev || !ui.dx;
@@ -349,6 +351,18 @@ function dxSend() {
     prog.value = 1;
     say(`Bank ${nm.trim()} is on the FM-1: its voices are in Sounds under FM6.`, "ok");
   }, [loadBank, ...(dev?.ncc ? [loadLib] : [])]).finally(() => { prog.hidden = true; });
+}
+/* the bank removed: a bank without voices committed (BEGIN, END with no WRITE; the CRC of no records is 0). Any
+ * firmware with the bank takes it; a part playing one of its voices keeps that sound as its own (fm6_bank_changed) */
+function dxRemove() {
+  if (!confirm("Remove the DX7 bank from the FM-1? A part playing one of its voices keeps that sound.")) return;
+  act("Removing the bank", async () => {
+    let a = await rq([FM6B.BEGIN, []], { timeout: 2500, retries: 0 });
+    if (a[0]) throw new Error("begin rc " + a[0]);
+    a = await rq([FM6B.END, [...Array(10).fill(32), 0, 0, 0, 0, 0]], { timeout: 3000, retries: 0 });
+    if (a[0]) throw new Error("end rc " + a[0]);
+    say("The DX7 bank is removed.", "ok");
+  }, [loadBank, ...(dev?.ncc ? [loadLib] : [])]);
 }
 
 /* ------------------------------------------------------------------ loops --- */
@@ -550,9 +564,10 @@ function mockAccess() {
     else if (c === CMD.SMP_BEGIN) reply(c, [a[0], 0]);
     else if (c === CMD.SMP_WRITE) reply(c, [a[0], a[1], a[2], a[3], 0]);
     else if (c === CMD.SMP_END) { const h = unpack7(a.slice(1)); st.smp[a[0]] = { zones: h[6], name: String.fromCharCode(...h.slice(8, 16)).replace(/\0+$/, ""), kib: 20 }; reply(c, [a[0], 0]); }
-    else if (c === FM6B.BEGIN) reply(c, [0]);
-    else if (c === FM6B.WRITE) { st.bank.voices[a[0]] = { used: 1, name: String.fromCharCode(...a.slice(119, 129)).trimEnd() }; reply(c, [a[0], 0]); }
-    else if (c === FM6B.END) { st.bank.has = 1; st.bank.name = String.fromCharCode(...a.slice(0, 10)); reply(c, [0, 32]); }
+    else if (c === FM6B.BEGIN) { st.bank.next = Array.from({ length: 32 }, () => ({ used: 0, name: "" })); reply(c, [0]); }
+    else if (c === FM6B.WRITE) { st.bank.next[a[0]] = { used: 1, name: String.fromCharCode(...a.slice(119, 129)).trimEnd() }; reply(c, [a[0], 0]); }
+    else if (c === FM6B.END) { st.bank.has = 1; st.bank.name = String.fromCharCode(...a.slice(0, 10)); st.bank.voices = st.bank.next;
+      reply(c, [0, st.bank.voices.filter((v) => v.used).length]); }
     else if (c === FM6B.LIST) reply(c, [32, st.bank.has, ...S(st.bank.name), ...st.bank.voices.flatMap((v) => [v.used, ...S(v.name)])]);
   } };
   return { inputs: new Map([["i", input]]), outputs: new Map([["o", output]]) };
@@ -575,6 +590,7 @@ $("mineImportBtn").onclick = () => $("mineImport").click();
 $("mineImport").onchange = (e) => { if (e.target.files[0]) mineImport(e.target.files[0]); e.target.value = ""; };
 dropZone("dxDrop", "dxPick", "dxFile", (fs) => fs[0] && dxFile(fs[0]));
 $("dxSend").onclick = dxSend;
+$("dxRemove").onclick = dxRemove;
 dropZone("lpDrop", "lpPick", "lpFile", lpFiles);
 $("lpName").oninput = renderLoops;
 $("lpSend").onclick = lpSend;

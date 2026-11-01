@@ -279,6 +279,9 @@ static void fm1_main(void)
         if (usb.ota_req) {                              /* M-UPGRADE upgrade command */
             usb.ota_req = 0;
             panic_req = (1u << NTRK) - 1u;               /* every track (bit per track) */
+#if FELUCCA_LIVEUI
+            ncc_sound_req = 0;                           /* NC: a real reset, not a sound change (ncc_seq.c) */
+#endif
             scr_wake_now();                             /* (its progress on the screen) */
             if (flash_ok)
                 ota_session();                          /* returns only if nothing was committed */

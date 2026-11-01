@@ -50,6 +50,10 @@ static volatile uint8_t kb_asleep;       /* MENU > SCREEN OFF (ui.c): the screen
 static uint8_t last_note = 60;
 static volatile uint8_t transport_req;   /* 1 start, 2 stop, 3 restart (from the UI) */
 static volatile uint8_t panic_req;       /* bit per track: release every sounding note (preset / engine change) */
+#if FELUCCA_LIVEUI
+static volatile uint8_t ncc_sound_req;   /* NC: bit per track, set with panic_req: a sound/engine change, not a real
+                                          * panic, so the arp and drone keep their held notes (ncc_seq.c) */
+#endif
 static volatile uint8_t midi_hint;       /* MIDI IN played track n - 1, which is not the selected one (the UI says so) */
 static volatile uint8_t midi_seen;       /* 1.5.5 (#208): bit per track, a MIDI IN note-on played it since the UI last
                                           * looked (ui_input.c midi_follow: the track's light, AUTO SELECT;
@@ -1354,6 +1358,9 @@ static int32_t click_beat_now(void)
 static void events_block(uint32_t n)
 {
     uint32_t i, pr, seq_n = n;
+#if FELUCCA_LIVEUI
+    uint32_t sr;                                       /* NC: ncc_sound_req, read with panic_req */
+#endif
     uint32_t clock_mode = (uint32_t)song.g[G_CLOCK];
     if (midi_clock.mode != clock_mode) {
         seq_stop();
@@ -1390,6 +1397,10 @@ static void events_block(uint32_t n)
     }
     pr = panic_req;
     panic_req = 0;
+#if FELUCCA_LIVEUI
+    sr = ncc_sound_req;                                /* NC: which of pr's tracks keep their held/droning notes */
+    ncc_sound_req = 0;
+#endif
     if (midi_in_overflow) {                            /* a lost note-off must never leave a held note */
         mi_r = mi_w;
         memset(midi_sel_on, 0, sizeof midi_sel_on);
@@ -1402,17 +1413,29 @@ static void events_block(uint32_t n)
             trk[i].seq_n = trk[i].seq_hold = trk[i].slide_glide = trk[i].rat_left = 0;
         }
         pr |= (1u << NTRK) - 1u;
+#if FELUCCA_LIVEUI
+        sr = 0;                                        /* NC: a lost note-off forces a real reset of every track */
+#endif
         RING_PUBLISH();
         midi_in_overflow = 0;
     }
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
         if ((pr >> i) & 1u) {
-            midi_forget_track(i);
-            trk_all_off(t);
-            t->nheld = 0;
-            t->arp_phys = 0;
-            arp_forget(t);
+#if FELUCCA_LIVEUI
+            if ((sr >> i) & 1u) {                      /* NC: a sound/engine change: the arp and drone keep playing */
+                trk_all_off(t);
+                arp_forget(t);
+                ncc_sound_kept(t);                     /* NC: without the arp, replay a droning chord at once */
+            } else
+#endif
+            {
+                midi_forget_track(i);
+                trk_all_off(t);
+                t->nheld = 0;
+                t->arp_phys = 0;
+                arp_forget(t);
+            }
         }
         engine_block(t);                              /* engine switch: fade, then switch (voice.c) */
         /* ARP turned off, or HOLD released with no key down: drop the latched chord */

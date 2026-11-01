@@ -241,6 +241,21 @@ static void ncd_release(uint32_t part)
         ncd_abort_fade(part);                            /* no physical tone survived Drone off */
 }
 
+/* a sound/engine change panic (ui.c, upreset.c, seq.c events_block): held/droning notes are not forgotten there, so
+ * an arp (already stepping from t->held[]) carries on by itself. Without the arp, a droning chord's voices were just
+ * released by trk_all_off (seq.c) along with everything else that sounded; replay them at once. trk_note_on already
+ * defers correctly through an actual engine's crossfade (voice.c engine_block runs right after this), same as any
+ * other note. A fade/overlap/pending transition already under way keeps its own notes and timing undisturbed. */
+static void ncc_sound_kept(track_t *t)
+{
+    uint32_t part = trk_index(t), i;
+    if (part >= NCM_PARTS || t->p[P_AMODE] || !ncd[part].on || ncd[part].pending ||
+        ncd_fade[part].phase != NCD_FADE_IDLE || ncd_overlapping[part])
+        return;
+    for (i = 0; i < ncd[part].n; i++)
+        trk_note_on(t, ncd[part].note[i], ncd[part].vel[i]);
+}
+
 /* events_block, before the arps step: Drone-hold off, HOLD off, the transport's Start and Stop, the bar's place */
 static void ncc_seq_block(uint32_t clock_mode, uint32_t seq_n)
 {

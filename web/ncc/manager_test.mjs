@@ -21,6 +21,7 @@ const context = vm.createContext({ document, location: { search: "?mock=1" }, UR
   setTimeout, clearTimeout, performance, TextDecoder, TextEncoder, Uint8Array, ArrayBuffer, confirm: () => true });
 vm.runInContext(proto + "\n" + source + `
 globalThis.api = { typeOf, connect, loadParts, parseNccInfo, renderSettings, get: () => dev, busy: () => busy,
+  dx: (buf) => { ui.dx = { voices: readSyx(buf), file: "TEST.syx" }; renderDx(); },
   send: args => rq([NCMD.SET, args]),
   load: (part, index) => rq([NCMD.LOAD, [part, ...v14enc(index)]]),
   legacy: args => { dev.ncc = parseNccInfo(args); dev.link.request = async () =>
@@ -65,6 +66,28 @@ assert.equal(api.get().dual, 2);
 assert.deepEqual(plain(api.get().drone[0]), { mode: 0, on: 1 });
 assert.equal((await api.send([4, 3]))[1], 1);
 assert.equal((await api.send([5, 2, 0, 0]))[1], 1);
+
+async function click(id) {
+  el(id).onclick();
+  for (let i = 0; i < 400 && !api.busy(); i++) await new Promise((resolve) => setTimeout(resolve, 1));
+  for (let i = 0; i < 400 && api.busy(); i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(api.busy(), false, `${id} completed`);
+}
+const syx = (tag) => {                                  /* a 32-voice DX7 bank as Dexed saves it */
+  const d = new Uint8Array(4104); d.set([0xF0, 0x43, 0x00, 0x09, 0x20, 0x00]);
+  for (let k = 0; k < 32; k++) d.set([...`${tag} ${String(k + 1).padStart(2, "0")}`.padEnd(10)].map((c) => c.charCodeAt(0)), 6 + k * 128 + 118);
+  d[4103] = 0xF7; return d.buffer;
+};
+for (const tag of ["PIANO", "STRINGS"]) {               /* a bank over a bank: the new names */
+  api.dx(syx(tag));
+  await click("dxSend");
+  assert.deepEqual(plain(api.get().bank.voices.map((v) => v.name)), Array.from({ length: 32 }, (_, k) => `${tag} ${String(k + 1).padStart(2, "0")}`));
+}
+assert.equal(el("dxRemove").disabled, false);
+await click("dxRemove");
+assert.equal(api.get().bank.voices.filter((v) => v.used).length, 0, "bank removed");
+assert.equal(el("bankNow").textContent, "no bank");
+assert.equal(el("dxRemove").disabled, true);
 
 const str = (s) => [...s].map((c) => c.charCodeAt(0)).concat(0);
 const oldInfo = [...str("NCC"), ...str("1.6.1"), 1, ...str("ALL"), 1, 12, ...str("FM6")];

@@ -563,6 +563,29 @@ static int keep_test(void)
     return bad;
 }
 
+/* NC: the NCC Manager's "Remove the bank": BEGIN, END without voices (the CRC of no records, 0). No voice is left,
+ * LIST says so, it stays so after a power-on, and a track on a bank voice keeps that voice as its own patch */
+static int remove_test(void)
+{
+    int bad = 0, ok, k;
+    static bank_t a, none;
+    uint8_t arg[1], pk[FM6_PACKED];
+    reset();
+    make_bank(&a, 'A', 0xFFFFFFFFu, "BANK A");
+    make_bank(&none, 'N', 0, "");
+    send_bank(&a, 0);
+    slot_to(0, FM6_OWN + 3);                              /* track 1 plays B3 */
+    ok = send_bank(&none, 0) == 0 && rep[1] == 0 && bank_is(&none) && fm6_slot[0] == FM6_OWN && patch_is(0, a.v[2]);
+    for (k = 0; k < (int)FM6_NBANK; k++)
+        ok &= fvb_read((uint32_t)k, pk) == 1;
+    request(ED_FM6B_LIST, arg, 0);
+    ok &= rep_n == 2u + 1u + 32u * 2u && rep[0] == 32 && rep[2] == 0 && rep[3] == 0;   /* (a bank, named "", empty) */
+    fvb_boot();                                           /* the next power-on */
+    bad += check("the bank removed (END without voices): none left, also after a power-on; B3's track keeps its voice",
+                 ok && fm6_bank_used == 0 && bank_is(&none));
+    return bad;
+}
+
 int main(void)
 {
     int bad = 0;
@@ -570,6 +593,7 @@ int main(void)
     bad += cut_test();
     bad += slot_test();
     bad += keep_test();
+    bad += remove_test();
     printf(bad ? "fm6bank: FAILED (%d)\n" : "fm6bank: all ok\n", bad);
     return bad ? 1 : 0;
 }

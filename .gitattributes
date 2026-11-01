@@ -1,0 +1,3 @@
+# NC: the working copy is shared between macOS and Windows via Dropbox. Keep LF everywhere, whatever a machine's
+# core.autocrlf says: a CRLF shell script no longer runs on the Mac. Binaries are detected and left alone.
+* text=auto eol=lf

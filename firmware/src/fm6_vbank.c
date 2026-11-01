@@ -41,6 +41,10 @@ static struct {
     uint8_t on, copy;                          /* a transfer is open; its sector: the autosave's copy A (0) / B (1) */
 } fvb_tx __attribute__((section(".pool")));    /* (zeroed at boot) */
 
+#if FELUCCA_LIVEUI
+static void nl_bank_changed(void);                 /* NC: ncc_library.c, included later (live_ui.c) */
+#endif
+
 /* the bank was replaced: a track on a bank slot keeps the voice it loaded, as its own patch (SLOT OWN) */
 static void fm6_bank_changed(void)
 {
@@ -48,6 +52,9 @@ static void fm6_bank_changed(void)
     for (tr = 0; tr < NTRK; tr++)
         if (trk[tr].eng_req == ENGI_FM6 && fm6_bank_slot(fm6_slot[tr]) >= 0)
             fm6_adopt(tr);
+#if FELUCCA_LIVEUI
+    nl_bank_changed();                         /* NC: NCC's sound list reads the new bank's names (ncc_library.c) */
+#endif
 }
 
 #if FELUCCA_FLASH
