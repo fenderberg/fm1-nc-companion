@@ -2,6 +2,33 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-25.
 
+## Release 0.5 and GitHub Issues (2026-11-01)
+
+- Remco authorized "maak een nieuwe release", then "jij mag dit voor mij doen. sta ook toe dat gebruikers in
+  github bugs en commentaar kunnen geven" after the site publish needed a separate explicit permission.
+- `CHANGELOG.md`'s Unreleased section became **0.5** (commit `d4c7b10`, pushed to `main`): the preset/engine-switch
+  arp and drone fix, PLAY page navigation, the arp clock lock, REPLACE drone crossfade, the DX7 bank-replace/remove
+  fix and its Mac build fix.
+- `sh tools/ncc_dev.sh release 0.5` built from committed HEAD: identity **FM-1_705**, image **578732 B**, package
+  `ncc-0.5.fwsc` SHA-256 `b98b152f77c5d510f9c062f5907d126c837e61d5a77a2239c6886138fd54ec52`. The source archive
+  (`ncc-0.5-source.tar.gz`) was assembled by hand (`git archive HEAD` plus the engines submodule at its pinned
+  commit, c46e0086, same as 0.4's) since no reusable script exists for it yet; `SHA256SUMS` covers all three
+  downloads. Published as GitHub release **v0.5**: https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.5
+  — note `gh`'s default repo context resolves to the upstream `hugelton/Felucca`, not this fork, because `origin`
+  and `upstream` are both configured; every `gh` command here must pass `--repo fenderberg/fm1-nc-companion`
+  explicitly, or it risks touching the wrong repository.
+- `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.5` rebuilt the site around this release (0.5 now shown as a released,
+  green version, no more "Next"/preview). Publishing it (`publish-site`) was blocked once by the harness's own
+  auto-mode permission classifier ("Create Public Surface"); Remco's explicit follow-up authorized it and the
+  retry succeeded, publishing `gh-pages` commit `a09c571`. Live checks confirm the home page shows 0.5 and the
+  live firmware download's checksum matches the release.
+- GitHub **Issues enabled** on the repository (`gh repo edit --enable-issues`), so reports like the Reddit one no
+  longer need a separate channel; Discussions remains off (not asked for). Not documented anywhere in-repo yet
+  (nothing referenced "issues disabled" in the site/README to begin with).
+- This release was not flashed to the device separately: the FM-1 already runs this exact source (installed
+  earlier the same session, recorded above) under its development identity FM-1_700; only identity/version
+  metadata differs between that build and the FM-1_705 release package.
+
 ## Main and website sync (2026-11-01)
 
 - Remco authorized "push deze versie naar de main. update de documentatie en de website". Added short MANUAL.md
