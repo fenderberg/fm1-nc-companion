@@ -1,6 +1,6 @@
 # What's new in NCC
 
-## Unreleased
+## 0.5
 
 - **PLAY turns the pages** of ARP, FX, GLO and EDIT: tap for the next, hold for the previous. SELECT is only the
   category, on SOUND.
