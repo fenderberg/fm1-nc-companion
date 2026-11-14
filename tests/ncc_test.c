@@ -1816,6 +1816,34 @@ static void preset_keep_arp_test(void)
     ok("preset switch: Panic still forgets a held arp, unlike a sound change", l->nheld == 0u);
 }
 
+/* L leaves FM6 for JUNO, its FM6 patch is rewritten 256 times meanwhile (the Manager/editor's FM6_PUT, a latent patch;
+ * an 8-bit generation came round to the cached value) and L goes back to FM6 without a preset load: it plays the
+ * patch published last, not the stale copy from before the switch (upstream Felucca #315). */
+static void fm6_return_test(void)
+{
+    track_t *l = &trk[0];
+    uint8_t v[FP_SIZE + 1u];
+    uint32_t i, old_alg;
+    power();
+    ok("FM6 return: L starts on FM6", l->engine == ENGI_FM6);
+    for (i = 0; i < 3u; i++)
+        blk();
+    old_alg = fm6_eff[0].p[FP_ALG] & 31u;
+    l->eng_req = ENGI_ANALOG;
+    for (i = 0; i < 3u; i++)
+        blk();
+    memcpy(v, fm6_patch[0], sizeof v);
+    v[FP_ALG] = (uint8_t)((old_alg + 5u) & 31u);
+    for (i = 0; i < 256u; i++)
+        fm6_set_patch(0, v);
+    blk();
+    l->eng_req = ENGI_FM6;
+    for (i = 0; i < 3u; i++)
+        blk();
+    ok("FM6 return: back on FM6 it plays the patch published meanwhile",
+       l->engine == ENGI_FM6 && (fm6_eff[0].p[FP_ALG] & 31u) == v[FP_ALG]);
+}
+
 static void splash_test(void)
 {
     uint32_t i, fit = 1;
@@ -1914,6 +1942,7 @@ int main(void)
     acid_test();
     stop_test();
     preset_keep_arp_test();
+    fm6_return_test();
     bar_lock_test();
     arp_clock_test();
     arp_clock_rates_test();
