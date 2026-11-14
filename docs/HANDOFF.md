@@ -1,6 +1,31 @@
 # Handoff: where NCC stands
 
-Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-10-25.
+Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-14.
+
+## Upstream Felucca fixes taken over (2026-11-14, committed locally, not pushed, host-tested only)
+
+- Remco asked to look around other open-source FM-1 firmwares for sounds/features; the most useful find was
+  upstream Felucca itself (now 1.8.2, hardware layer moved into a `felucca-bsp` submodule). He approved a plan
+  ("ja") to take over four of its fixes, one commit each, without a full merge:
+  - `3406f83` (upstream f4cbb6a, #320): JEDEC 0xB36014 (UC25HQ80) accepted next to 0x856014. Newer FM-1 units
+    were RAM-only (nothing saved). Not tested on such a unit.
+  - `30fbf96` (1a3bc4a #264, 092f748 #258): TRS UART takes a DMA batch only on RX/timeout pending (an empty poll
+    could replay a stale count: phantom CCs/clock pulses), events every 32 bytes; TIMER5 (now `timer5.c`) also
+    polls TRS while nested in the audio render, so clock pulses keep their arrival time. Both queue producers
+    stay in TIMER5. Candidate cause for the Reddit CC dropouts/clock drift, unconfirmed on hardware. Known tiny
+    window (as upstream): a TRS packet enqueued while seq.c clears an overflow is dropped without a new reset.
+  - `65039d5` (6b1115b #312): editor/Manager SysEx no longer swallowed by ota_service().
+  - `5c44102` (b250074 #315, by hand around the NC CEG field): 32-bit fm6_pgen, fm6_eff_drop outside FM6. New
+    `fm6_return_test` fails on the old code, passes now.
+- Upstream tests brought along with paths adapted to NCC's pre-BSP layout: uart_dma_test, timer5_midi_test (plus
+  an NCC variant under saturated macro CCs: 120 BPM stays 120, no drops, timestamps within 1 ms; Felucca's MIDI
+  Learn value check skipped there), sysex_dispatch_test.py, fm6_eff_test. All wired into `ncc_dev.sh test` and
+  `run_tests.sh` (full run_tests.sh not rerun). Goldens unchanged, emu-test passes.
+- Build: image **578880 B**, RAM **61896 / 73728 B**, pool **359464 / 368640 B**, identity FM-1_700. Not flashed.
+- Deliberately not taken: upstream's clock drift fix #269 (64-bit division, and NCC's arps already use their own
+  pulse grid), BPM-0 and FM6 phase wrapping (NCC had its own), #265's shift→multiply (for the shift audit), FX
+  latch #313, the BSP migration. Sound ideas from other firmwares (Solina strings, Rhodes/organ as FM6 patches,
+  hoover/supersaw, punch-in FX, LPG drone, arp chance/ratchet) are proposals only.
 
 ## Release 0.5 and GitHub Issues (2026-11-01)
 

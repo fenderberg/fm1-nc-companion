@@ -1,5 +1,14 @@
 # What's new in NCC
 
+## Unreleased
+
+- **Newer FM-1 units save again**: units with the newer UC25HQ80 flash chip kept nothing after power-off.
+- **Steadier TRS MIDI**: old bytes are no longer read twice (stray CCs and clock pulses), and the clock is timed
+  on arrival, also while the FM-1 is busy with heavy sounds and many knob moves.
+- Manager requests no longer get lost now and then.
+- A part that goes back to FM6 plays its latest patch, not an old copy.
+- These fixes come from Felucca (Hügelton Instruments).
+
 ## 0.5
 
 - **PLAY turns the pages** of ARP, FX, GLO and EDIT: tap for the next, hold for the previous. SELECT is only the
