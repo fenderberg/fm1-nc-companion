@@ -2,6 +2,25 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-14.
 
+## Release 0.6 (2026-11-14, published without a device test)
+
+- Remco: "push and publish the latest version and update the website"; asked about the missing device test, he
+  answered "test eerst op laptop (door jou) ik heb mn fm1 niet bij me maar wil toch publiceren". So 0.6 rests on
+  host evidence only; the release notes say so explicitly. **No FM-1 has run this code yet.**
+- Laptop tests before publishing: `ncc_dev.sh test` and `emu-test` pass; upstream's full `run_tests.sh`
+  (SANITIZE=0, in the build mirror) fails only its known Mac exceptions (two DRUM ASan start-up aborts, PERFORM CPU
+  budget); all newly brought tests run there and pass; `fm1_timer5_irq` target cost 27891 within budget 33387.
+- CHANGELOG Unreleased → **0.6** (`7ae1a8a`, pushed). `sh tools/ncc_dev.sh release 0.6`: identity **FM-1_706**,
+  image **578876 B**, RAM 61896 B, pool 359464 B. `ncc-0.6.fwsc` SHA-256
+  `0dd7b927060905d2be6fe7ec9a8f13ceb951655f87ea2ab6490027f1346502c0`. Source archive by hand as for 0.5
+  (`git archive` HEAD + engines c46e0086); its file list differs from 0.5's by exactly the six new files.
+- GitHub release **v0.6** (latest, tag on `7ae1a8a`, `--repo fenderberg/fm1-nc-companion`): fwsc, zip, source
+  tar.gz, SHA256SUMS; uploaded digests match. https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.6
+- `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.6`, `publish-site`: `gh-pages` **31edfa6**, Pages built. Live home,
+  manual and installer match the build byte for byte; the live firmware matches the release checksum.
+- To do when the FM-1 is back: flash (with OK), verify identity/library, and listen with the Circuit on TRS
+  (clock, macro CCs) — the first hardware check of these fixes.
+
 ## Upstream Felucca fixes taken over (2026-11-14, pushed to main, host-tested only)
 
 - Remco authorized "push naar github": `ba2b2ed..f04832e` pushed to `origin/main` (fenderberg/fm1-nc-companion).
