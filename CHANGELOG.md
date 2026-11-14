@@ -1,8 +1,8 @@
 # What's new in NCC
 
-## Unreleased
+## 0.6
 
-- **Newer FM-1 units save again**: units with the newer UC25HQ80 flash chip kept nothing after power-off.
+- **Newer FM-1 units now save**: units with the newer UC25HQ80 flash chip kept nothing after power-off.
 - **Steadier TRS MIDI**: old bytes are no longer read twice (stray CCs and clock pulses), and the clock is timed
   on arrival, also while the FM-1 is busy with heavy sounds and many knob moves.
 - Manager requests no longer get lost now and then.
