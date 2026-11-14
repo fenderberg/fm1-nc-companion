@@ -72,7 +72,14 @@ test)
     cc -O2 -w -DFELUCCA_LIVEUI=1 -Ibuild/gen -Ifirmware/src -o build/host/ncc_extra_cpu tests/ncc_extra_cpu.c -lm
     "$PY" tools/ncc_check.py --log build/host/ncc_extra_cpu.log --summary '^ncc extra cpu:' -- build/host/ncc_extra_cpu
     cc -O1 -w -Ibuild/gen -Ifirmware/src -o build/host/editor_test tests/editor_test.c -lm
-    "$PY" tools/ncc_check.py --log build/host/editor_test.log --summary '^editor test passed$' -- build/host/editor_test ;;
+    "$PY" tools/ncc_check.py --log build/host/editor_test.log --summary '^editor test passed$' -- build/host/editor_test
+    # TRS input: upstream's DMA event and TIMER5 timestamp tests; the last runs NCC's macros under CC load.
+    cc -O1 -w -fsanitize=undefined -fno-sanitize-recover=all -Ibuild/gen -Ifirmware/src -o build/host/uart_dma_test tests/uart_dma_test.c -lm
+    "$PY" tools/ncc_check.py --log build/host/uart_dma_test.log --summary '^UART DMA EVENT TEST PASSED$' -- build/host/uart_dma_test
+    cc -O2 -w -o build/host/timer5_midi_test tests/timer5_midi_test.c
+    "$PY" tools/ncc_check.py --log build/host/timer5_midi_test.log --summary '^wire:' -- build/host/timer5_midi_test
+    cc -O1 -w -fsanitize=undefined -fno-sanitize=shift-base -fno-sanitize-recover=all -DFELUCCA_LIVEUI=1 -DTIMER5_SYNTH_TEST=1 -Ibuild/gen -Ifirmware/src -o build/host/timer5_ncc_test tests/timer5_midi_test.c -lm
+    "$PY" tools/ncc_check.py --log build/host/timer5_ncc_test.log --summary '^wire:' --prefix '(NCC) ' -- build/host/timer5_ncc_test ;;
 build)
     mkdir -p build
     colima_up

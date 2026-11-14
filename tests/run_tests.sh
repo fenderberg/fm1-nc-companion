@@ -202,6 +202,9 @@ fail=0
 run() { echo "== $1"; shift; "$@" || fail=1; }
 
 $CC -o "$OUT/storage_test" tests/storage_test.c
+$CC -Ibuild/gen -Ifirmware/src -o "$OUT/uart_dma_test" tests/uart_dma_test.c -lm
+run "TRS UART: pending events, stale counts, exact packets and continuous traffic" "$OUT/uart_dma_test"
+
 run "flash storage (A/B, torn writes)" "$OUT/storage_test"
 
 $CC -o "$OUT/upreset_test" tests/upreset_test.c
@@ -212,6 +215,11 @@ run "keys and buttons: fast press, long release, bouncy contacts (one note each)
 
 $CC -o "$OUT/midi_uart_test" tests/midi_uart_test.c
 run "TRS MIDI parser" "$OUT/midi_uart_test"
+
+$CC -O2 -o "$OUT/timer5_midi_test" tests/timer5_midi_test.c
+run "TRS timestamping during audio with saturated CC input" "$OUT/timer5_midi_test"
+$CC -O2 -DFELUCCA_UART=0 -o "$OUT/timer5_midi_nouart_test" tests/timer5_midi_test.c
+run "TIMER5 with TRS input disabled" "$OUT/timer5_midi_nouart_test"
 
 HALF=$(sed -n 's/^#define HALF_FRAMES \([0-9]*\).*/\1/p' firmware/src/core.h)
 $CC -O2 -DT_CDC=1 -DHALF_FRAMES=$HALF -o "$OUT/uac_test" tests/uac_test.c -lm
@@ -285,6 +293,8 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "1.2 (FUN10): LFO 2 SYNC / TRIG / POL, NUDGE (record, QUANTIZE, play, controls), 128 motion records, FUN10 / FUN9 / FUN8 / FUN7, user presets" "$OUT/fun10_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/midi_control_test" tests/midi_control_test.c -lm
     run "USB/TRS clock, bend, sustain, ownership and panic recovery" "$OUT/midi_control_test"
+    $CC -O1 -w -DTIMER5_SYNTH_TEST=1 -Ibuild/gen -Ifirmware/src -o "$OUT/timer5_cc_clock_test" tests/timer5_midi_test.c -lm
+    run "TRS clock and four sequencers under saturated learned CCs (full upstream map)" "$OUT/timer5_cc_clock_test"
     $CC -O1 -w -DFELUCCA_FM4=1 -Ibuild/gen -Ifirmware/src -o "$OUT/digital_test" tests/digital_test.c -lm
     run "DIGITAL (retired, built here with FELUCCA_FM4=1): operator envelopes/levels" "$OUT/digital_test"
     $CC -O2 -w -DFELUCCA_FM4=1 -Ibuild/gen -Ifirmware/src -o "$OUT/fm4_test" tests/fm4_test.c -lm
@@ -480,6 +490,10 @@ else
     A="$OUT/asan"
     SCC="${CC%% *} $SAN -Ibuild/gen -Ifirmware/src"
     export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0}"
+    # This regression uses strict ASan/UBSan, without the broad DSP exclusions.
+    STRICT_CC="${CC%% *} -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -w -Ibuild/gen -Ifirmware/src"
+    $STRICT_CC -o "$A/uart_dma_test_strict" tests/uart_dma_test.c -lm
+    run "Strict ASan/UBSan (no exclusions): uart_dma_test" "$A/uart_dma_test_strict"
     $SCC -o "$A/ldr_test" tests/ldr_test.c
     run "ASan/UBSan: update loader (other app -> this build)" "$A/ldr_test" "$OUT/old.fwsc" build/felucca.fwsc
     $SCC -DOWN_PKG=1 -o "$A/ota_test" tests/ota_test.c
