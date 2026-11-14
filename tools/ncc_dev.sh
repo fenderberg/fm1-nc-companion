@@ -73,6 +73,7 @@ test)
     "$PY" tools/ncc_check.py --log build/host/ncc_extra_cpu.log --summary '^ncc extra cpu:' -- build/host/ncc_extra_cpu
     cc -O1 -w -Ibuild/gen -Ifirmware/src -o build/host/editor_test tests/editor_test.c -lm
     "$PY" tools/ncc_check.py --log build/host/editor_test.log --summary '^editor test passed$' -- build/host/editor_test
+    "$PY" tools/ncc_check.py --log build/host/sysex_dispatch_test.log --summary '^OK$' -- "$PY" -I tests/sysex_dispatch_test.py
     # TRS input: upstream's DMA event and TIMER5 timestamp tests; the last runs NCC's macros under CC load.
     cc -O1 -w -fsanitize=undefined -fno-sanitize-recover=all -Ibuild/gen -Ifirmware/src -o build/host/uart_dma_test tests/uart_dma_test.c -lm
     "$PY" tools/ncc_check.py --log build/host/uart_dma_test.log --summary '^UART DMA EVENT TEST PASSED$' -- build/host/uart_dma_test
