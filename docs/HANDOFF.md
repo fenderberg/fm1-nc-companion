@@ -2,7 +2,10 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-14.
 
-## Upstream Felucca fixes taken over (2026-11-14, committed locally, not pushed, host-tested only)
+## Upstream Felucca fixes taken over (2026-11-14, pushed to main, host-tested only)
+
+- Remco authorized "push naar github": `ba2b2ed..f04832e` pushed to `origin/main` (fenderberg/fm1-nc-companion).
+  No release, site publish or device flash.
 
 - Remco asked to look around other open-source FM-1 firmwares for sounds/features; the most useful find was
   upstream Felucca itself (now 1.8.2, hardware layer moved into a `felucca-bsp` submodule). He approved a plan
