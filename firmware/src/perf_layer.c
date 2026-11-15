@@ -49,50 +49,50 @@ static const ncm_map_t NCM_MAP[] = {
     {ENGI_FM6, {
         {{P_E3, 16}, {NCM_NONE, 0}},              /* OSCILLATOR   MRAT, the modulators' ratios (steps): +-8 */
         {{P_E1, 32}, {NCM_NONE, 0}},              /* OSC MOD      FB, feedback (steps): +-7 */
-        {{NCM_CEG, 32}, {NCM_NONE, 0}},           /* AMP ENV      the carriers' envelope times: + slower */
+        {{NCM_CEG, 32}, {NCM_NONE, 0}},           /* AMP ENV      the carriers' decay/release times: + slower */
         {{P_E4, 32}, {NCM_NONE, 0}},              /* FILTER ENV   MEG, the modulators' envelope times */
         {{P_E2, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  MLVL, the brightness */
         {{P_E6, 64}, {NCM_NONE, 0}},              /* RESONANCE    DTUN, the carriers apart (FM6 has no filter) */
         {{P_LD_FLT, 32}, {P_LD_PIT, 2}},          /* MODULATION   the LFO on the brightness, a little vibrato */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
     },
-        {"RATIOS", "FEEDBK", "CAR ENV", "MOD ENV", "BRIGHT", "DETUNE", "LFO", "DRIVE"},
+        {"RATIOS", "FEEDBK", "LENGTH", "MOD ENV", "BRIGHT", "DETUNE", "LFO", "DRIVE"},
     },
     {ENGI_ANALOG, {
         {{P_E2, 32}, {NCM_NONE, 0}},              /* OSCILLATOR   MIX, osc 1 / osc 2 */
         {{P_E1, 32}, {NCM_NONE, 0}},              /* OSC MOD      DTN, osc 2's detune */
-        {{P_ATK, 32}, {P_REL, 32}},               /* AMP ENV      attack and release */
+        {{P_REL, 32}, {NCM_NONE, 0}},             /* AMP ENV      the release: longer, the attack kept */
         {{P_ED_FLT, 32}, {NCM_NONE, 0}},          /* FILTER ENV   ENV -> FLT */
         {{P_E4, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  CUT */
         {{P_E5, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on the filter, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
     },
-        {0, 0, "ATK+REL", "ENV AMT", "CUTOFF", "RESO", "LFO", "DRIVE"},
+        {0, 0, "RELEASE", "ENV AMT", "CUTOFF", "RESO", "LFO", "DRIVE"},
     },
     {ENGI_PHASE, {                                /* (CZ-style phase distortion: DCW is its filter) */
         {{P_E0, 32}, {NCM_NONE, 0}},              /* OSCILLATOR   WAVE (steps) */
         {{P_E4, 32}, {NCM_NONE, 0}},              /* OSC MOD      DTN, the second line's detune */
-        {{P_ATK, 32}, {P_REL, 32}},               /* AMP ENV      attack and release */
+        {{P_REL, 32}, {NCM_NONE, 0}},             /* AMP ENV      the release: longer, the attack kept */
         {{P_E3, 32}, {NCM_NONE, 0}},              /* FILTER ENV   ENV, the envelope on DCW */
         {{P_E2, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  DCW */
         {{P_E7, 32}, {NCM_NONE, 0}},              /* RESONANCE    FOLD */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on DCW, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
     },
-        {"WAVE", "DETUNE", "ATK+REL", "DCW ENV", "DCW", "FOLD", "LFO", "DRIVE"},
+        {"WAVE", "DETUNE", "RELEASE", "DCW ENV", "DCW", "FOLD", "LFO", "DRIVE"},
     },
     {ENGI_TRIO, {                                 /* (SID-style: three oscillators, a multimode filter) */
         {{P_E1, 16}, {NCM_NONE, 0}},              /* OSCILLATOR   INT2, osc 2's interval: +-12 semitones */
         {{P_E7, 32}, {P_E3, 16}},                 /* OSC MOD      PW, a little DTN */
-        {{P_ATK, 32}, {P_REL, 32}},               /* AMP ENV      attack and release */
+        {{P_REL, 32}, {NCM_NONE, 0}},             /* AMP ENV      the release: longer, the attack kept */
         {{P_ED_FLT, 32}, {NCM_NONE, 0}},          /* FILTER ENV   ENV -> FLT */
         {{P_E5, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  CUT */
         {{P_E6, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
         {{P_LD_FLT, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO on the filter, its rate */
         {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
     },
-        {"INT2", "PW", "ATK+REL", "ENV AMT", "CUTOFF", "RESO", "LFO", "DRIVE"},
+        {"INT2", "PW", "RELEASE", "ENV AMT", "CUTOFF", "RESO", "LFO", "DRIVE"},
     },
     {ENGI_ACID, {                                 /* (NCC's 303, eng_acid.c) */
         {{P_E0, 127}, {NCM_NONE, 0}},             /* OSCILLATOR   WAVE, saw <-> square (a 2-step range: at 3/4 turn) */

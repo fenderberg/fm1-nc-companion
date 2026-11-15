@@ -59,7 +59,8 @@ static struct {                                  /* the patch through the macros
 #endif
 } fm6_eff[NTRK];
 #if FELUCCA_LIVEUI
-/* NC: NCC's AMP ENV knob (perf_layer.c): the carriers' envelope times as MEG does the modulators' (+ slower). Not a
+/* NC: NCC's AMP ENV knob (perf_layer.c): the carriers' decay and release times (R2..R4, the attack R1 as the sound
+ * has it) as MEG does the modulators' (+ slower). Not a
  * stored parameter: the audio ISR writes it, 0 with every new sound */
 static int8_t fm6_ceg[NTRK];
 #endif
@@ -343,8 +344,8 @@ static void fm6_sync(const track_t *t)
                 static const int8_t SPREAD[6] = {0, 1, -1, 2, -2, 3};
                 fm6_eff[tr].dt[ki] = SPREAD[n++] * step;
 #if FELUCCA_LIVEUI
-                for (j = 0; j < 4u; j++)                     /* NC: CEG, rate steps as MEG (+ slower) */
-                    op[FP_R1 + j] = (uint8_t)clamp(op[FP_R1 + j] - fm6_ceg[tr] * 40 / 64, 0, 99);
+                for (j = 1; j < 4u; j++)                     /* NC: CEG, rate steps as MEG (+ slower); R1 (the */
+                    op[FP_R1 + j] = (uint8_t)clamp(op[FP_R1 + j] - fm6_ceg[tr] * 40 / 64, 0, 99);   /* attack) kept */
 #endif
                 continue;
             }

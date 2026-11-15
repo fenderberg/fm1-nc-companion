@@ -40,18 +40,21 @@ tap(B.R); note(0x82, 60);
 assert.equal(gate(0, 60) + gate(1, 60), 0, "focus does not redirect note-offs");
 tap(B.GLO);
 if (process.argv[3]) screenshot(process.argv[3].replace(/\.ppm$/, "-settings-main.ppm"));
-tap(B.PLAY); turn(3, 1);
+tap(B.GLO); turn(3, 1);
 assert.equal(ex.web_test_ncc_view(), 3 | (1 << 8), "GLO settings page 2");
 assert.equal(ex.web_test_ncc_state() & 3, 2, "settings select CH4");
 turn(0, 2);
-assert.equal(ex.web_test_ncc_view(), 3 | (1 << 8), "SELECT does not navigate settings");
-ex.web_buttons(1 << B.PLAY); render(450);
-assert.equal(ex.web_test_ncc_view(), 3 | (1 << 8), "PLAY waits below the long-press threshold");
-render(150);
-assert.equal(ex.web_test_ncc_view(), 3, "long PLAY goes to the previous settings page");
-ex.web_buttons(0); render(40);
-assert.equal(ex.web_test_ncc_view(), 3, "long PLAY release does not advance again");
+assert.equal(ex.web_test_ncc_view(), 3 | (1 << 8), "SELECT (the category) does not navigate settings");
+turn(0, -2); // (back before it rests: no category change, the sounds below stay)
 tap(B.PLAY);
+assert.equal(ex.web_test_ncc_view(), 3 | (1 << 8), "PLAY does not navigate settings");
+ex.web_buttons(1 << B.GLO); render(450);
+assert.equal(ex.web_test_ncc_view(), 3 | (1 << 8), "GLO waits below the long-press threshold");
+render(150);
+assert.equal(ex.web_test_ncc_view(), 3, "long GLO goes to the previous settings page");
+ex.web_buttons(0); render(40);
+assert.equal(ex.web_test_ncc_view(), 3, "long GLO release does not advance again");
+tap(B.GLO);
 if (process.argv[3]) screenshot(process.argv[3].replace(/\.ppm$/, "-settings.ppm"));
 tap(B.SCL); assert.equal(ex.web_test_ncc_state() & 3, 0, "SCL turns Dual off");
 tap(B.SCL); assert.equal(ex.web_test_ncc_state() & 3, 2, "SCL remembers CH4");
@@ -77,19 +80,19 @@ assert.ok(gate(1, heldKey), "Drone off keeps a physically held local key");
 ex.web_keys(0); render(30);
 assert.equal(gate(0, heldKey) + gate(1, heldKey), 0, "local release ends both layers");
 
-tap(B.GLO); tap(B.PLAY); turn(3, -1); tap(B.HOME); // CH3
+tap(B.GLO); tap(B.GLO); turn(3, -1); tap(B.HOME); // CH3
 // Edit the selected part, and use its own POLY setting for the chord drone.
-tap(B.R); tap(B.EDIT); tap(B.PLAY);
+tap(B.R); tap(B.EDIT); tap(B.EDIT);
 const cutoffR = ex.web_test_ncc_knob(0);
 tap(B.L); const parameterL = ex.web_test_ncc_knob(0); tap(B.R); turn(3, -8);
 assert.ok(ex.web_test_ncc_knob(0) < cutoffR, "EDIT changes R cutoff");
 tap(B.L); assert.equal(ex.web_test_ncc_knob(0), parameterL, "EDIT leaves L unchanged"); tap(B.R);
 if (process.argv[3]) screenshot(process.argv[3].replace(/\.ppm$/, "-edit.ppm"));
-for (let i = 0; i < 6; i++) tap(B.PLAY); // ENGINE 2 -> VOICE
+for (let i = 0; i < 6; i++) tap(B.EDIT); // ENGINE 2 -> VOICE
 assert.equal(ex.web_test_ncc_view(), 4 | (7 << 8));
 turn(3, -3); assert.equal(ex.web_test_ncc_knob(0), 0, "R POLY for chord drone");
 tap(B.HOME);
-tap(B.R); tap(B.ARP); tap(B.PLAY); turn(6, 1); tap(B.ARP); tap(B.SEQ);
+tap(B.R); tap(B.ARP); turn(6, 2); turn(4, 1); tap(B.ARP); tap(B.SEQ); // KNOB 4: page 3, KNOB 2: REPLACE
 assert.equal(ex.web_test_ncc_state() & 40, 40, "R REPLACE Drone enabled via the panel");
 tap(B.L); tap(B.ARP); tap(B.REC);
 note(0x92, 60, 100); note(0x82, 60); note(0x92, 67, 100); render(200);
@@ -112,7 +115,7 @@ assert.ok(peak > 0.001, "both routed parts produce audio");
 if (process.argv[3]) {
   screenshot(process.argv[3]);
   tap(B.HOME); tap(B.L); tap(B.EDIT);
-  for (let i = 0; i < 8; i++) tap(B.PLAY);
+  for (let i = 0; i < 8; i++) tap(B.EDIT);
   screenshot(process.argv[3].replace(/\.ppm$/, "-operator.ppm"));
 }
 

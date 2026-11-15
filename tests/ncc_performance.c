@@ -27,7 +27,7 @@ static void dual_test(void)
     ok("Dual: CH3 bend affects L alone, including on the next note", midi_bend_target[0] && !midi_bend_target[1]);
     midi(0x92, 65, 100); blk();
     ok("Dual: note fanout does not copy or clear bend", midi_bend_target[0] && !midi_bend_target[1]);
-    lv_press(B_GLO); lv_press(B_PLAY); t_turn(EN_K1, 1); blk();
+    lv_press(B_GLO); lv_press(B_GLO); t_turn(EN_K1, 1); blk();
     ok("Dual UI: GLO selects CH4 and fades the old notes", ncc_dual == 2u && !gate_on(&trk[0]) && !gate_on(&trk[1]));
     lv_press(B_HOME);
     midi(0x92, 69, 100); blk();
@@ -107,8 +107,8 @@ static void replace_drone_test(void)
         ok("REPLACE: the same note retriggers instead of toggling off", note_playing(t, 67) && ncd[1].n == 1u);
     }
     power();
-    lv_press(B_ARP); lv_press(B_PLAY); t_turn(EN_K4, 1);
-    ok("REPLACE UI: ARP page 2's fourth knob chooses REPLACE", lv.page == PG_ARP && lv.sub == 1u && ncd_mode(0));
+    lv_press(B_ARP); t_turn(EN_K4, 2); t_turn(EN_K2, 1);
+    ok("REPLACE UI: ARP page 3's second knob chooses REPLACE", lv.page == PG_ARP && lv.sub == 2u && ncd_mode(0));
     ncd_want[0] = 1; trk[0].p[P_AHOLD] = 1;
     midi(0x92, 60, 100); perf_blocks(NCD_FADE_BLOCKS + 3u); midi(0x82, 60, 0); blk(); midi(0x92, 67, 100); perf_blocks(NCD_FADE_BLOCKS + 3u);
     midi(0x82, 60, 0); blk();
@@ -228,12 +228,14 @@ static void performance_protocol_test(void)
 }
 
 #include "ncc_panel_chords.c"
+#include "ncc_save_test.c"
 #include "ncc_drone_fade_test.c"
 #include "ncc_drone_overlap_test.c"
 
 static void performance_test(void)
 {
     page_button_test();
+    save_test();
     dual_test();
     replace_drone_test();
     replace_chord_test();

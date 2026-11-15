@@ -24,7 +24,7 @@ FM6 daar DETUNE heeft. Er komen geen knoppen die alleen een ongebruikt getal ver
 |---|---|---|---|
 | OSCILLATOR | structuur / harmonischen (`E1`) | positie in de sample (`E1`) | klinker A + B (`E0`, `E1`) |
 | OSC MOD | aanslagpositie / sympathische hoeveelheid (`E4`) | korrelgrootte (`E2`) | stembron BUZZ (`E4`) |
-| AMP ENV | attack + release | attack + release | attack + release |
+| AMP ENV | release | release | release |
 | FILTER ENV | envelope → helderheid (`P_ED_FLT`) | envelope → toonfilter (`P_ED_FLT`) | envelope → klinkers (`P_ED_FLT`) |
 | FILTER FREQ | helderheid BRIT (`E2`) | TONE (`E7`) | formantverschuiving SHIFT (`E3`) |
 | RESONANCE | uitklinkduur DAMP (`E3`; hoog = langer) | korreldichtheid DENS (`E3`) | formantresonantie Q (`E6`) |
@@ -35,7 +35,7 @@ FM6 daar DETUNE heeft. Er komen geen knoppen die alleen een ongebruikt getal ver
 |---|---|---|---|---|
 | OSCILLATOR | waveform (`E1`) | orgelregistratie (`E0`) | klankkleur (`E1`) | sample-stemming (`E1`) |
 | OSC MOD | pulsbreedte / wavetable (`E2`); TRI/SAW/NOIS: pitch-sweep (`E4`) | lage drawbars SUB (`E1`) | dichtheid / register (`E5`) | bitreductie (`E2`) |
-| AMP ENV | attack + release; STEP: release | attack + release | attack + release | attack + release |
+| AMP ENV | release | release | release | release |
 | FILTER ENV | envelope → toonfilter | orgelpercussie (`E4`) | envelope → filter | envelope → toonfilter |
 | FILTER FREQ | TONE (`E7`) | hoge drawbars TOP (`E3`) | FREQ (`E2`) | CUT (`E4`) |
 | RESONANCE | CRSH / STEP-envelope (`E3`) | middelste drawbars BODY (`E2`) | RES (`E3`) | overdrive (`E6`) |

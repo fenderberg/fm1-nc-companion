@@ -6,12 +6,13 @@
  *   two parts   L = track 1, FM6; R = track 2, ANALOG; tracks 3 and 4 muted and deaf. No sequencer: the Circuit
  *               Tracks plays them, MIDI IN TRACK, L on channel 3 and R on 4 (its MIDI 1 / MIDI 2 tracks) unless the
  *               project has TRACK already; the clock from USB (with none coming, the arp runs on BPM: seq.c)
- *   pages       SOUND (HOME), ARP, FX, SETUP (GLO), sound editing (EDIT); PLAY steps each family's pages
+ *   pages       SOUND (HOME), ARP, FX, SETUP (GLO), sound editing (EDIT). On its own page FX / GLO / EDIT: a tap the
+ *               next page, held 0.5 s the previous (ncc_pages.c lv_page_buttons); ARP's pages on KNOB 4. PLAY: nothing
  *   SCL         Dual on/off on its remembered source; GLO page 2 chooses OFF/CH3/CH4
  *   EDIT        focused engine, envelope, LFO, voice/chord controls; FM6 operators (ncc_pages.c)
  *   sounds      one library of the five engines' sounds (ncc_library.c; LV_ENGS: FM6, JUNO = ANALOG, PHASE, TRIO, ACID:
  *               the ones the Circuit's knobs map onto, perf_layer.c NCM_MAP), each with a category (BASS PAD LEAD KEYS
- *               PLUCK, OTHER). On SOUND, SELECT filters the focused part's list by category, ALGORITHM (any page) by
+ *               PLUCK, OTHER). SELECT (any page) filters the focused part's list by category, ALGORITHM (any page) by
  *               engine, each with ALL, skipping what has no sound left; once the knob has rested LV_ENG_MS the part's
  *               sound stays if it fits, else the first that does loads. PRESETS steps through what fits: a sound of
  *               another engine switches the part to it (Felucca's fade). The filters are the part's (not stored); its
@@ -20,12 +21,13 @@
  *   OCT- / OCT+ the focus: L / R (its LED: OCT+ has none in PANEL_DEFAULT, so R is OCT- dark); the 27 keys play the
  *               part in focus (song.sel)
  *   ARP         the arp on for the focused part (its last mode, UP at first) and the ARP page; on the ARP page with
- *               the arp on: off. Its LED: the arp on
+ *               the arp on: off. Its LED: the arp on. KNOB 4 turns its three pages (MODE RATE OCTAVES, GATE SWING
+ *               PROB, ORDER DRONE)
  *   REC         HOLD (latch) of the focused part's arp (P_AHOLD: a new chord after letting go replaces it, keys added
  *               while held add); off with no key down lets the latched chord go (ncc_seq.c). Its LED
  *   SEQ         Drone-hold of the focused part (ncc_seq.c). Its LED.   GLO + SEQ: SPLIT (the default) <-> STEREO
- *   FX          a tap opens the FX mode on its SENDS page, each tap after it the next page, the tap after the last
- *               closes it (so do HOME and ARP); PLAY steps its pages too. In it the white keys are PERFORM's effects
+ *   FX          a tap opens the FX mode on its SENDS page, each tap after it the next page, after the last SENDS
+ *               again (HOME and ARP close it), FX held the page before. In it the white keys are PERFORM's effects
  *               (perform.c; seq.c kb_lock: the layer locked open), each held while its key is. Its pages: SENDS (the
  *               focused part's drive and sends), DELAY, REVERB (the bus's; KNOB 4 the part's reverb send), CHORUS (the
  *               bus's, and the part's Juno chorus and drift), INSERT (the part's: its type and A B C as the type names
@@ -33,6 +35,8 @@
  *               when the mode closes, but with FX LATCH)
  *   ENV / LFO   held: ECHO THROW / REV THROW (perf_layer.c ncm_throw), on every page
  *   HOME        the SOUND page
+ *   SAVE        the focused part's sound into the user bank: asks first, then a tap overwrites its user sound, held a
+ *               new one (ncc_save.c)
  *   PRESETS     the focused part's sounds as its filters leave them (the factory sounds, NCC's Juno sounds, FM6's voice
  *               bank, the user presets), loaded once the knob has rested LV_LOAD_MS, so turning through the list loads
  *               one sound, not each one passed. (The Juno chorus: FX > CHORUS, KNOB 3)
@@ -76,20 +80,21 @@ static const char LV_NAME[LV_PARTS] = {'L', 'R'};
 
 enum { PG_SOUND, PG_ARP, PG_FX, PG_GLO, PG_EDIT, PG_N };
 enum { LK_NONE, LK_TP, LK_G, LK_OCT, LK_AMODE, LK_ARATE, LK_ITYPE, LK_PERF, LK_INS, LK_JUNO, LK_DRIFT, LK_DRONE,
-       LK_CHANNEL, LK_OUTPUT, LK_DUAL, LK_DRONESTATE, LK_FOP };
+       LK_CHANNEL, LK_OUTPUT, LK_DUAL, LK_DRONESTATE, LK_FOP, LK_PAGE };
 static const char *const LV_DRONE[] = {"STACK", "REPLACE"};
 #define LV_NSUBMAX 6
 typedef struct {
     uint8_t kind, id;                   /* LK_*, the P_* / G_* id (LK_PERF: perf_k's index) */
     const char *label;
 } lv_knob_t;
-/* KNOB 1..4 per page and its pages (PLAY) */
+/* KNOB 1..4 per page and its pages (FX: its button; ARP: KNOB 4, as ARP itself is the arp's on/off) */
 #define LK_EMPTY {LK_NONE, 0, ""}
+#define LK_ARP_PAGE {LK_PAGE, 0, "PAGE"}
 static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
     [PG_SOUND] = {{{LK_TP, P_LEVEL, "LEVEL"}, {LK_OCT, 0, "OCTAVE"}, {LK_TP, P_VOICE, "VOICE"}, {LK_TP, P_GLIDE, "GLIDE"}}},
-    [PG_ARP] = {{{LK_AMODE, P_AMODE, "MODE"}, {LK_ARATE, P_ARATE, "RATE"}, {LK_TP, P_AOCT, "OCTAVES"},
-                 {LK_TP, P_AGATE, "GATE"}},
-                {{LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, {LK_TP, P_AORDER, "ORDER"}, {LK_DRONE, 0, "DRONE"}}},
+    [PG_ARP] = {{{LK_AMODE, P_AMODE, "MODE"}, {LK_ARATE, P_ARATE, "RATE"}, {LK_TP, P_AOCT, "OCTAVES"}, LK_ARP_PAGE},
+                {{LK_TP, P_AGATE, "GATE"}, {LK_TP, P_ASWING, "SWING"}, {LK_TP, P_APROB, "PROB"}, LK_ARP_PAGE},
+                {{LK_TP, P_AORDER, "ORDER"}, {LK_DRONE, 0, "DRONE"}, LK_EMPTY, LK_ARP_PAGE}},
     [PG_FX] = {{{LK_TP, P_DIST, "DRIVE"}, {LK_TP, P_CHOR, "CHORUS"}, {LK_TP, P_DLY, "DELAY"}, {LK_TP, P_REV, "REVERB"}},
                {{LK_G, G_DTIME, "TIME"}, {LK_G, G_DFDBK, "FEEDBK"}, {LK_G, G_DCOLOR, "COLOR"}, {LK_G, G_DMIX, "MIX"}},
                {{LK_G, G_RTYPE, "TYPE"}, {LK_G, G_RSIZE, "SIZE"}, {LK_G, G_RDAMP, "DAMP"}, {LK_TP, P_REV, "SEND"}},
@@ -97,17 +102,16 @@ static const lv_knob_t LV_KNOBS[PG_N][LV_NSUBMAX][4] = {
                {{LK_ITYPE, P_ITYPE, "TYPE"}, {LK_INS, P_IA, ""}, {LK_INS, P_IB, ""}, {LK_INS, P_IC, ""}},
                {{LK_PERF, 0, "FILTER"}, {LK_PERF, 1, "CRUSH"}, {LK_PERF, 2, "THROW"}, {LK_PERF, 3, "DEPTH"}}},
 };
-static const uint8_t LV_NSUB[PG_N] = {1, 2, 6};        /* subpages per family (GLO/EDIT: lv_nsub) */
+static const uint8_t LV_NSUB[PG_N] = {1, 3, 6};        /* subpages per family (GLO/EDIT: lv_nsub) */
 static const char *const LV_FX_PAGE[6] = {"SENDS", "DELAY", "REVERB", "CHORUS", "INSERT", "PERFORM"};
 #define LV_FX_PERF 5u                   /* the FX mode's PERFORM page (the key map on the screen), its last */
 static const uint8_t LV_RATES[] = {0, 1, 4, 2, 5, 3};   /* RATE on KNOB 2: 1/4 1/8 8T 1/16 16T 1/32 (N_DIV) */
 
 static struct {
     uint8_t ok;                         /* lv_setup done */
-    uint8_t page, sub;                  /* PG_*, its subpage (PLAY) */
-    uint8_t page_down, page_family, page_sub, page_part; /* pending short/long PLAY gesture */
+    uint8_t page, sub;                  /* PG_*, its subpage */
+    uint8_t page_down, page_btn, page_family, page_sub, page_part; /* pending short/long FX/GLO/EDIT gesture */
     uint32_t page_ms;
-    uint8_t prev;                       /* the page the FX mode was opened from */
     uint8_t fx;                         /* the FX mode (its layer: the keys PERFORM's) */
     uint8_t hot;                        /* the knob turned last + 1 (0 none) */
     uint32_t hot_ms;                    /* .. when, fm1_ms | 1 */
@@ -350,6 +354,7 @@ static void lv_focus(uint32_t part)
 }
 
 #include "ncc_pages.c"                                 /* settings and sound editing through NCC's own adapters */
+#include "ncc_save.c"                                  /* SAVE: the part's sound into the user bank */
 
 /* ---------------------------------------------------------- the knobs --- */
 static const lv_knob_t *lv_knob(uint32_t k)
@@ -426,6 +431,10 @@ static int32_t lv_get(const lv_knob_t *kb, int32_t *lo, int32_t *hi)
         *lo = 0;
         *hi = kb->id == FO_OP ? 5 : kb->id == FO_STG ? 3 : (int32_t)fm6_max(fop_byte(kb->id));
         return kb->id == FO_OP ? fop_op : kb->id == FO_STG ? fop_stg : fm6_patch[song.sel][fop_byte(kb->id)];
+    case LK_PAGE:
+        *lo = 0;
+        *hi = LV_NSUB[lv.page % PG_N] - 1;
+        return lv.sub;
     case LK_NONE:
         *lo = *hi = 0;
         return 0;
@@ -481,6 +490,12 @@ static void lv_text(const lv_knob_t *kb, char *b)
     case LK_DRONESTATE:
         str_cpy(b, v ? LV_DRONE[v - 1] : "OFF", 16);
         return;
+    case LK_PAGE:                                       /* "2/3" */
+        fmt_int(b, v + 1);
+        b[str_len(b) + 1u] = 0;
+        b[str_len(b)] = '/';
+        fmt_int(b + str_len(b), hi + 1);
+        return;
     case LK_FOP:
         lv_fop_text(kb->id, v, b);
         return;
@@ -511,6 +526,10 @@ static void lv_turn(uint32_t k, int32_t s)
     if (lv.page == PG_EDIT && kb->kind == LK_TP)
         edit_undo_take(t, kb->id, UNDO_SOUND);
     switch (kb->kind) {
+    case LK_PAGE:                                       /* (ARP: KNOB 4 the page; the same knob on each, so it turns on) */
+        lv.sub = (uint8_t)v;
+        lv.pop_ms = 0, lv.say = 0;
+        break;
     case LK_OCT:
         song.octave = (int8_t)v;
         break;
@@ -600,8 +619,8 @@ static void lv_arp_button(void)                        /* ARP: on (and its page)
 static void live_input(void)
 {
     uint32_t pressed = fm1_input_edges(0), k, btn = fm1_in.buttons, fxb = 1u << panel.btn[B_FX];
-    int32_t s;
-    (void)fm1_input_note_edges();                       /* (the keys play in the audio ISR: seq.c) */
+    uint32_t keys = fm1_input_note_edges();             /* (the keys play in the audio ISR: seq.c; here they only */
+    int32_t s;                                          /*  cancel a held page button: FX held + a key is PERFORM) */
     midi_take();                                        /* what ui_input keeps up besides the panel */
     midi_pc_poll();
     fm6_poll();
@@ -621,18 +640,8 @@ static void live_input(void)
     if (!lv.ok)
         lv_setup();
     kb_mask = perf_mask = fxb;                          /* (FX held works too, as in Felucca) */
-    if ((pressed >> panel.btn[B_FX]) & 1u) {            /* FX: the FX mode opens on SENDS, a tap the next page, */
-        if (lv.page == PG_FX && lv.sub + 1u >= LV_NSUB[PG_FX])   /* after the last (PERFORM) it closes */
-            lv.page = lv.prev, lv.sub = 0;
-        else if (lv.page == PG_FX)
-            lv.sub++;
-        else
-            lv.prev = lv.page, lv.page = PG_FX, lv.sub = 0;
-    }
-    if ((pressed >> panel.btn[B_GLO]) & 1u)
-        lv_open(PG_GLO);
-    if ((pressed >> panel.btn[B_EDIT]) & 1u)
-        lv_open(PG_EDIT);
+    lv_page_buttons(pressed, btn, keys);               /* FX GLO EDIT: open; on their page tap next, hold previous */
+    ncc_save_input(pressed, btn);                      /* SAVE: asks, then tap overwrite / hold new */
     if ((pressed >> panel.btn[B_HOME]) & 1u)
         lv.page = PG_SOUND, lv.sub = 0;
     if ((pressed >> panel.btn[B_SCL]) & 1u) {
@@ -676,8 +685,7 @@ static void live_input(void)
         lv.apend = (int8_t)clamp(lv.apend + s, -12, 12);
         lv.fpend_ms = fm1_ms | 1u;
     }
-    lv_page_button(pressed, btn);                      /* PLAY: short next / long previous; never transport */
-    if ((s = panel_enc(EN_SELECT)) != 0 && lv.page == PG_SOUND && song.sel < LV_PARTS) {
+    if ((s = panel_enc(EN_SELECT)) != 0 && song.sel < LV_PARTS) {   /* the category filter, on every page */
         lv.cpend = (int8_t)clamp(lv.cpend + s, -12, 12);
         lv.fpend_ms = fm1_ms | 1u;
     }

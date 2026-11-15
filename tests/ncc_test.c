@@ -24,7 +24,7 @@
  *   ARP UI     ARP on (its page, the mode back), KNOB 1..4 and page 2, off on its page; REC HOLD (and off lets go)
  *   ARP GRID   a note mid-step starts the arp on the next step of the bar, a little late at once; no clock: BPM
  *   DRONE      SEQ: note-offs ignored, notes pile up, a droning note again lets go, SEQ off releases all
- *   FX UI      FX opens its mode on SENDS (the keys PERFORM's, no button held), FX taps and PLAY its pages SENDS DELAY
+ *   FX UI      FX opens its mode on SENDS (the keys PERFORM's, no button held), FX taps its pages SENDS DELAY
  *              REVERB (+ R's send) CHORUS INSERT PERFORM (the insert's knobs named by its type), FX after the last /
  *              HOME close it; ENV / LFO throws
  *   SPLIT DAC  one part with FLANGER and Juno chorus, no sends: the other side of the output after MASTER exactly 0;
@@ -615,11 +615,11 @@ static void arp_ui_test(void)
     ok("arp UI: KNOB 2 the rate (1/16 -> 8T)", t->p[P_ARATE] == 4);
     t_turn(EN_K3, 2);
     ok("arp UI: KNOB 3 the octaves (1 -> 3)", t->p[P_AOCT] == 3);
-    t_turn(EN_K4, 5);
-    ok("arp UI: KNOB 4 the gate (64 -> 74: two a detent)", t->p[P_AGATE] == 74);
-    lv_press(B_PLAY);
-    t_turn(EN_K1, 10);
-    ok("arp UI: PLAY page 2, KNOB 1 the swing", lv.sub == 1u && t->p[P_ASWING] == 20);
+    t_turn(EN_K4, 1);
+    t_turn(EN_K1, 5);
+    ok("arp UI: KNOB 4 page 2, KNOB 1 the gate (64 -> 74: two a detent)", lv.sub == 1u && t->p[P_AGATE] == 74);
+    t_turn(EN_K2, 10);
+    ok("arp UI: .. KNOB 2 the swing", t->p[P_ASWING] == 20);
     lv_press(B_HOME);
     lv_press(B_ARP);
     ok("arp UI: ARP from another page: its page, the arp stays on", lv.page == PG_ARP && t->p[P_AMODE] == 3);
@@ -729,19 +729,19 @@ static void fx_ui_test(void)
     t_turn(EN_K1, 1); t_turn(EN_K3, 5);
     ok("FX UI: FX again: DELAY, KNOB 1 its time, KNOB 3 its colour", lv.fx && lv.sub == 1u &&
        (uint32_t)song.g[G_DTIME] != i && song.g[G_DCOLOR] != GP[G_DCOLOR].def);
-    lv_press(B_PLAY);
+    lv_press(B_FX);
     i = (uint32_t)song.g[G_RTYPE];
     {
         int32_t rev = t->p[P_REV];
         t_turn(EN_K1, -1); t_turn(EN_K3, 5); t_turn(EN_K4, 3);
-        ok("FX UI: PLAY: REVERB, KNOB 1 its type, KNOB 3 its damping, KNOB 4 R's reverb send", lv.sub == 2u &&
+        ok("FX UI: REVERB, KNOB 1 its type, KNOB 3 its damping, KNOB 4 R's reverb send", lv.sub == 2u &&
            (uint32_t)song.g[G_RTYPE] != i && song.g[G_RDAMP] != GP[G_RDAMP].def && t->p[P_REV] > rev);
     }
     lv_press(B_FX);
     t_turn(EN_K3, 2); t_turn(EN_K4, 3);
     ok("FX UI: CHORUS: KNOB 3 R's Juno chorus (II), KNOB 4 its drift (3)", lv.sub == 3u && (t->p[P_ED_FX] & 3) == 2 &&
        ((t->p[P_ED_FX] >> 2) & 15) == 3);
-    lv_press(B_PLAY);
+    lv_press(B_FX);
     t_turn(EN_K1, 1);
     ok("FX UI: INSERT: KNOB 1 its type (SOFT), KNOB 2..4 named as the type names them (DRIVE TONE LEVEL)",
        lv.sub == 4u && t->p[P_ITYPE] == 1 && !strcmp(lv_label(lv_knob(1)), "DRIVE") && !strcmp(lv_label(lv_knob(3)), "LEVEL"));
@@ -752,20 +752,21 @@ static void fx_ui_test(void)
     t_turn(EN_K1, -10);
     ok("FX UI: PERFORM, the last page: KNOB 1 the FILTER macro", lv.sub == LV_FX_PERF && perf_k[0] < 0);
     lv_press(B_PLAY);
-    ok("FX UI: PLAY stops at the last page", lv.sub == LV_FX_PERF);
+    ok("FX UI: PLAY does nothing on the last page", lv.sub == LV_FX_PERF);
     lv_press(B_FX);
-    ok("FX UI: FX on the last page: the mode closes (back to SOUND), the keys play, the macros back to 0", !lv.fx &&
+    ok("FX UI: FX on the last page: SENDS again, the mode stays open", lv.fx && !lv.sub && kb_lock == 2u);
+    lv_press(B_HOME);
+    ok("FX UI: HOME closes the mode (back to SOUND), the keys play, the macros back to 0", !lv.fx &&
        lv.page == PG_SOUND && kb_lock == 0u && perf_k[0] == 0 && led_is(B_FX, 0));
     key_down(white_key(3)); blk();
     ok("FX UI: closed: a key plays a note again", gate_on(t));
     key_up(white_key(3)); blk();
-    lv_press(B_ARP);
+    lv_press(B_HOME);
     for (i = 0; i <= LV_FX_PERF + 1u; i++)
         lv_press(B_FX);
-    ok("FX UI: opened from ARP, tapped through, closed back to ARP", !lv.fx && lv.page == PG_ARP);
-    lv_press(B_FX);
-    lv_press(B_HOME);
-    ok("FX UI: HOME closes it too", !lv.fx && lv.page == PG_SOUND && kb_lock == 0u);
+    ok("FX UI: tapped through, round to SENDS", lv.fx && !lv.sub);
+    lv_press(B_ARP);
+    ok("FX UI: ARP closes it too (its page)", !lv.fx && lv.page == PG_ARP && kb_lock == 0u);
     btn_down(B_ENV);
     lv_frame(); blk();
     ok("FX UI: ENV held: ECHO THROW", (perf_held >> PF_ETHR) & 1u);
@@ -1469,8 +1470,11 @@ static void engine_ui_test(void)
         lv_frame();
     ok("sounds: the parts' engines come back with the project", trk[0].eng_req == ENGI_FM6 && trk[1].eng_req == ENGI_TRIO);
     lv_press(B_ARP);
+    i = lv.cat[song.sel];
     t_turn(EN_SELECT, 1);
-    ok("sounds: SELECT on ARP changes neither page nor filter", lv.sub == 0u && !lv.cpend);
+    lv_frames(LV_ENG_MS + 100u);
+    ok("sounds: SELECT on ARP: the category too, the ARP page stays", lv.page == PG_ARP && lv.sub == 0u && !lv.cpend &&
+       lv.cat[song.sel] != i);
 }
 
 static void engine_macro_test(void)
@@ -1553,8 +1557,40 @@ static void macro_map_test(void)
     for (i = 0; i < 30u; i++)
         blk();
     lv_macro_text(0, 2, r);
-    ok("macros: FM6's MODULATION: a little vibrato; AMP ENV reads CAR ENV",
-       trk[0].p[P_LD_PIT] > pit && (trk[0].p[P_LD_PIT] - pit) * 3 <= 16 && !strncmp(r, "CAR ENV ", 8));
+    ok("macros: FM6's MODULATION: a little vibrato; AMP ENV reads LENGTH",
+       trk[0].p[P_LD_PIT] > pit && (trk[0].p[P_LD_PIT] - pit) * 3 <= 16 && !strncmp(r, "LENGTH ", 7));
+    {   /* AMP ENV makes a sound longer, never its attack slower or faster */
+        uint32_t e, k, keep = 1, car, op;
+        uint8_t r1[6], r4[6];
+        int16_t atk, rel;
+        for (e = 0; e < NELEM(NCM_MAP); e++)
+            for (k = 0; k < NCM_DST; k++)
+                keep &= NCM_MAP[e].d[2][k].id != P_ATK;
+        ok("macros: no engine's AMP ENV moves the attack", keep);
+        power();
+        set_engine_of(&trk[1], ENGI_ANALOG);
+        atk = trk[1].p[P_ATK]; rel = trk[1].p[P_REL];
+        midi(0xB3, 5, 127);
+        for (i = 0; i < 30u; i++)
+            blk();
+        ok("macros: JUNO's AMP ENV up: a longer release, the attack as it was", trk[1].p[P_ATK] == atk &&
+           trk[1].p[P_REL] > rel);
+        power();
+        midi(0x92, 60, 100); blk(); midi(0x82, 60, 0); blk();
+        car = fm6_carriers(fm6_eff[0].alg);
+        for (op = 0; op < 6u; op++)
+            r1[op] = fm6_eff[0].p[op * FP_OP + FP_R1], r4[op] = fm6_eff[0].p[op * FP_OP + FP_R1 + 3u];
+        midi(0xB2, 5, 127);
+        for (i = 0; i < 30u; i++)
+            blk();
+        midi(0x92, 60, 100); blk(); midi(0x82, 60, 0); blk();
+        for (op = 0, k = 0; op < 6u; op++)
+            if ((car >> op) & 1u) {
+                keep &= fm6_eff[0].p[op * FP_OP + FP_R1] == r1[op];
+                k |= fm6_eff[0].p[op * FP_OP + FP_R1 + 3u] < r4[op];
+            }
+        ok("macros: FM6's AMP ENV up: the carriers' release slower, their attack rate as it was", car && keep && k);
+    }
 }
 
 /* ACID: one note (vel) on R, n blocks: the energy of the output's sample steps (brightness) per window */

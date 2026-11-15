@@ -3,9 +3,9 @@
 NCC (Novation Circuit Companion) turns the M-VAVE FM-1 into a two-part sound module for the Novation Circuit Tracks.
 The Circuit plays the notes and turns the knobs; the FM-1 makes the sounds and gives you the controls for playing live.
 
-This manual follows **NCC 0.4** (`FM-1_704`) and what is coming next. One difference to know about: in the next release
-you change pages with **PLAY** (tap for the next page, hold for the previous one); in 0.4 you **turn SELECT** instead.
-The longer, overlapping Drone transitions described below are coming next too.
+This manual follows **NCC 0.7** (`FM-1_707`). Coming from an older version? Since 0.7 you change pages with the page's
+own button (**FX**, **GLO**, **EDIT**: tap for the next page, hold for the previous one, both round) and the arp's pages
+with **KNOB 4**; in 0.5 and 0.6 that was **PLAY**, in 0.4 turning SELECT.
 What changed when: [CHANGELOG.md](../CHANGELOG.md).
 
 ![NCC on the FM-1](ncc-emulator.jpg)
@@ -85,12 +85,12 @@ keep working. Switching Dual on or off fades out what is playing; strike the key
 ## Sounds and engines
 
 NCC puts the sounds of all twelve engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
-KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. On the **SOUND** page (press **HOME**), three
-knobs, one job each:
+KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. Three knobs, one job each, on every page (the
+**SOUND** page, press **HOME**, shows where you are going):
 
 | Control | What it does |
 |---|---|
-| **SELECT** (knob) | The **category**: ALL, BASS, PAD, LEAD, KEYS, PLUCK, BEAT (OTHER for names it can't place). |
+| **SELECT** (knob) | The **category**: ALL, BASS, PAD, LEAD, KEYS, PLUCK, BEAT (OTHER for names it can't place), and **USER**: all your own sounds. |
 | **ALGORITHM** (knob) | The **engine**: ALL, FM6, JUNO, PHASE, TRIO, ACID, PHYS, GRAIN, VOICE, LOFI, WHEEL, NOISE, SAMPLE. |
 | **PRESETS** (knob) | The **sound**, among those of that category and engine. It loads once you stop turning, so you can scroll freely. |
 | KNOB 1–4 | LEVEL, OCTAVE, VOICE (poly / mono / legato ..), GLIDE |
@@ -100,12 +100,29 @@ knobs, one job each:
   for PRESETS the name of the sound you'll land on.
 - When you change the category or engine, the part keeps its sound if it fits; otherwise the first sound that fits
   loads, so you hear the change right away. Combinations with no sounds are skipped (ACID has no pads).
-- Your own sounds join in: user presets and a DX7 bank in FM6 get their category from their name ("E.PIANO" is KEYS,
-  "STRINGS" is PAD).
+- Your own sounds join in: a sound you save on the FM-1 keeps the category it had, and also shows under **USER**. Other
+  user presets and a DX7 bank in FM6 get their category from their name ("E.PIANO" is KEYS, "STRINGS" is PAD).
 - A newly chosen sound starts **dry**: its delay and reverb sends at zero, so it never arrives drenched in the effects of
   the sound before. Turn them up on **FX > SENDS** whenever you like.
 
 There are **161 built-in sounds**: 25 BASS, 40 PAD, 36 LEAD, 29 KEYS, 27 PLUCK and 4 BEAT.
+
+### Save your own sound
+
+Shaped a sound you like, with the Circuit's knobs or on EDIT? Keep it in the FM-1's **user bank** (32 places):
+
+1. Press **SAVE**. The bottom line asks what to do, for four seconds.
+2. Press **SAVE** again:
+   - **tap**: overwrite. This works on a sound you saved before (`OVERWRITE? HOLD: NEW`); it keeps its name.
+   - **hold** (half a second): a **new** sound. It is named after the sound it came from ("SOFT PAD" becomes
+     "SOFT PAD 2", a copy of that "SOFT PAD 3") and goes in the same category, and under **USER**.
+   A built-in or DX7 sound can't be overwritten: the screen says `HOLD SAVE: NEW SOUND`.
+3. The screen says `SAVED:` and the name. The part now plays your sound, so the next SAVE + tap updates it.
+
+Any other button, or four seconds of waiting, cancels (`SAVE CANCELLED`). What is saved is the sound as you hear it,
+Circuit knobs included: load it again and the knobs start from the middle, which is now your sound. Saving works while
+the Circuit plays, but writing to the FM-1's memory stops the sound for a moment (about 50 ms) and the arp may skip a
+step. A full bank says `USER BANK FULL`. Rename, erase and back up your sounds in the [Manager](#ncc-manager-web-page).
 
 The twelve engines:
 
@@ -149,7 +166,7 @@ so sweeps don't zipper, and the screen tells you what each knob does.
 |---|---|---|---|---|---|
 | 1 OSCILLATOR | operator ratios | osc mix | waveform | osc 2 interval | saw / square |
 | 2 OSC MOD | feedback | osc 2 detune | detune | pulse width + detune | accent amount |
-| 3 AMP ENV | envelope times | attack + release | attack + release | attack + release | decay + release |
+| 3 AMP ENV | decay + release (attack kept) | release | release | release | decay + release |
 | 4 FILTER ENV | modulator envelope | envelope to filter | envelope to brightness | envelope to filter | env mod + decay |
 | 5 FILTER FREQ | brightness | cutoff | brightness | cutoff | cutoff |
 | 6 RESONANCE | detune | resonance | wave fold | resonance | resonance |
@@ -160,7 +177,7 @@ so sweeps don't zipper, and the screen tells you what each knob does.
 |---|---|---|---|
 | 1 OSCILLATOR | structure / harmonics | sample position | vowel |
 | 2 OSC MOD | strike position | grain size | buzz |
-| 3 AMP ENV | attack + release | attack + release | attack + release |
+| 3 AMP ENV | release | release | release |
 | 4 FILTER ENV | envelope to brightness | envelope to tone | envelope to vowel |
 | 5 FILTER FREQ | brightness | tone | formant shift |
 | 6 RESONANCE | ringing time | grain density | formant sharpness |
@@ -171,7 +188,7 @@ so sweeps don't zipper, and the screen tells you what each knob does.
 |---|---|---|---|---|
 | 1 OSCILLATOR | waveform | drawbar registration | color | tune |
 | 2 OSC MOD | pulse width / wave | sub drawbars | density | bit reduction |
-| 3 AMP ENV | attack + release | attack + release | attack + release | attack + release |
+| 3 AMP ENV | release | release | release | release |
 | 4 FILTER ENV | envelope to tone | percussion | envelope to filter | envelope to tone |
 | 5 FILTER FREQ | tone | top drawbars | cutoff | cutoff |
 | 6 RESONANCE | crush | body drawbars | resonance | drive |
@@ -186,8 +203,13 @@ working on top of it.
 
 - **ARP** switches the arp on for the part in focus and opens the **ARP** page. Press ARP again on that page to switch
   it off.
-- KNOB 1–4: MODE (UP, DN, UPDN, RND, ORD, CHORD and more), RATE (1/4 to 1/32, triplets), OCTAVES, GATE. Page 2 (PLAY;
-  in 0.4: SELECT): SWING, PROB, ORDER, DRONE (STACK / REPLACE).
+- **KNOB 4** turns the ARP's three pages (the screen shows `1/3`); KNOB 1–3 set what is on them:
+
+  | Page | KNOB 1 | KNOB 2 | KNOB 3 |
+  |---|---|---|---|
+  | **1** | MODE (UP, DN, UPDN, RND, ORD, CHORD and more) | RATE (1/4 to 1/32, triplets) | OCTAVES |
+  | **2** | GATE | SWING | PROB |
+  | **3** | ORDER | DRONE (STACK / REPLACE) | |
 - The arp is always locked to the Circuit's clock, also when the tempo changes. A new chord starts on the next step, so
   it stays in time.
 - **REC** = **HOLD**: the arp keeps playing after you let go. A new chord replaces the held one; press REC again to
@@ -199,7 +221,7 @@ working on top of it.
 ## Drone
 
 **SEQ** switches **Drone** on/off for the part in focus: notes keep sounding after you let go. It has two modes, chosen
-with **KNOB 4 on ARP page 2**, on **GLO > SETUP 2**, or in the Manager:
+with **KNOB 2 on ARP page 3**, on **GLO > SETUP 2**, or in the Manager:
 
 | Mode | What it does | Badge |
 |---|---|---|
@@ -217,7 +239,7 @@ Picking a new sound keeps a droning chord going too, replayed at once on the new
 
 ## Settings (GLO)
 
-Press **GLO** to open the settings; it has two pages (PLAY or another GLO press for the next one). **HOME** returns to
+Press **GLO** to open the settings; it has two pages (tap GLO for the next one, hold it for the previous; both go round). **HOME** returns to
 SOUND. These are the same settings the Manager offers:
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
@@ -227,7 +249,7 @@ SOUND. These are the same settings the Manager offers:
 
 ## Editing sounds (EDIT)
 
-Press **EDIT** to dig into the focused part's sound. PLAY (or another EDIT press) goes to the next page; **OCT- / OCT+**
+Press **EDIT** to dig into the focused part's sound. Tap EDIT for the next page, hold it for the previous (both go round); **OCT- / OCT+**
 choose L or R; **HOME** returns to SOUND. The four knobs show the engine's own parameter names and values.
 
 | Page | Parameters |
@@ -243,8 +265,8 @@ choose L or R; **HOME** returns to SOUND. The four knobs show the engine's own p
 
 ## Effects (FX)
 
-**Tap FX** to open the effects. Each further tap goes to the next page; the tap after the last page closes FX. **HOME**
-or **ARP** close it at once.
+**Tap FX** to open the effects. Each further tap goes to the next page (after the last: the first again), holding FX
+goes back one (before the first: the last). **HOME** or **ARP** close it.
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 |---|---|---|---|---|
@@ -276,18 +298,19 @@ A printable version is on the site: [the cheat sheet](https://fenderberg.github.
 |---|---|
 | OCT- / OCT+ | Focus on part L / part R |
 | HOME | SOUND page |
-| SELECT | Category (on SOUND) |
+| SELECT | Category (on every page) |
 | ALGORITHM | Engine |
 | PRESETS | Sound |
-| PLAY | Next page; hold for the previous one (next release; in 0.4: turn SELECT) |
 | ARP | Arp on + ARP page / off |
 | REC | Arp HOLD |
 | SEQ | Drone on / off |
 | SCL | Dual on / off |
-| GLO | Settings |
-| EDIT | Edit the sound in focus |
-| FX | Effects: open, next page, close |
+| GLO | Settings; again: next page, hold: previous |
+| EDIT | Edit the sound in focus; again: next page, hold: previous |
+| FX | Effects: open, next page (hold: previous); HOME closes |
+| KNOB 4 on ARP | The ARP's pages |
 | GLO + SEQ | SPLIT ↔ STEREO |
+| SAVE, then SAVE | Save the sound: tap = overwrite your sound, hold = a new one |
 | ENV (hold) | Echo throw |
 | LFO (hold) | Reverb throw |
 | Keys | Play the part in focus (both in Dual; with FX open: performance effects) |

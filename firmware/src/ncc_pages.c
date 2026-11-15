@@ -58,38 +58,51 @@ static uint32_t lv_nsub(uint32_t page)
         n += (uint32_t)lv_edit_visible(i);
     return n;
 }
-static void lv_open(uint32_t page)
+static void lv_open(uint32_t page)                     /* another family's button: its first page at once */
 {
     lv.pop_ms = 0;
     lv.say = 0;
-    if (lv.page != page)
-        lv.page = (uint8_t)page, lv.sub = 0;
-    else
-        lv.sub = (uint8_t)((lv.sub + 1u) % lv_nsub(page));
+    lv.page = (uint8_t)page, lv.sub = 0;
 }
 #define LV_PAGE_HOLD_MS 500u
-static void lv_page_step(int32_t direction)
+static void lv_page_step(int32_t direction)             /* round: after the last the first, before the first the last */
 {
-    lv.sub = (uint8_t)clamp((int32_t)lv.sub + direction, 0, (int32_t)lv_nsub(lv.page) - 1);
+    uint32_t n = lv_nsub(lv.page);
+    if (direction > 0)
+        lv.sub = (uint8_t)(lv.sub + 1u >= n ? 0u : lv.sub + 1u);
+    else
+        lv.sub = (uint8_t)(lv.sub ? lv.sub - 1u : n - 1u);
     lv.pop_ms = 0;
     lv.say = 0;
 }
-/* Decide short on release, long once at the threshold. No sleep, repeat or transport
- * request. A changed family/subpage/part cancels the pending gesture, so HOME and
- * other page buttons cannot leave a delayed action on the newly opened screen. */
-static void lv_page_button(uint32_t pressed, uint32_t buttons)
+/* FX, GLO, EDIT: from another page a press opens the family's first page at once. On its own page the button decides
+ * on release (a tap: the next page) or once at LV_PAGE_HOLD_MS (held: the previous one, nothing more on release). No
+ * sleep, repeat or transport request. A changed family/subpage/part, another button or a key while it is down
+ * cancels it, so HOME, GLO + SEQ (SPLIT) and FX held + a key (PERFORM) leave no page step behind. (ARP is the arp's
+ * on/off: its pages are on KNOB 4, LK_PAGE. PLAY does nothing here) */
+static void lv_page_buttons(uint32_t pressed, uint32_t buttons, uint32_t keys)
 {
-    uint32_t mask = 1u << panel.btn[B_PLAY];
-    if (pressed & mask) {
-        lv.page_down = lv_nsub(lv.page) > 1u;
-        lv.page_ms = fm1_ms;
-        lv.page_family = lv.page;
-        lv.page_sub = lv.sub;
-        lv.page_part = song.sel;
-    }
+    static const uint8_t BTN[3] = {B_FX, B_GLO, B_EDIT}, PAGE[3] = {PG_FX, PG_GLO, PG_EDIT};
+    uint32_t i, mask;
+    for (i = 0; i < 3u; i++)
+        if ((pressed >> panel.btn[BTN[i]]) & 1u) {
+            lv.page_down = 0;
+            if (lv.page != PAGE[i]) {
+                lv_open(PAGE[i]);
+                return;
+            }
+            lv.page_down = 1;
+            lv.page_btn = BTN[i];
+            lv.page_ms = fm1_ms;
+            lv.page_family = lv.page;
+            lv.page_sub = lv.sub;
+            lv.page_part = song.sel;
+            return;
+        }
     if (!lv.page_down)
         return;
-    if (lv.page_family != lv.page || lv.page_sub != lv.sub || lv.page_part != song.sel) {
+    mask = 1u << panel.btn[lv.page_btn];
+    if ((pressed & ~mask) || keys || lv.page_family != lv.page || lv.page_sub != lv.sub || lv.page_part != song.sel) {
         lv.page_down = 0;
         return;
     }

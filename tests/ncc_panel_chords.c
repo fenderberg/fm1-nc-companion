@@ -1,52 +1,118 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Extended NCC panel and chord gestures: physical releases, not time windows or sustain, delimit REPLACE chords. */
+static void page_hold(uint32_t mask, uint32_t ms)       /* a page button held ms, then let go */
+{
+    fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+    lv_frames(ms); fm1_in.buttons &= ~mask; lv_frame();
+}
 static void page_button_test(void)
 {
-    static const uint8_t OPEN[] = {B_ARP, B_FX, B_GLO, B_EDIT};
-    uint32_t i, mask = 1u << panel.btn[B_PLAY], playing, mode;
-    for (i = 0; i < NELEM(OPEN); i++) {
-        power(); lv_press(OPEN[i]);
-        mode = (uint32_t)trk[0].p[P_AMODE];
-        playing = song.playing;
-        t_turn(EN_SELECT, 3);
-        ok("pages: SELECT outside SOUND changes neither subpage nor category", !lv.sub && !lv.cpend);
+    static const uint8_t BTN[] = {B_FX, B_GLO, B_EDIT}, PAGE[] = {PG_FX, PG_GLO, PG_EDIT};
+    uint32_t i, mask, play = 1u << panel.btn[B_PLAY], playing;
+    track_t *t = &trk[0];
+    for (i = 0; i < NELEM(BTN); i++) {
+        mask = 1u << panel.btn[BTN[i]];
+        power(); playing = song.playing;
         fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
-        ok("pages: PLAY press waits for short/long decision", !lv.sub);
+        ok("pages: a page button opens its first page at once, from another page", lv.page == PAGE[i] && !lv.sub);
+        lv_frames(700); fm1_in.buttons &= ~mask; lv_frame();
+        ok("pages: .. and that press held long does not also go back or on", lv.page == PAGE[i] && !lv.sub);
+        t_turn(EN_SELECT, 1);
+        ok("pages: SELECT on any page: the category coming, the page as it was", lv.page == PAGE[i] && !lv.sub &&
+           lv.cpend == 1);
+        lv_frames(LV_ENG_MS + 100u);
+        ok("pages: .. then the category, still on the page", lv.page == PAGE[i] && !lv.sub && !lv.cpend &&
+           lv.cat[0] != NC_ALL);
+        fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+        ok("pages: on its own page the press waits for short/long", !lv.sub);
         fm1_in.buttons &= ~mask; lv_frame();
-        ok("pages: short PLAY advances one page without changing arp or transport",
-           lv.sub == 1u && (uint32_t)trk[0].p[P_AMODE] == mode && song.playing == playing && !transport_req);
+        ok("pages: a tap advances one page without changing transport", lv.sub == 1u && song.playing == playing &&
+           !transport_req);
         fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
         fm1_ms += LV_PAGE_HOLD_MS - 32u; lv_frame();
-        ok("pages: holding PLAY below 500 ms does not advance", lv.sub == 1u);
+        ok("pages: held below 500 ms does not move", lv.sub == 1u);
         lv_frame();
-        ok("pages: at 500 ms PLAY goes back once", !lv.sub);
+        ok("pages: at 500 ms it goes back once", !lv.sub);
         lv_frames(700);
         fm1_in.buttons &= ~mask; lv_frame();
-        ok("pages: long PLAY neither repeats nor advances on release", !lv.sub && !lv.page_down);
+        ok("pages: held long neither repeats nor advances on release", !lv.sub && !lv.page_down && lv.page == PAGE[i]);
+        page_hold(mask, 700);
+        ok("pages: held on the first page: the last", lv.page == PAGE[i] && lv.sub + 1u == lv_nsub(PAGE[i]));
+        lv_press(BTN[i]);
+        ok("pages: a tap on the last page: the first", lv.page == PAGE[i] && !lv.sub);
         /* A delayed release also counts as long if no input pass ran at the threshold. */
-        lv_press(B_PLAY);
+        lv_press(BTN[i]);
         fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
         fm1_ms += LV_PAGE_HOLD_MS;
         fm1_in.buttons &= ~mask; lv_frame();
         ok("pages: a long release without an intermediate input pass still goes backwards", !lv.sub);
-        lv_press(B_PLAY);
+        lv_press(BTN[i]);
         fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
         lv_press(B_HOME);
         fm1_in.buttons &= ~mask; lv_frame();
         ok("pages: HOME cancels a pending page gesture", lv.page == PG_SOUND && !lv.sub && !lv.page_down);
+        lv_press(BTN[i]); lv_press(BTN[i]);
+        page_hold(play, 700); lv_press(B_PLAY);
+        ok("pages: PLAY does nothing on a page, including transport", lv.page == PAGE[i] && lv.sub == 1u &&
+           song.playing == playing && !transport_req);
     }
     power(); playing = song.playing;
-    lv_press(B_PLAY);
-    fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
-    lv_frames(700); fm1_in.buttons &= ~mask; lv_frame();
+    page_hold(play, 700); lv_press(B_PLAY);
     ok("pages: PLAY does nothing on SOUND, including transport", lv.page == PG_SOUND && !lv.sub && song.playing == playing && !transport_req);
     lv_press(B_EDIT);
-    for (i = 0; i < lv_nsub(PG_EDIT) + 2u; i++) lv_press(B_PLAY);
-    ok("pages: PLAY stops at the last visible edit page", lv.sub + 1u == lv_nsub(PG_EDIT));
+    for (i = 0; i + 1u < lv_nsub(PG_EDIT); i++) lv_press(B_EDIT);
+    ok("pages: EDIT taps reach the last visible edit page", lv.page == PG_EDIT && lv.sub + 1u == lv_nsub(PG_EDIT));
+    lv_press(B_EDIT);
+    ok("pages: the tap after the last edit page: the first again", lv.page == PG_EDIT && !lv.sub);
+    for (i = 0; i + 1u < lv_nsub(PG_EDIT); i++) lv_press(B_EDIT);
+    mask = 1u << panel.btn[B_EDIT];
     fm1_ms = 0xFFFFFF00u;
+    page_hold(mask, 600);
+    ok("pages: held EDIT also works across the millisecond counter wrap", lv.sub + 2u == lv_nsub(PG_EDIT));
+    lv_press(B_GLO); lv_press(B_GLO); lv_press(B_GLO);
+    ok("pages: the tap after GLO's last page: the first again", lv.page == PG_GLO && !lv.sub);
+
+    power(); lv_press(B_GLO);                          /* GLO + SEQ: SPLIT, no page step with it */
+    i = (uint32_t)NCC_SPLIT();
+    mask = 1u << panel.btn[B_GLO];
     fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
-    lv_frames(600); fm1_in.buttons &= ~mask; lv_frame();
-    ok("pages: long PLAY also works across the millisecond counter wrap", lv.sub + 2u == lv_nsub(PG_EDIT));
+    lv_press(B_SEQ); lv_frames(700);
+    fm1_in.buttons &= ~mask; lv_frame();
+    ok("pages: GLO held + SEQ switches SPLIT and neither goes on nor back", (uint32_t)NCC_SPLIT() != i &&
+       lv.page == PG_GLO && !lv.sub);
+    fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+    lv_press(B_SEQ);
+    fm1_in.buttons &= ~mask; lv_frame();
+    ok("pages: .. a quick GLO + SEQ neither", (uint32_t)NCC_SPLIT() == i && !lv.sub);
+
+    power(); lv_press(B_FX); lv_press(B_FX);           /* FX held + a key: PERFORM, no page step with it */
+    mask = 1u << panel.btn[B_FX];
+    fm1_in.buttons |= mask; host_pressed |= mask; lv_frame();
+    key_down(white_key(0)); lv_frame(); lv_frames(700); key_up(white_key(0));
+    fm1_in.buttons &= ~mask; lv_frame();
+    ok("pages: FX held + a key plays PERFORM and leaves the page", lv.fx && lv.sub == 1u);
+    for (i = 0; i < 4u; i++) lv_press(B_FX);
+    ok("pages: FX taps reach PERFORM", lv.fx && lv.sub == LV_FX_PERF);
+    page_hold(mask, 700);
+    ok("pages: FX held on PERFORM goes back to INSERT", lv.fx && lv.sub == LV_FX_PERF - 1u);
+    lv_press(B_FX); lv_press(B_FX);
+    ok("pages: the tap after PERFORM: SENDS again, FX stays open", lv.fx && !lv.sub);
+
+    power(); lv_press(B_ARP);                          /* ARP: the arp's on/off; KNOB 4 its pages */
+    ok("pages: ARP opens its first page, KNOB 4 shows 1/3", lv.page == PG_ARP && !lv.sub &&
+       !strcmp(lv_label(lv_knob(3)), "PAGE"));
+    t_turn(EN_K4, 1);
+    ok("pages: ARP: KNOB 4 right the next page, the arp stays on", lv.sub == 1u && t->p[P_AMODE]);
+    t_turn(EN_K4, 5);
+    ok("pages: ARP: KNOB 4 stops at the last page", lv.sub == 2u);
+    t_turn(EN_K4, -1);
+    ok("pages: ARP: KNOB 4 left the page before", lv.sub == 1u);
+    t_turn(EN_K4, -5);
+    ok("pages: ARP: KNOB 4 stops at the first page", !lv.sub);
+    page_hold(play, 700); lv_press(B_PLAY);
+    ok("pages: PLAY does nothing on ARP", lv.page == PG_ARP && !lv.sub && t->p[P_AMODE] && !transport_req);
+    lv_press(B_ARP);
+    ok("pages: ARP on its page still switches the arp off", !t->p[P_AMODE]);
 }
 
 static void replace_chord_test(void)
@@ -120,7 +186,7 @@ static void settings_edit_test(void)
     ok("settings UI: output can be set to SPLIT", NCC_SPLIT());
     t_turn(EN_K4, 1);
     ok("settings UI: clock can select TRS", song.g[G_CLOCK] == 2);
-    lv_press(B_PLAY); t_turn(EN_K1, 2); t_turn(EN_K2, 5); t_turn(EN_K3, 2); t_turn(EN_K4, 1);
+    lv_press(B_GLO); t_turn(EN_K1, 2); t_turn(EN_K2, 5); t_turn(EN_K3, 2); t_turn(EN_K4, 1);
     ok("settings UI: page 2 sets Dual, BPM and both Drone modes", ncc_dual_mode() == 2u && song.g[G_BPM] == 130 &&
        ncd_mode(0) && ncd_want[0] && !ncd_mode(1) && ncd_want[1]);
     dual_button();
@@ -132,14 +198,14 @@ static void settings_edit_test(void)
 
     power(); lv_focus(1); lv_press(B_EDIT);
     ok("edit UI: EDIT opens the selected part's engine controls", lv.page == PG_EDIT && lv_edit_index() == LE_ENGINE1);
-    lv_press(B_PLAY); before = trk[1].p[P_E4]; other = trk[0].p[P_E4];
+    lv_press(B_EDIT); before = trk[1].p[P_E4]; other = trk[0].p[P_E4];
     trk[1].p[P_DLY] = 53; trk[1].p[P_REV] = 54;
     t_turn(EN_K1, -5);
     ok("edit UI: cutoff edits only focused R and keeps adjusted sends", trk[1].p[P_E4] < before &&
        trk[0].p[P_E4] == other && trk[1].p[P_DLY] == 53 && trk[1].p[P_REV] == 54);
     undo_swap();
     ok("edit UI: parameter edits support the existing undo snapshot", trk[1].p[P_E4] == before);
-    lv_press(B_HOME); lv_press(B_EDIT); lv_press(B_PLAY); lv_press(B_PLAY);
+    lv_press(B_HOME); lv_press(B_EDIT); lv_press(B_EDIT); lv_press(B_EDIT);
     before = trk[1].p[P_ATK]; t_turn(EN_K1, 3);
     ok("edit UI: AMP ENV edits attack", lv_edit_index() == LE_AMP && trk[1].p[P_ATK] > before);
     lv_focus(0); lv.page = PG_EDIT;

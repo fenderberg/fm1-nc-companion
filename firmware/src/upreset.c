@@ -314,7 +314,11 @@ static int up_put(uint32_t k, const up_rec_t *r)
 #endif
     if (k >= UP_SLOTS)
         return 1;
-    if (transport_busy()) {                            /* no flash erase while playing (project_save) */
+    if (transport_busy()
+#if FELUCCA_LIVEUI
+        && !up_anytime                                  /* NC: NCC's SAVE writes while the Circuit plays (ncc_save.c) */
+#endif
+       ) {                                              /* no flash erase while playing (project_save) */
         ui_message("STOP TO SAVE");
         return 2;
     }

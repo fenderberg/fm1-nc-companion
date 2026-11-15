@@ -76,8 +76,12 @@ static void lv_draw_head(void)
     cv_rrect(2, 2, 82, 22, 4, LC_PART[part], LC_BG);
     str_cpy(s, lv.page == PG_GLO || lv.page == PG_EDIT ? lv_page_name() :
             lv.fx ? LV_FX_PAGE[lv.sub % 6u] : PG_NAME[lv.page % PG_N], sizeof s);
-    if (!lv.fx && lv.sub && lv.page < PG_GLO)
-        str_cpy(s + str_len(s), " 2", 3);
+    if (!lv.fx && lv.sub && lv.page < PG_GLO) {        /* "ARP 2", "ARP 3" */
+        uint32_t n = str_len(s);
+        s[n] = ' ';
+        s[n + 1u] = (char)('1' + lv.sub % 9u);
+        s[n + 2u] = 0;
+    }
     cv_text_in(2, 4, 82, &AF_M, s, LC_TEXT, LC_PART[part]);
     cv_text_on(92, 7, &AF_S, ncc_dual_mode() == 1u ? "D3" : ncc_dual_mode() == 2u ? "D4" : "NCC", LC_MID, LC_BG);
     cv_text_on(124, 7, &AF_S, split ? "SPLIT" : "ST", split ? LC_AMBER : LC_DIM, LC_BG);
@@ -286,8 +290,8 @@ static int32_t lv_macro_text(uint32_t part, uint32_t m, char *s)
 
 static void lv_draw_foot(void)
 {
-    static const char *const HINT[PG_N] = {"", "PLAY: PAGE   REC: HOLD", "HOLD FX + KEY: PERFORM",
-                                          "PLAY: PAGE   HOME: SOUND", "PLAY: PAGE   OCT-/+: PART"};
+    static const char *const HINT[PG_N] = {"", "KNOB 4: PAGE   REC: HOLD", "HOLD FX + KEY: PERFORM",
+                                          "GLO: PAGE   HOME: SOUND", "EDIT: PAGE   OCT-/+: PART"};
     uint32_t seen = ncm_seen, sig, mp = (seen >> 16) & 1u, m = (seen >> 8) & 7u;
     char s[24], r[24];
     int32_t v = 0;
@@ -319,7 +323,7 @@ static void lv_draw_foot(void)
         cv_text_in(0, 6, 240, &AF_S, l, lv.pend | lv.cpend | lv.apend ? LC_AMBER : LC_TEXT, LC_BG);
     } else if (!lv.pop_ms)
         cv_text_in(0, 6, 240, &AF_S, !lv.fx ? HINT[lv.page % PG_N] : lv.sub == LV_FX_PERF ?
-                   "KEYS: EFFECTS   FX: CLOSE" : "FX / PLAY: PAGES   HOME: CLOSE", LC_DIM, LC_BG);
+                   "KEYS: EFFECTS   HOME: CLOSE" : "FX: PAGE   HOME: CLOSE", LC_DIM, LC_BG);
     else if (lv.say)
         cv_text_in(0, 4, 240, &AF_M, lv.say, LC_TEXT, LC_BG);
     else {                                              /* a macro: the Circuit's legend, then what it does here */

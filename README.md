@@ -38,11 +38,13 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
   locked to the Circuit's clock, with HOLD. A **Drone** button with STACK (build up notes) and REPLACE (hold only the
   latest chord, with a smooth overlapping transition when voices are available). Effects one tap away (sends, delay, reverb, chorus, insert, and Felucca's PERFORM effects on the keys), plus echo and reverb
   throws.
-  SELECT only chooses sound categories on SOUND; PLAY browses settings/edit/arp/FX pages (tap next, hold previous).
+  SELECT chooses the sound category on every page; GLO, EDIT and FX browse their own pages (tap next, hold previous),
+  KNOB 4 the arp's.
 - **Dual sounds.** SCL switches Dual on/off; GLO chooses MIDI channel 3 or 4 as the note source for L and R together.
   Each part keeps its own patch, arp and Drone; the Circuit's knobs keep controlling their usual part.
 - **Settings and sound editing on the device.** GLO opens channels, clock, output and performance settings. EDIT
-  opens the focused sound's engine, envelope, LFO and voice controls, plus FM6's operators.
+  opens the focused sound's engine, envelope, LFO and voice controls, plus FM6's operators. SAVE keeps the sound
+  in the user bank (tap: overwrite yours, hold: a new one), in its category and under USER.
 - **Delay and reverb start at zero.** Every new sound loads with both sends off. Turn them up on FX > SENDS; the
   shared effects keep their usual controls.
 

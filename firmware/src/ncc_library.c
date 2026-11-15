@@ -2,7 +2,7 @@
 /* NCC (Novation Circuit Companion, FELUCCA_LIVEUI=1): the sound library. Every sound of NCC's offered engines in one list
  * (LV_ENGS' order: per engine NCC's own sounds (ncc_presets.c), its presets, FM6's voice bank, then the engine's user
  * presets), each with a category by what it is for: BASS, PAD, LEAD, KEYS, PLUCK (OTHER: a
- * user sound or a bank voice whose name does not tell). On SOUND, SELECT filters by category and ALGORITHM by engine
+ * user sound or a bank voice whose name does not tell). A user sound also under USER, all of them together. On SOUND, SELECT filters by category and ALGORITHM by engine
  * (each with ALL), PRESETS steps through what is left; a sound of another engine switches the part to it (live_ui.c).
  *
  * The category comes from the sound's name (nl_cat: a keyword at the start of a word (five letters or more: anywhere), BASS / SUB -> BASS, PAD / STR / CHOIR -> PAD, LEAD / HOOVER / BRASS -> LEAD, EP / KEY / ORGAN -> KEYS, PLUCK / BELL / MARIMBA ->
@@ -12,8 +12,9 @@
  * Main loop only. The list is built when it is used (nl_build: up to NL_MAX entries, from the presets in flash and the user
  * presets' RAM mirror); the bank voices' names are read from flash once per bank (nl.bsig). */
 
-enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_BEAT, NC_OTHER, NC_N };
-static const char *const NC_NAME[NC_N] = {"ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"};
+/* NC_USER is a filter, no entry's category: every user sound, each also under its own (nl_fits) */
+enum { NC_ALL, NC_BASS, NC_PAD, NC_LEAD, NC_KEYS, NC_PLUCK, NC_BEAT, NC_OTHER, NC_USER, NC_N };
+static const char *const NC_NAME[NC_N] = {"ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER", "USER"};
 enum { NLK_PRESET, NLK_NCC, NLK_BANK, NLK_USER, NLK_ULOOP };
 typedef struct {
     uint8_t kind, eng, k, cat;          /* NLK_*, ENGINES[] index, the preset / NCC sound / bank voice / user slot /
@@ -105,10 +106,21 @@ static void nl_bank_names(void)
  * and the list kept the old bank's names and categories over the new voices) */
 static void nl_bank_changed(void) { nl.bok = 0; }
 
-static void nl_add(uint32_t kind, uint32_t e, uint32_t k, const char *name)
+static void nl_add_cat(uint32_t kind, uint32_t e, uint32_t k, uint32_t cat)
 {
     if (nl.n < NL_MAX)
-        nl.s[nl.n++] = (nl_snd_t){(uint8_t)kind, (uint8_t)e, (uint8_t)k, (uint8_t)nl_cat(name, e)};
+        nl.s[nl.n++] = (nl_snd_t){(uint8_t)kind, (uint8_t)e, (uint8_t)k, (uint8_t)cat};
+}
+static void nl_add(uint32_t kind, uint32_t e, uint32_t k, const char *name) { nl_add_cat(kind, e, k, nl_cat(name, e)); }
+
+/* user slot k's category: the one its record keeps (a SAVE on the panel: the sound's, ncc_save.c; Felucca's NAME
+ * screen, the editor), else (none, OTHER, FX) the name's as for any sound */
+static uint32_t nl_user_cat(uint32_t k, const char *name, uint32_t e)
+{
+    static const uint8_t NC_OF[CAT_N] = {NC_OTHER, NC_BASS, NC_LEAD, NC_PAD, NC_PLUCK, NC_KEYS, NC_BEAT, NC_OTHER,
+                                         NC_OTHER};
+    uint32_t c = up_cat(k);
+    return c < CAT_N && NC_OF[c] != NC_OTHER ? NC_OF[c] : nl_cat(name, e);
 }
 
 /* the list, as it is now */
@@ -138,15 +150,17 @@ static void nl_build(void)
         for (k = 0; k < UP_SLOTS; k++)
             if (up_used(k) && up_engine(k) == e) {
                 up_name(k, b);
-                nl_add(NLK_USER, e, k, b);
+                nl_add_cat(NLK_USER, e, k, nl_user_cat(k, b, e));
             }
     }
 }
 
-/* entry i passes the filters: category c (NC_ALL any), engine position ep in LV_ENGS + 1 (0 any) */
+/* entry i passes the filters: category c (NC_ALL any, NC_USER the user sounds), engine position ep in LV_ENGS + 1
+ * (0 any) */
 static int nl_fits(uint32_t i, uint32_t c, uint32_t ep)
 {
-    return i < nl.n && (!c || nl.s[i].cat == c) && (!ep || nl.s[i].eng == LV_ENGS[ep - 1u]);
+    return i < nl.n && (!c || (c == NC_USER ? nl.s[i].kind == NLK_USER : nl.s[i].cat == c)) &&
+           (!ep || nl.s[i].eng == LV_ENGS[ep - 1u]);
 }
 static uint32_t nl_count(uint32_t c, uint32_t ep)
 {

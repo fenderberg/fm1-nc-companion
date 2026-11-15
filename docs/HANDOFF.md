@@ -2,6 +2,85 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-14.
 
+## Installed: everything of 2026-11-15 (pages, AMP ENV, SELECT, SAVE)
+
+- Remco: "zet alle laatste features erop en geef me een kort testplan". Flashed `build/ncc.fwsc`, SHA-256
+  `088a63c9add45685106f98759976d9b527484f5bb1215e92430c108640a2b949`, image 580364 B: write 100%, restart, `info`
+  reports **FM-1_700**. Log `build/ncc-flash-save.log`. No notes/CCs sent; Remco's own test pending. Uncommitted.
+
+## SAVE on the panel and a USER category (2026-11-15, uncommitted)
+
+- Remco (after a Reddit request by sad_phish for "a user preset bank"): saved sounds both under USER and their own
+  category; one SAVE press asks, then short = overwrite, long = new into the user bank. His choices: write at once
+  even while the Circuit plays (accepting the ~40-80 ms erase gap), USER last in SELECT's order, and a short press on
+  a factory/DX7 sound does nothing but ask again ("HOLD SAVE: NEW SOUND").
+- New `firmware/src/ncc_save.c` (included by live_ui.c after ncc_pages.c, called from live_input): the question
+  stays on the foot for 4 s (re-shown after a knob popup), another button or the timeout cancels ("SAVE
+  CANCELLED"). Overwrite keeps slot, name, category; new = first free slot, name from the source sound's library
+  name with " 2".." 99" (a 1-2 digit trailing number of a copy is dropped, "ACID 303" keeps 303), category from the
+  current library entry mapped NC_* -> CAT_* and stored in the record's existing category byte (no format change).
+  Uses Felucca's `up_store_cat` (FM6 patch included). `up_anytime` (declared in ui.c, NC) lets `up_put` skip its
+  transport_busy refusal for this call only. The part's `t->user` becomes the slot.
+- ncc_library.c: `NC_USER` appended after OTHER (filter only: `nl_fits` matches NLK_USER); user entries take the
+  record's category when it is a specific one, else the name rule. NCC_INFO now lists 9 type names; the Manager
+  shows a USER chip (`typeFits`, kind 3) and its mock knows USER.
+- Tests: `tests/ncc_save_test.c` (20 checks: ask, tap/hold, naming, category + USER, overwrite, copy numbering,
+  cancel by button and timeout, while playing, FM6 save/load, full bank, name rules, text widths). All ok, goldens
+  unchanged, emu-test and Manager test ok. Build image **580364 B**, RAM 61912 B, pool 359464 B.
+- Known limits: a user sound still loads dry (P_DLY/P_REV zeroed like every sound, ncc_sound_defaults.c); FM6's
+  AMP ENV knob offset (fm6_ceg) is not a stored parameter, so it is not saved; after a power cycle an NCC sound's
+  own name can be lost (open issue below), so a save then names it after the engine preset instead.
+
+## Pages round both ways, SELECT on every page (2026-11-15, uncommitted, not flashed)
+
+- Remco: "vasthouden idd van de eerste weer naar de laatste / de knop4 op de arp hoeft niet rond te gaan / de select
+  knop moet altijd de preset categorien kiezen. ook als je bv in fx mode zit. consistentie is belangrijk".
+  `lv_page_step` now wraps both ways (held on the first page: the last). KNOB 4 on ARP still clamps. SELECT's
+  category filter no longer requires PG_SOUND (like ALGORITHM/PRESETS): the result shows as the foot popup.
+  Tests: page_button_test (SELECT on every page, held-first-to-last), SOUNDS (SELECT on ARP changes the category).
+  All ok, goldens unchanged, emu-test ok (its peak varies run to run: 0.243..0.255 seen with identical code),
+  image 578944 B, package SHA-256 `926b7d7e…ebef`. AGENTS.md panel line, manual, README, cheat sheet, CHANGELOG
+  updated. Not flashed.
+
+## Page buttons wrap forward (2026-11-15, uncommitted, not flashed)
+
+- Remco: "bij alle menu's, als je bij het einde bent, ga dan bij de volgende klik weer terug naar de eerste pagina".
+  GLO/EDIT/FX: the tap after the last page is the first again (FX no longer closes on it: HOME or ARP close FX;
+  `lv.prev` removed). Holding still goes back and stops at the first page; ARP's KNOB 4 still clamps (a knob, not
+  a click). PERFORM hint "HOME: CLOSE". Tests updated; all ok, goldens unchanged, emu-test ok, image 578992 B.
+  Manual, cheat sheet, CHANGELOG updated. **Not on the FM-1 yet** (the installed build below still stops/closes).
+
+## Installed: page buttons + AMP ENV (2026-11-15)
+
+- Remco: "zet alle wijzigingen erop en geef me instructies om te testen". Flashed `build/ncc.fwsc` (both changes
+  below), SHA-256 `9180aa86142328757a3960b5da2c6925e1affc784d22466c19b070cca457279b`, image 578976 B. Write 100%,
+  restart, `info` reports **FM-1_700** (was FM-1_706, the 0.6 release). Log `build/ncc-flash-pages-amp.log`. No
+  notes/CCs sent; Remco's own panel/listening test pending. Still uncommitted, not pushed.
+
+## AMP ENV keeps the attack (2026-11-15, uncommitted, host-tested only)
+
+- Remco: "de amp release knop doet nu ook iets met de attack. ik wil met deze knop alleen de sound langer maken".
+  The Circuit's AMP ENV macro (CC 5) now moves **P_REL only** on JUNO, PHASE, TRIO and the seven extra engines
+  (was P_ATK + P_REL; popup "RELEASE"). FM6's CEG offset now skips R1 (attack rate) and slows R2..R4 only (popup
+  "LENGTH"), so held FM bells/EPs also get longer. ACID (DEC+REL) and LOOP unchanged.
+- New checks in `macro_map_test`: no map entry's AMP ENV targets P_ATK; JUNO attack unchanged/release up; FM6
+  carriers' R1 unchanged, R4 slower. Tests all ok, goldens unchanged, emu-test ok, image 578976 B. Manual,
+  extra-engine macro doc, cheat sheet, CHANGELOG Unreleased updated. Not flashed, not committed. Not listened to.
+
+## Page buttons instead of PLAY (2026-11-15, uncommitted, host-tested only)
+
+- Remco found PLAY paging confusing: "bij alle knoppen 1x snel klikken je een pagina naar voren gaat. 1x langzaam
+  klikken terug. de arp niet. die zet je aan en uit. gebruik daar de 4de draaiknop". He chose KNOB 4 (over SELECT)
+  and FX still closing after PERFORM.
+- `ncc_pages.c lv_page_buttons` replaces `lv_page_button`: FX/GLO/EDIT from another page open their first page at
+  once; on their own page a tap (on release) is next, a 500 ms hold is previous once; no wrap, FX's tap after
+  PERFORM closes it. Another button, a key edge, or a page/part change while held cancels (GLO + SEQ SPLIT, FX held
+  + key PERFORM stay clean). PLAY does nothing in NCC now. ARP: three pages (MODE RATE OCTAVES / GATE SWING PROB /
+  ORDER DRONE), KNOB 4 = `LK_PAGE` ("1/3", clamped). Head shows "ARP 2/3", hints updated.
+- Tests rewritten (`page_button_test`, arp/FX/REPLACE UI, emu-test). `ncc_dev.sh test` all ok, goldens unchanged,
+  only the two Mac CPU exceptions; emu-test passes; build image 578968 B, RAM 61896, pool 359464, FM-1_700.
+  Manual, cheat sheet (`ncc_site.py`), README, CHANGELOG Unreleased updated. Not flashed, not committed/pushed.
+
 ## Release 0.6 (2026-11-14, published without a device test)
 
 - Remco: "push and publish the latest version and update the website"; asked about the missing device test, he
@@ -18,8 +97,10 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
   tar.gz, SHA256SUMS; uploaded digests match. https://github.com/fenderberg/fm1-nc-companion/releases/tag/v0.6
 - `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.6`, `publish-site`: `gh-pages` **31edfa6**, Pages built. Live home,
   manual and installer match the build byte for byte; the live firmware matches the release checksum.
-- To do when the FM-1 is back: flash (with OK), verify identity/library, and listen with the Circuit on TRS
-  (clock, macro CCs) — the first hardware check of these fixes.
+- 2026-11-15, Remco: "upload firmware naar fm1". Flashed the release package itself
+  (`build/rel/release-0.6/ncc-0.6.fwsc`, SHA-256 above): writing reached 100%, restart, `info` reports
+  **FM-1_706** running. Log `build/ncc-flash-0.6.log`. No library/protocol check, notes or CCs sent, no
+  listening test yet: the Circuit-on-TRS check (clock, macro CCs) is still Remco's to do.
 
 ## Upstream Felucca fixes taken over (2026-11-14, pushed to main, host-tested only)
 
