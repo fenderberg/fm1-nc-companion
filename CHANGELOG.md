@@ -1,5 +1,19 @@
 # What's new in NCC
 
+## 0.7
+
+- **Save your own sounds on the FM-1**: press SAVE, then tap SAVE to overwrite your sound or hold it for a new one. A
+  new sound is named after its source ("SOFT PAD 2"), keeps its category and also shows under SELECT's new **USER**
+  category (and in the Manager).
+- **Each page button turns its own pages**: tap GLO, EDIT or FX again for the next page (after the last, the first
+  again), hold it for the previous one (before the first, the last). HOME or ARP close FX. PLAY no longer changes
+  pages.
+- **KNOB 4 turns the ARP's pages**, as ARP itself switches the arp on and off. Its settings are now on three pages:
+  MODE RATE OCTAVES, GATE SWING PROB, ORDER DRONE.
+- **SELECT picks the category on every page**, also in FX or EDIT, just like ALGORITHM and PRESETS.
+- **The Circuit's AMP ENV knob makes a sound longer and leaves its attack alone**: the release only, on FM6 the
+  carriers' decay and release.
+
 ## 0.6
 
 - **Newer FM-1 units now save**: units with the newer UC25HQ80 flash chip kept nothing after power-off.
