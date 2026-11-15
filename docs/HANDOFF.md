@@ -2,13 +2,15 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
 
-## 24 synth sounds and the WAVE engine (2026-11-15, branch `nc/sounds-wave`, flashed, not listened to yet)
+## 24 synth sounds and the WAVE engine (2026-11-15, on main, pushed, flashed, not listened to yet)
 
 - **Installed** (Remco: "doe 1", the offer to put it on the FM-1 for listening): fresh build `build/ncc.fwsc`
   SHA-256 `c6dd1663973d6153e6dbf9bc629318aa45baef5b855409b3f34b90dcf580285c`, image 475436 B. Write 100%, restart,
   `info` reports FM-1_700 running. Log `build/ncc-flash-sounds-wave.log`. No notes/CCs sent, no console CPU
   reading; Remco's listening test pending. Committed on local branch `nc/sounds-wave` (Remco: "commit"; main
-  untouched at `3ec212d`). Not pushed.
+  untouched at `3ec212d`). Then Remco: "zet op github", asked what, he chose "Alles op main": fast-forwarded
+  into main and main pushed to origin (fenderberg/fm1-nc-companion), with the split FX review commits. No
+  release, site not published.
 
 - Remco: "focus je op synth sounds. niet drums en loops. samples alleen als ze extreem klein zijn"; he approved a
   list of 24 sounds and a wavetable engine ("1ja2ja", "ga verder").
