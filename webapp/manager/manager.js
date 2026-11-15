@@ -160,7 +160,9 @@ async function act(what, fn, after = []) {
 /* ------------------------------------------------------------------ render --- */
 function renderAll() { renderParts(); renderSounds(); renderMine(); renderDx(); renderLoops(); renderSettings(); }
 const engName = (id) => (dev?.ncc?.engines.find((e) => e.id === id)?.name) || (dev?.info?.engines[id]) || "?";
-const typeName = (c) => (dev?.ncc?.types[c]) || ["ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"][c] || "?";
+const typeName = (c) => (dev?.ncc?.types[c]) || ["ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER", "USER"][c] || "?";
+// USER (firmware 0.7+) is a filter, no sound's type: the user sounds (kind 3), each also under its own type
+const typeFits = (s, c) => !c || (dev?.ncc?.types[c] === "USER" ? s.kind === 3 : s.cat === c);
 
 function renderParts() {
   const box = $("partcards");
@@ -180,14 +182,14 @@ function renderSounds() {
   tc.replaceChildren(); ec.replaceChildren(); rows.replaceChildren();
   if (!dev?.lib) { rows.append(el("tr", {}, el("td", { colSpan: 4, textContent: dev ? "This FM-1 does not run NCC." : "Connect to see the sounds." }))); return; }
   dev.ncc.types.forEach((t, c) => {
-    if (c && !dev.lib.some((s) => s.cat === c)) return;
+    if (c && !dev.lib.some((s) => typeFits(s, c))) return;
     tc.append(el("button", { textContent: t, ariaPressed: String(ui.cat === c), onclick: () => { ui.cat = c; renderSounds(); } }));
   });
   [{ id: -1, name: "ALL" }, ...dev.ncc.engines].forEach((e, k) =>
     ec.append(el("button", { textContent: e.name, ariaPressed: String(ui.ep === k), onclick: () => { ui.ep = k; renderSounds(); } })));
   const q = ui.search.trim().toUpperCase();
   for (const s of dev.lib) {
-    if ((ui.cat && s.cat !== ui.cat) || (ui.ep && s.eng !== dev.ncc.engines[ui.ep - 1].id) || (q && !s.name.toUpperCase().includes(q))) continue;
+    if (!typeFits(s, ui.cat) || (ui.ep && s.eng !== dev.ncc.engines[ui.ep - 1].id) || (q && !s.name.toUpperCase().includes(q))) continue;
     const mark = dev.parts ? dev.parts.map((p, i) => (p.entry === s.i ? PART[i] : "")).join("") : "";
     rows.append(el("tr", {},
       el("td", { textContent: s.name + (s.kind === 3 ? "  (mine)" : s.kind === 2 ? "  (DX7)" : "") + (mark ? `  ◀ ${mark}` : "") }),
@@ -518,7 +520,7 @@ function dropZone(zone, pick, input, onFiles) {
 
 /* ------------------------------------------------------------------ a simulated FM-1 with NCC (?mock=1) --- */
 function mockAccess() {
-  const types = ["ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER"];
+  const types = ["ALL", "BASS", "PAD", "LEAD", "KEYS", "PLUCK", "BEAT", "OTHER", "USER"];
   const engs = [[12, "FM6"], [0, "JUNO"], [2, "PHASE"], [6, "TRIO"], [14, "ACID"],
     [9, "PHYS"], [8, "GRAIN"], [5, "VOICE"], [3, "LOFI"], [7, "WHEEL"], [11, "NOISE"], [4, "SAMPLE"]];
   const lib = [[0, 12, 4, "TINE EP"], [0, 12, 5, "BELL"], [0, 12, 1, "FM BASS"], [1, 0, 2, "JUNO STRINGS"],
