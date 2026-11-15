@@ -65,7 +65,7 @@ test)
     "$PY" tools/ncc_check.py --log build/host/ncc_test.log --summary '^ncc: all ok$' -- build/host/ncc_test
     cc -O1 -w -fsanitize=undefined -fno-sanitize=shift-base -fno-sanitize-recover=all -DNCC_LOOP=1 -Ibuild/gen -Ifirmware/src -o build/host/ncc_test_loop tests/ncc_test.c -lm
     "$PY" tools/ncc_check.py --log build/host/ncc_test_loop.log --summary '^ncc: all ok$' --prefix '(NCC_LOOP=1) ' -- build/host/ncc_test_loop
-    cc -O2 -w -DFELUCCA_LIVEUI=1 -DNCC_SPLIT_DEFAULT=0 -Ibuild/gen -Ifirmware/src -o build/host/regress_liveui tests/regress.c -lm
+    cc -O2 -w -DFELUCCA_LIVEUI=1 -DNCC_SPLIT_DEFAULT=0 -DNCC_LOOP=1 -Ibuild/gen -Ifirmware/src -o build/host/regress_liveui tests/regress.c -lm   # (LOOP's goldens: its loops built in)
     "$PY" tools/ncc_check.py --log build/host/regress_liveui.log --summary '^regress: [0-9]+ golden renders' --prefix '(NCC) ' --mac-cpu-noise -- build/host/regress_liveui tests/ncc_golden.txt tests/cpu_baseline.txt
     cc -O2 -w -Ibuild/gen -Ifirmware/src -o build/host/regress tests/regress.c -lm
     "$PY" tools/ncc_check.py --log build/host/regress.log --summary '^regress: [0-9]+ golden renders' --prefix '(Felucca) ' --mac-cpu-noise -- build/host/regress tests/golden.txt tests/cpu_baseline.txt

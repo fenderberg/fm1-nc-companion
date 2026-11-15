@@ -428,6 +428,9 @@ static void fx_quiet(void)                              /* the buses empty: no t
     lc_l1 = lc_l2 = lc_r1 = lc_r2 = dc_l = dc_r = dce_l = dce_r = 0;   /* MASTER's filters: no ring of a test before */
     memset(lce, 0, sizeof lce);
     lim_env = LIM_T;
+    ncs_rev_reset(0);                                   /* the buses' states (ncc_split_fx.c) too */
+    ncs.dlp[0] = ncs.dlp[1] = 0;
+    memset(cho_buf, 0, sizeof cho_buf);
 }
 static void chorus_test(void)
 {
@@ -509,14 +512,23 @@ static void split_test(void)
     }
     ok("split: a note on R: the right plays, the left mix and the buses exactly 0", lz && rsum > 0u);
     midi(0x83, 60, 0);
-    trk[1].p[P_REV] = trk[1].p[P_DLY] = 100;            /* sends: R's reverb and delay on both sides */
+    trk[1].p[P_REV] = trk[1].p[P_DLY] = trk[1].p[P_CHOR] = 100;   /* sends: R's chorus, reverb and delay */
     midi(0x93, 62, 100);
-    for (b = 0, lz = 0; b < 200u; b++) {
+    for (b = 0, lz = 1; b < 100u; b++) {
         blk();
         for (i = 0; i < CTL; i++)
-            lz += wet[i] != 0;                          /* (mix_l: HALL's stereo side is added to it) */
+            lz &= mix_l[i] == 0 && wet[i] == 0;
     }
-    ok("split: R with sends: its delay and reverb come back (on both sides)", lz > 100u);
+    midi(0x83, 62, 0);
+    midi_silence_track(1);                              /* (R's own sound cut: its returns alone from here) */
+    for (b = 0, rsum = 0; b < 400u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++) {
+            lz &= mix_l[i] == 0 && wet[i] == 0;
+            rsum += mix_r[i] != 0;
+        }
+    }
+    ok("split: R with sends: its delay and reverb come back on the right only", lz && rsum > 6000u);
     song.g[G_ENGGO] = 1;
 }
 
@@ -782,7 +794,8 @@ static void fx_ui_test(void)
 /* SPLIT to the DAC: one part plays with everything that could reach the other side on (its reverb / delay / chorus
  * sends, both throws, PERFORM's THROW macro and a FLANGER, its Juno chorus, a tail of the other part from before): the
  * other side of the output, after MASTER (mix_block's out), exactly 0 */
-/* wet 0: no sends, no throws: the quiet side exactly 0; wet 1: sends, throws, THROW: their return on it too */
+/* wet 0: no sends, no throws; wet 1: sends, throws, THROW (their returns on the playing side only): the quiet side
+ * exactly 0 either way */
 static int split_side_silent(uint32_t play, uint32_t quiet, uint32_t wet)
 {
     track_t *t = &trk[play], *o = &trk[quiet];
@@ -821,15 +834,169 @@ static int split_side_silent(uint32_t play, uint32_t quiet, uint32_t wet)
     midi(0x82 + play, 48, 0); midi(0x82 + play, 55, 0);
     song.g[G_ENGGO] = 1;
     lv_press(B_FX);
-    return (wet ? !silent : silent) && sound > 1000u;
+    return silent && sound > 1000u;
 }
+/* SPLIT's buses (ncc_split_fx.c): a side's part plays (all three sends, at the reverb model rt, the delay at TIME
+ * dt): the other side's mix and the shared wet exactly 0 throughout, its own return there after the note (the dry cut);
+ * *apart: the sides stayed apart, *tail: samples of return after the cut */
+static void split_fx_run(uint32_t side, uint32_t rt, uint32_t dt, uint32_t *apart, uint32_t *tail)
+{
+    track_t *t = &trk[side];
+    uint32_t b, i;
+    power();
+    fx_quiet();
+    song.g[G_ENGGO] = 0;                                /* SPLIT */
+    song.g[G_RTYPE] = (int16_t)rt;
+    song.g[G_DTIME] = (int16_t)dt;
+    t->p[P_REV] = t->p[P_DLY] = t->p[P_CHOR] = 120;
+    *apart = 1;
+    *tail = 0;
+    for (b = 0; b < 40u; b++)                           /* (the layout's change: NCS_CLR blocks without the buses) */
+        blk();
+    midi(0x92 + side, 57, 120);
+    midi(0x92 + side, 64, 120);
+    for (b = 0; b < 120u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++)
+            *apart &= (side ? mix_l[i] : mix_r[i]) == 0 && wet[i] == 0;
+    }
+    midi(0x82 + side, 57, 0);
+    midi(0x82 + side, 64, 0);
+    midi_silence_track(side);
+    for (b = 0; b < 600u; b++) {
+        blk();
+        for (i = 0; i < CTL; i++) {
+            *apart &= (side ? mix_l[i] : mix_r[i]) == 0 && wet[i] == 0;
+            *tail += (side ? mix_r[i] : mix_l[i]) != 0;
+        }
+    }
+    song.g[G_ENGGO] = 1;
+}
+
+/* the first echo of a click into a side's delay in SPLIT at TIME dt and bpm (no chorus or reverb send; ncs_buses
+ * alone): its delay in samples */
+static uint32_t split_echo_at(uint32_t side, uint32_t dt, uint32_t bpm)
+{
+    uint32_t b, i, at = 0;
+    power();
+    fx_quiet();
+    song.g[G_ENGGO] = 0;
+    for (b = 0; b < 40u; b++)
+        blk();                                          /* (SPLIT's layout, the delay line cleared) */
+    song.g[G_DFDBK] = 0;
+    song.g[G_DMIX] = 127;
+    song.g[G_DTIME] = (int16_t)dt;
+    song.g[G_BPM] = (int16_t)bpm;
+    song.g[G_CLOCK] = 0;
+    memset(send_c, 0, sizeof send_c), memset(send_d, 0, sizeof send_d), memset(send_r, 0, sizeof send_r);
+    memset(mix_l, 0, sizeof mix_l), memset(mix_r, 0, sizeof mix_r);
+    (side ? ncs_snd[1] : send_d)[0] = 1 << 20;
+    for (b = 0; b < 3000u && !at; b++) {
+        ncs_buses(send_c, send_d, send_r, wet, mix_l, mix_r, CTL);
+        for (i = 0; i < CTL && !at; i++)
+            if ((side ? mix_r[i] : mix_l[i]) != 0)
+                at = b * CTL + i;
+        memset(send_d, 0, sizeof send_d), memset(mix_l, 0, sizeof mix_l), memset(mix_r, 0, sizeof mix_r);
+    }
+    song.g[G_ENGGO] = 1;
+    return at;
+}
+
+static void split_fx_test(void)
+{
+    uint32_t rt, apart, tail, ok_all = 1, a, q;
+    static const char *const RN[3] = {"ROOM", "SPRING", "HALL"};
+    for (rt = 0; rt < 3u; rt++) {
+        uint32_t sd;
+        for (sd = 0; sd < 2u; sd++) {
+            split_fx_run(sd, rt, 1u, &apart, &tail);     /* (TIME 1/8) */
+            if (!(apart && tail > 6000u)) {
+                printf("    split fx %s side %u: apart %u tail %u\n", RN[rt], sd, apart, tail);
+                ok_all = 0;
+            }
+        }
+    }
+    ok("split fx: ROOM, SPRING, HALL, both sides: chorus, delay, reverb return on their own side only", ok_all);
+    q = (uint32_t)FS * 60u / 90u;                       /* a quarter at 90 BPM */
+    a = split_echo_at(0, 6u, 90u);                      /* 1/2 at 90 BPM: 1.33 s, more than a side's 0.74 s */
+    ok("split fx: a delay too long for a side's line plays at half its length, on the beat (L)", a == q);
+    a = split_echo_at(1, 6u, 90u);
+    ok("split fx: .. and R alike", a == q);
+    a = split_echo_at(0, 6u, 80u);                      /* (80 BPM: its half, 0.75 s, too long again: a quarter) */
+    ok("split fx: .. halved again below 81 BPM (1/2 -> 1/8)", a == (uint32_t)FS * 60u / 80u / 2u);
+    a = split_echo_at(0, 1u, 90u);
+    ok("split fx: a TIME that fits plays as set (1/8)", a == q / 2u);
+    {   /* no limiter in SPLIT: master_out's right side the same beside a silent or a very loud left (STEREO: the
+         * limiter ducks it) */
+        uint32_t i, k, split, same[2] = {1, 1};
+        int32_t rout[2][4000];
+        for (split = 0; split < 2u; split++) {
+            song.g[G_ENGGO] = (int16_t)(split ? 0 : 1);
+            ncs_begin();                                /* (a block's start: the limiter's switch) */
+            for (k = 0; k < 2u; k++) {
+                lc_l1 = lc_l2 = lc_r1 = lc_r2 = dc_l = dc_r = dce_l = dce_r = 0;
+                memset(lce, 0, sizeof lce);
+                lim_env = LIM_T;
+                for (i = 0; i < 4000u; i++) {
+                    int32_t l = k && i >= 1000u ? (i & 64u ? 200000 : -200000) : 0, r = osc_sine(i * 0x01000000u) >> 1;
+                    master_out(&l, &r);
+                    rout[k][i] = r;
+                }
+            }
+            for (i = 0; i < 4000u; i++)
+                same[split] &= rout[0][i] == rout[1][i];
+        }
+        song.g[G_ENGGO] = 1;
+        ok("split: no limiter: a loud L does not move R's output by a sample (STEREO: it does)", same[1] && !same[0]);
+    }
+    {   /* SPLIT <-> STEREO while the buses ring: no jump (the old layout fades over a block), the new from silence */
+        uint32_t b, i, k, bad = 0;
+        int32_t last = 0, big = 0;
+        power();
+        fx_quiet();
+        song.g[G_RTYPE] = 2;
+        for (k = 0; k < 2u; k++)
+            trk[k].p[P_REV] = trk[k].p[P_DLY] = trk[k].p[P_CHOR] = 120;
+        for (k = 0; k < 4u; k++) {
+            midi(0x92, 60, 110);
+            midi(0x93, 67, 110);
+            for (b = 0; b < 100u; b++)
+                blk();
+            midi(0x82, 60, 0);
+            midi(0x83, 67, 0);
+            midi_silence_track(0);
+            midi_silence_track(1);
+            for (b = 0; b < 30u; b++)
+                blk();                                  /* (the returns ringing alone) */
+            last = blk_out[2u * (CTL - 1u)];
+            song.g[G_ENGGO] = (int16_t)(k & 1u ? 1 : 0);   /* STEREO -> SPLIT -> STEREO -> SPLIT */
+            for (b = 0; b < 60u; b++) {
+                blk();
+                for (i = 0; i < CTL; i++) {
+                    int32_t d = blk_out[2u * i] - last;
+                    d = d < 0 ? -d : d;
+                    if (b < 2u && d > big)
+                        big = d;
+                    last = blk_out[2u * i];
+                    if (b >= 2u && b < 1u + NCS_CLR)
+                        bad += mix_l[i] != 0 || mix_r[i] != 0 || wet[i] != 0;   /* (no bus while the line clears) */
+                }
+            }
+        }
+        song.g[G_ENGGO] = 1;
+        ok("split <-> stereo: the buses fade out, stay silent while the delay clears, no jump", !bad && big < 4000);
+    }
+}
+
 static void split_dac_test(void)
 {
     ui_power_on();
     ok("split: NCC's default (a project, power-on: G_ENGGO 0)", song.g[G_ENGGO] == 0 && NCC_SPLIT());
     ok("split to the DAC: L with FLANGER, Juno chorus, no sends: the right output exactly 0", split_side_silent(0, 1, 0));
     ok("split to the DAC: R alike: the left output exactly 0", split_side_silent(1, 0, 0));
-    ok("split to the DAC: L with sends, throws, THROW: their return on the right too", split_side_silent(0, 1, 1));
+    ok("split to the DAC: L with sends, throws, THROW: the right output exactly 0", split_side_silent(0, 1, 1));
+    ok("split to the DAC: R alike: the left output exactly 0", split_side_silent(1, 0, 1));
+    split_fx_test();
 }
 
 static void screen_test(void)
@@ -1003,6 +1170,22 @@ static void loop_test(void)
         }
         ok("LOOP: every loop plays, none clipping", peakok);
     }
+}
+
+/* NCC_LOOP 0: the built-in loops are not built in (eng_loop.c loop_src): one played stays silent, nothing breaks */
+static void loop_none_test(void)
+{
+    uint32_t i, k, quiet = 1;
+    const int8_t *d = 0;
+    uint32_t len = 0, rate = 0;
+    for (k = 0; k < NLOOP; k++) {
+        loop_play(k, 0, 60, 0, CTL * 200u, 120);
+        for (i = 0; i < CTL * 200u; i++)
+            quiet &= loop_out[i] == 0;
+    }
+    trk[0].p[P_E0] = 0;
+    ok("LOOP hidden: the built-in loops are not built in: none plays, none is read",
+       quiet && !loop_src(&trk[0], &d, &len, &rate) && !d && !len);
 }
 
 /* a user slot of loops for LOOP: zone z (of nz) a bar at 22050 Hz (120 BPM: 44100 samples) with a click (a 300-sample
@@ -1966,7 +2149,11 @@ int main(void)
     full_bank_test();
     bank_replace_test();
     ncc_sounds_test();
-    loop_test();
+#if NCC_LOOP
+    loop_test();                        /* (the built-in loops: only built with NCC_LOOP) */
+#else
+    loop_none_test();
+#endif
     editor_ncc_test();
     user_loop_test();
     user_sample_data_test();

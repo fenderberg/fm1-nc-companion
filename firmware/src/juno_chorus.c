@@ -18,11 +18,11 @@
  *
  * SPLIT, NCC's default (G_ENGGO = 1 is STEREO: a stored global nothing reads, "unused, ids fixed by the formats", 0 in
  * every project and at power-on, so a project plays split until GLO + SEQ turns it to STEREO): part L entirely on the left
- * output, part R on the right, each mono (PAN ignored), for the Circuit Tracks' two audio inputs: the dry sound only.
- * The delay, reverb and chorus buses are shared, so their return (wet, HALL's side, throws, tails) comes out on both
- * sides as in STEREO (Remco's choice: the effects heard, the dry parts apart); with every send at 0 the sides are
- * exactly apart. Not the small speaker's BASS+ of both sides (fx.c master_out). Its Juno chorus is summed onto its own
- * side. DIST, INSERT, the SLICER and PERFORM's effects (each side its own) keep working.
+ * output, part R on the right, each mono (PAN ignored), for the Circuit Tracks' two audio inputs. Their sends too:
+ * R's go into its own buses (ncc_split_fx.c: the chorus, delay and reverb a side each, the same settings), so every
+ * return (throws and tails too) stays on its part's side: the sides exactly apart. Not the small speaker's BASS+ of
+ * both sides, no limiter (fx.c master_out). Its Juno chorus is summed onto its own side. DIST, INSERT, the SLICER and
+ * PERFORM's effects (each side its own) keep working.
  *
  * State in the pool (zeroed at boot), per part; the audio ISR only (the main loop writes P_ED_FX and G_ENGGO). */
 
@@ -67,6 +67,9 @@ static __attribute__((noinline)) void ncc_mix(track_t *t, int32_t *b, uint32_t n
 {
     uint32_t part = (uint32_t)(t - trk), i, m = jc_mode(t), split = NCC_SPLIT(), lo, span, inc;
     jc_t *s = &jc[part];
+    int32_t *sc = SM(c), *sd = SM(d), *sv = SM(v);
+    if (NCS_R(t))                                       /* SPLIT: R's sends its own (ncc_split_fx.c) */
+        sc = ncs_snd[0], sd = ncs_snd[1], sv = ncs_snd[2];
     int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];
     int32_t gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
     int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak, xmax, tw;
@@ -78,8 +81,8 @@ static __attribute__((noinline)) void ncc_mix(track_t *t, int32_t *b, uint32_t n
     lo = JC_LO[s->mode];
     span = (uint32_t)(JC_HI[s->mode] - JC_LO[s->mode]);
     inc = JC_INC[s->mode];
-    if (split) {                                        /* L left, R right (the sends as ever: their return on */
-        gl = part ? 0 : 4096;                           /* both sides) */
+    if (split) {                                        /* L left, R right */
+        gl = part ? 0 : 4096;
         gr = part ? 4096 : 0;
     }
     xmax = c > d ? c : d;
@@ -89,11 +92,11 @@ static __attribute__((noinline)) void ncc_mix(track_t *t, int32_t *b, uint32_t n
         if (a > pk)
             pk = a;
         if (c)
-            SM(c)[i] += mulq15(xs, c);
+            sc[i] += mulq15(xs, c);
         if (d)
-            SM(d)[i] += mulq15(xs, d);
+            sd[i] += mulq15(xs, d);
         if (r)
-            SM(v)[i] += mulq15(xs, r);
+            sv[i] += mulq15(xs, r);
         if (s->w | tw) {
             uint32_t g;
             s->w += clamp(tw - s->w, -SL_SLOPE, SL_SLOPE);

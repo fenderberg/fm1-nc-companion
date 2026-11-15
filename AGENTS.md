@@ -46,8 +46,9 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
   `volatile`, one writer per variable.
 - **Main loop** returns within a few ms (USB, updater, watchdog). **Screen**: draw only what changed.
 - **Flash**: an erase silences audio ~50 ms: only save when quiet.
-- **Memory is tight**: current dev image 580364 B of ~618 KB; RAM 61912 / 73728 B; pool 359464 / 368640 B. Check the
-  size report of every build.
+- **Memory is tight**: current dev image 427100 B of **581564 B** (the XIP region, `firmware/app.ld`: the linker
+  refuses more; LOOP's built-in loops, 154 KB, are left out while `NCC_LOOP 0`); RAM 62504 / 73728 B; pool
+  359816 / 368640 B. Check the size report of every build.
 - No register access outside `firmware/hal/`, no calls into chip ROM (the build refuses both).
 
 ## NCC's code (all behind FELUCCA_LIVEUI)
@@ -69,8 +70,9 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
 | `firmware/src/ncc_save.c` | SAVE on the panel: ask, then tap overwrite / hold new into Felucca's user bank (`up_store_cat`), named after the source |
 | `firmware/src/ncc_sound_defaults.c` | Zero delay/reverb sends after a sound load; included by `ui.c` |
 | `firmware/src/juno_chorus.c` | Juno chorus, drift, SPLIT output. Audio ISR |
+| `firmware/src/ncc_split_fx.c` | The effect buses for NCC (in place of fx.c's): STEREO bit for bit Felucca's, SPLIT a chorus/delay/reverb per side; no limiter in SPLIT. Audio ISR |
 | `firmware/src/eng_acid.c` | ACID, NCC's 303 (engine 14) |
-| `firmware/src/eng_loop.c` | LOOP, one-bar drum loops (engine 15). **Coming soon**: hidden by `NCC_LOOP 0` in `core.h` |
+| `firmware/src/eng_loop.c` | LOOP, one-bar drum loops (engine 15). **Coming soon**: hidden by `NCC_LOOP 0` in `core.h`, which also leaves its built-in loops (154 KB) out of the image; host tests and the NCC regression build them in (`-DNCC_LOOP=1`) |
 | `firmware/src/editor_ncc.c` | Editor protocol commands 96..100 for the NCC Manager (library, load on a part, parts, settings) |
 | `web/ncc/manager.html`, `manager.js` | The NCC Manager (Web MIDI); reuses `web/editor.html`'s PROTO section |
 | `web/emu/ncc_demo.c`, `skin-purple.css` | The emulator's demo Circuit, the purple FM-1 |

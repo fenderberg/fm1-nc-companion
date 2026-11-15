@@ -22,8 +22,9 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
 - **Two parts, two tracks.** Part **L** listens to the Circuit's MIDI 1 track (channel 3), part **R** to MIDI 2
   (channel 4). The Circuit plays the notes and sends the clock. The FM-1 has no sequencer of its own: the Circuit is
   the boss.
-- **Two outputs, split by default.** L comes out on the left channel, R on the right. Use a Y-cable into the Circuit's
-  two audio inputs and mix, mute and effect each part separately on the Circuit itself.
+- **Two outputs, split by default.** L comes out on the left channel, R on the right, each with its own chorus, delay
+  and reverb. Use a Y-cable into the Circuit's two audio inputs and mix, mute and effect each part separately on the
+  Circuit itself.
 - **Your Circuit's knobs just work.** For every engine, the Circuit's 8 macro knobs (OSCILLATOR, OSC MOD, AMP ENV,
   FILTER ENV, FILTER FREQ, RESONANCE, MODULATION, FX) are mapped to the parameters that match their labels. Every sound
   is hands-on from the Circuit, with smooth (zipper-free) moves. The FM-1's screen shows what each knob does.

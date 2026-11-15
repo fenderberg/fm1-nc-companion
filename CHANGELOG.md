@@ -1,5 +1,12 @@
 # What's new in NCC
 
+## Unreleased
+
+- **SPLIT keeps the parts fully apart, effects included**: each side has its own chorus, delay and reverb (one set
+  of settings for both), so L's echoes and tails never reach the right output and R's never the left. No limiter in
+  SPLIT any more, so a loud part no longer makes the other quieter. In SPLIT a delay longer than 0.74 s plays at
+  half its length (on the beat) and the reverbs are a little smaller. STEREO sounds as before.
+
 ## 0.7
 
 - **Save your own sounds on the FM-1**: press SAVE, then tap SAVE to overwrite your sound or hold it for a new one. A

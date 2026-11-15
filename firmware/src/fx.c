@@ -118,6 +118,9 @@ static void track_dist(track_t *t, int32_t *b, uint32_t n)
  * get quieter instead of crushed. */
 #define LIM_T 18000
 static int32_t lim_env = LIM_T;
+#if FELUCCA_LIVEUI
+static uint8_t lim_off;                 /* NC: SPLIT: no limiter (ncc_split_fx.c ncs_begin, a block at a time) */
+#endif
 /* MENU > USB LEVEL FIXED (for #42: record over USB with the speaker turned down): the mix goes to master_out at the
  * full MASTER level, USB audio takes that (audio.c uac_tap), and only then does MASTER scale what the DAC gets
  * (usb_fixed_dac). MASTER (0, the default): MASTER before master_out, as always (USB follows the knob) */
@@ -204,6 +207,10 @@ static inline void master_out(int32_t *l, int32_t *r)
     al = *l < 0 ? -*l : *l;
     ar = *r < 0 ? -*r : *r;
     a = al > ar ? al : ar;
+#if FELUCCA_LIVEUI
+    if (lim_off)                                        /* NC: SPLIT: no limiter (a loud side would duck the other; */
+        a = 0, lim_env = LIM_T;                         /* the Circuit has its own), the soft clip a side each */
+#endif
     if (a > lim_env)
         lim_env += (a - lim_env) >> 2;
     else if (lim_env > LIM_T)
@@ -814,7 +821,8 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
 }
 
 #if FELUCCA_LIVEUI
-#include "juno_chorus.c"                             /* NC: NCC's Juno chorus and SPLIT (mix_part: ncc_mix) */
+#include "ncc_split_fx.c"                            /* NC: SPLIT's buses, a side each (mix_block: ncs_buses) */
+#include "juno_chorus.c"                           /* NC: NCC's Juno chorus and SPLIT (mix_part: ncc_mix) */
 #endif
 
 /* one block of the whole mix (shared with hostsim.c): events -> each part (with its modulation matrix)
@@ -963,7 +971,11 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         t->peak = pk;
     }
     if (pf.thr)
-        perf_throw(t, b, SM(d), SM(v), n);              /* perform.c: REV / ECHO THROW (1.5.1), the sends towards full */
+#if FELUCCA_LIVEUI
+        ncs_throw(t, b, SM(d), SM(v), n);           /* NC: perf_throw; SPLIT: R's into its own buses */
+#else
+        perf_throw(t, b, SM(d), SM(v), n);          /* perform.c: REV / ECHO THROW (1.5.1), the sends towards full */
+#endif
     if (MOD(t).on)
         mod_end(t);                                     /* the stored values back */
 }
@@ -1067,6 +1079,7 @@ static void mix_block(int32_t *out, uint32_t n)
     events_block(n);
 #if FELUCCA_LIVEUI
     ncm_block();                                        /* NC: the macros slide, their parameters follow */
+    ncs_begin();                                        /* NC: the block's routing: SPLIT or STEREO (ncc_split_fx.c) */
 #endif
     perf = perf_begin(n);                               /* the FX hold layer at work (perform.c) */
 #if FELUCCA_CPU2
@@ -1095,9 +1108,15 @@ static void mix_block(int32_t *out, uint32_t n)
     for (i = 0; i < NPART; i++)                         /* (one core: as 1.6) */
         mix_part(&trk[i], n);
 #endif
+#if FELUCCA_LIVEUI
+    if (perf)
+        ncs_pre(mix_l, mix_r, send_d, send_r, n);       /* NC: SPLIT: a side's mix into its own buses */
+    ncs_buses(send_c, send_d, send_r, wet, mix_l, mix_r, n);   /* NC: SPLIT: the buses a side each */
+#else
     if (perf)
         perf_pre(mix_l, mix_r, send_d, send_r, n);
     fx_buses(send_c, send_d, send_r, wet, n);
+#endif
     if (hl.side)
         rev_side_mix(mix_l, mix_r, n);                  /* HALL: stereo */
     if (scope_mix)

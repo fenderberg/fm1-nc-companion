@@ -68,10 +68,16 @@ static int loop_src(const track_t *t, const int8_t **d, uint32_t *len, uint32_t 
 {
     uint32_t e0 = (uint32_t)clamp(t->p[P_E0], 0, NLOOP + LU_N - 1), part = (uint32_t)(t - trk);
     if (e0 < NLOOP) {
+#if NCC_LOOP
         *d = NLOOP_DATA + NLOOP_OFF[e0];
         *len = NLOOP_OFF[e0 + 1] - NLOOP_OFF[e0];
         *rate = NLOOP_RATE;
         return 1;
+#else
+        return 0;                       /* NC: LOOP hidden (core.h NCC_LOOP 0): its built-in loops are not built in (154 KB
+                                         * of flash; nothing names NLOOP_DATA, so it is left out); their numbers, names
+                                         * and the user loops after them stay as they are (stored projects, presets) */
+#endif
     }
     if (part >= LU_PARTS || !lu[part].ready || lu[part].u != e0 - NLOOP || lu[part].len < LP_SLICES)
         return 0;
@@ -227,7 +233,7 @@ static void loop_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
 {
     const int16_t *p = t->p;
     loop_part_t *a = loop_part(t);
-    const int8_t *d = NLOOP_DATA;
+    const int8_t *d = 0;
     uint32_t len = 0, rate = NLOOP_RATE, have = (uint32_t)loop_src(t, &d, &len, &rate);
     uint32_t bar = 4u * beat_samples(), i, stut = (uint32_t)clamp(p[P_E7], 0, 127), unit, sub, grp, k, pos, inc;
     uint32_t crush = (uint32_t)clamp(p[P_E6], 0, 127), hold = 1u + crush * 23u / 127u, bits = 16u - crush * 13u / 127u;

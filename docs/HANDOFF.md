@@ -2,6 +2,53 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
 
+## Branch `nc/split-fx`: SPLIT fully apart, effects included (2026-11-15, committed on the branch, flashed)
+
+- **Next: a review by another assistant** (Remco: code check, efficiency, ideas for new features). The brief is
+  **`docs/review-split-fx.md`**: read it after AGENTS.md. Findings first, changes only with Remco's OK.
+- **Installed** (Remco: "push naar fm1"): fresh build from the branch (split FX + loops left out),
+  `build/ncc.fwsc` SHA-256 `397e3303f18b672b7df879e2e90e6651fb5fdb79f0f82989a29d224db36bd031`, image 427100 B.
+  Write 100%, restart, `info` reports FM-1_700 running. Log `build/ncc-flash-split-fx.log`. No console CPU reading
+  yet. **Remco's listening test: "klinkt goed"** (2026-11-15). Committed on `nc/split-fx`; not merged into main,
+  not pushed, no release.
+
+- Remco: in SPLIT some effects reached both outputs; "in eerste instantie moet het altijd volledig gescheiden zijn",
+  later STEREO may lift it. Choices: shared settings, separate signals; limiter off ("zit ook in de circuit");
+  delay **A** (same sound, half the length); reverb "liever dunner maar gescheiden". Work on local branch
+  `nc/split-fx` from main `798e690` (0.7); main untouched. Not committed, not pushed, not flashed.
+- New `ncc_split_fx.c` (included by fx.c before juno_chorus.c) replaces fx_buses for NCC: one generic chorus/delay
+  and ROOM/SPRING/HALL code for both layouts. STEREO = one side at Felucca's lengths, **bit for bit** (113 NCC
+  goldens unchanged; a deliberate 1-sample chorus change breaks 53 of them, so they do cover this path). SPLIT = two
+  sides in the halves of the same buffers (no new pool): chorus lines 1024 (sweep from 5.8 ms), delay 0.74 s a side
+  (too long: halved from the exact length, stays on the beat), ROOM primes ~half with sqrt gain / matched damping,
+  SPRING line 2048 (loop up to 46 ms), HALL half-length primes, mono mid per side. R's sends go to `ncs_snd`
+  (one array: R renders on one core per block); throws via `ncs_throw`, PERFORM THROW via `ncs_pre` (perf_pre per
+  side). SPLIT<->STEREO: old layout fades a block, buffers cleared (delay in 32 blocks, buses silent ~23 ms).
+  Limiter skipped in SPLIT via `lim_off` (set per block). fx.c's fx_buses/rev_*/rev_switch/hall_gains are no longer
+  referenced in NCC, so not built (this is what made it fit).
+- **Flash is full**: the XIP region is 581564 B (app.ld; AGENTS used to say ~618 KB). Main 0.7 was 580364 B (1.2 KB
+  free). This branch: image **581516 B (48 B free)**, RAM 62504 B, pool 359816 B. A first version overflowed by
+  3.3 KB; any next feature needs space found first (e.g. LOOP's 154 KB built-in loops are in the image while LOOP
+  is hidden: Remco's call).
+- Tests: ncc_test all ok (both variants) with new checks: every reverb model x both sides apart at the mix with all
+  sends; long delay halved on the beat (90 and 80 BPM); master_out's right side identical beside a loud left in SPLIT
+  (ducked in STEREO); SPLIT<->STEREO while ringing (fade, silent while clearing, no jump). The old "returns on both
+  sides" checks now expect exactly 0 on the other side, including throws and PERFORM THROW at the DAC. emu-test ok.
+- CPU, host only: SPLIT +177..+195 Mac instructions/sample over STEREO (all models, idle or 8 FM6 notes: about one
+  FM6 voice). STEREO +18/sample in the empty mix vs main (generic lengths), so regress shows a **third** Mac CPU entry,
+  `cpu/mix/idle` 369 vs 286 (+29 %); baseline not changed. `tests/target_budget.py` on an NCC .dis now reports
+  rev_room/rev_spring/rev_hall "not found" (expected: not built in NCC; the plain Felucca build keeps them). Device
+  check to do: console `status` `cpu_pct` / `audio_max_us` in SPLIT vs STEREO with heavy sounds and HALL.
+- Docs: MANUAL Split section, README, site feature text (source only), CHANGELOG Unreleased, AGENTS code map and
+  memory line. Not listened to: SPLIT's smaller reverbs/delay need Remco's ears.
+- **Then, Remco: "verwijder de loops"**: LOOP's built-in loops (`NLOOP_DATA`, 154350 B) are left out of the image
+  while LOOP is hidden: `eng_loop.c loop_src` returns no loop for them under `NCC_LOOP 0`, so nothing names the
+  array and the compiler drops it. Generator, data, engine, loop numbers/names and user loops unchanged (projects
+  and user slots keep their meaning; the device's USR1 LOOPS untouched). Image **427100 B (154464 B free)**. Host:
+  `loop_test` runs only with NCC_LOOP=1 (that variant still checks every loop); the default variant gets
+  `loop_none_test` (silent, nothing read). The NCC regression (`ncc_dev.sh`, `run_tests.sh`) builds with
+  `-DNCC_LOOP=1` so LOOP's 7 goldens keep guarding it. Bringing LOOP back = NCC_LOOP 1 = the 154 KB back.
+
 ## Release 0.7 (2026-11-15)
 
 - Remco: "push de laatste versie naar github en de website en pas alle documentatie aan. maak een post voor reddit";

@@ -286,7 +286,10 @@ its key; the PERFORM page shows which key does what.
 ## Split or stereo
 
 - **SPLIT** (the default): part L only on the left output, part R only on the right, so each part goes to its own
-  Circuit input. The delay, reverb and chorus are shared by both parts, so their tails come out on both sides.
+  Circuit input, its effects included: each side has its own chorus, delay and reverb (with the same settings), so
+  the tails and throws of a part stay on its side. There is no limiter in SPLIT (the Circuit has its own). The
+  effects are a little lighter than in STEREO: a delay longer than 0.74 s plays at half its length (still on the
+  beat: 1/4 below 81 BPM becomes 1/8), and the reverbs are smaller rooms with the same decay.
 - **STEREO**: both parts in stereo on both outputs, for headphones or a single input.
 - **GLO + SEQ** toggles between them; the top bar shows `SPLIT` or `ST`.
 

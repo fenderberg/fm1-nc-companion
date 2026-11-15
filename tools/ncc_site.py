@@ -135,8 +135,8 @@ def home(version, changelog):
     feats = [
         ("green", "Two parts, two tracks", "Part L listens to the Circuit's MIDI 1 track, part R to MIDI 2. The Circuit "
          "plays the notes and sends the clock; NCC has no sequencer of its own.", ""),
-        ("blue", "Split to its two inputs", "L comes out on the left, R on the right: mix, mute and effect each part on the "
-         "Circuit itself.", ""),
+        ("blue", "Split to its two inputs", "L comes out on the left, R on the right, each with its own effects: mix, mute "
+         "and effect each part on the Circuit itself.", ""),
         ("pink", "The Circuit's knobs just work", "Its eight macros do what their labels say on every engine, smoothly, "
          "and the screen shows what each one does.", "screen-sound.png"),
         ("amber", "Sounds by role", "SELECT picks the category (bass, pad, lead, keys, pluck), ALGORITHM the engine, "
