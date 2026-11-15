@@ -271,6 +271,7 @@ static const uint8_t MIDI_CC_ENG[NENGINES] = {
 #if FELUCCA_LIVEUI
     0x23,                                             /* NC: ACID CUT RES */
     0x67,                                             /* NC: LOOP FILT CRSH */
+    0x56,                                             /* NC: WAVE CUT RES */
 #endif
 };
 /* a CC sets parameter id of track t as a knob would: 0..127 over its range */

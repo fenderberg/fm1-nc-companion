@@ -49,7 +49,8 @@ gen)
     for g in "gen_aa_font.py build/gen/ui_fonts.h --preset inter-tight" "gen_aa_icons.py build/gen/ui_icons.h" \
              "gen_aa_keycaps.py build/gen/ui_keycaps.h" "gen_ui_palettes.py build/gen/ui_palettes.h" \
              "gen_tables.py build/gen/felucca_tables.h" "gen_fm6_patches.py build/gen/felucca_fm6.h" \
-             "gen_samples.py build/gen/felucca_samples.h" "gen_loops.py build/gen/ncc_loops.h"; do
+             "gen_samples.py build/gen/felucca_samples.h" "gen_loops.py build/gen/ncc_loops.h" \
+             "gen_ncc_waves.py build/gen/ncc_waves.h"; do
         # shellcheck disable=SC2086
         "$PY" tools/$g
     done ;;

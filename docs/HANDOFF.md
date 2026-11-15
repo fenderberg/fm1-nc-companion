@@ -2,6 +2,52 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
 
+## 24 synth sounds and the WAVE engine (2026-11-15, branch `nc/sounds-wave`, flashed, not listened to yet)
+
+- **Installed** (Remco: "doe 1", the offer to put it on the FM-1 for listening): fresh build `build/ncc.fwsc`
+  SHA-256 `c6dd1663973d6153e6dbf9bc629318aa45baef5b855409b3f34b90dcf580285c`, image 475436 B. Write 100%, restart,
+  `info` reports FM-1_700 running. Log `build/ncc-flash-sounds-wave.log`. No notes/CCs sent, no console CPU
+  reading; Remco's listening test pending. Committed on local branch `nc/sounds-wave` (Remco: "commit"; main
+  untouched at `3ec212d`). Not pushed.
+
+- Remco: "focus je op synth sounds. niet drums en loops. samples alleen als ze extreem klein zijn"; he approved a
+  list of 24 sounds and a wavetable engine ("1ja2ja", "ga verder").
+- **24 sounds** in new `ncc_more_presets.c` (appended to `NCC_SND`: IDs append-only): FM6 x8 (STAGE EP, WURLY EP,
+  PERC ORGAN, TUBE BELLS, LATELY BASS, SOLID BASS, KOTO PLUCK, SOFT BRASS), JUNO x7 (SOLINA, SUPER SAW, WIDE PAD,
+  BRASS STAB, REESE BASS, PWM BASS, SOFT LEAD), PHASE x4 (RESO SWEEP, RESO LEAD, CZ BASS, PD CLAV), PHYS x2 (CELLO
+  PAD, KALIMBA), VOICE x2 (CHOIR PAD, VOX LEAD), GRAIN (GLASS CLOUD). Names changed from the approved list where
+  one existed already: STAGE EP / WURLY EP / PERC ORGAN / KOTO PLUCK / SOFT BRASS (FM6's factory TINE EP, ORGAN,
+  PLUCK, BRASS; NOISE's METAL PLUCK), CELLO PAD (PHYS's BOWED PAD). TUBE BELLS files under PLUCK (the BELL rule).
+  New name keywords: SOLINA -> PAD, SUPER SAW -> LEAD.
+- **NCC's first own FM6 sounds**: `ncc_fm6_presets.c` holds eight packed 128-byte voices written as operator
+  macros (no ROM data); an FM6 entry's last value is its patch index. `ncc_snd_load` puts it in as the part's own
+  (fm6_set_patch + fm6_adopt: SLOT OWN, named as the sound), so projects and SAVE keep it. In the library FM6's
+  NCC sounds come **after** its factory eight (every other engine: NCC's first), so FM6's known order stays.
+- **Found, not fixed (upstream, Felucca 1.0 code): FM6's amplitude modulation sensitivity is broken.**
+  `fm6_core.c fm6_note_compute`: `pt = fm6_mant(lg) << ((lg >> 24) - 16)` is 2^14 too large (2^31.6 where msfa's
+  pt is 2^17.6, and it overflows 32 bits from AMS depth up), so an operator with AMS 1..3 gets a wrapped level
+  (UBSan: signed overflow at the `level -=` line) even with no LFO depth. Any DX7 bank voice with AMS on an
+  operator (many e-pianos: tremolo) plays wrong on the device. Probable fix: `fm6_mant(lg) >> (30 - (lg >> 24))`.
+  Remco's call (it changes how such bank voices sound). The new patches all have AMS 0 (a test checks it).
+- **WAVE, engine 16** (`eng_wave.c`, `NENGINES 17`; a trial showed a 17th slot needs only four table entries and
+  breaks no test): TABLE (BASIC VOX GLASS PULSE SYNC), POS, ENV (the envelope onto the position), DTN (a second
+  oscillator), CUT, RES, SUB, KTR; ANALOG's SVF. Tables from new `tools/gen_ncc_waves.py` (worked out, no
+  recordings) -> `build/gen/ncc_waves.h`: 5 x 8 waves x 4 band-limited levels (64 / 24 / 9 / 3 harmonics, picked
+  by the note's phase step) x 257 int8 = 41 KB. Wired into `tools/build.py` and `ncc_dev.sh gen` (**run
+  `sh tools/ncc_dev.sh gen` once on another machine**). Macros in `ncc_extra_macros.c` (POSITION, POS ENV,
+  RELEASE, ENV AMT, CUTOFF, RESO, SCAN, DRIVE). Last in `LV_ENGS` (the others keep their places), hidden from
+  Felucca's own list (`NENG_SHOWN`). Seven presets in the engine, three LFO-scanned ones in `NCC_SND`.
+  Older NCC (up to 0.7) refuses a project that holds a WAVE part; favourites refuse it like ACID.
+- Library now **195 sounds**: BASS 31, PAD 50, LEAD 45, KEYS 34, PLUCK 31, BEAT 4, none OTHER; 13 engines.
+- Tests: new `tests/ncc_wave_test.c` (table data, level vs pitch C0..C8, every table at three positions, ENV,
+  extremes of pitch, all 8 macros change audio, library; NCC FM6 sounds load as OWN and sit after the factory
+  eight). `ncc_sounds_test` plays all 115 NCC sounds (peaks 4000..19500, none silent or clipping). **Goldens: 7
+  added on purpose** for WAVE's presets (`GOLDEN_UPDATE=1`: 0 changed, 7 new, 0 gone; now 120). `ncc_dev.sh test`
+  all ok, emu-test ok. Host CPU: WAVE 646..830 instructions/sample for 8 notes over idle (FM6 PAD 1476).
+- Build: image **475436 B** (106 KB free), RAM 62552 B, pool 359812 B. Not flashed: nobody has heard any of
+  these 34 sounds yet, and WAVE's load on the device is unmeasured.
+- Docs: MANUAL (engine table, WAVE's knob table, counts), CHANGELOG Unreleased, README, site feature text, AGENTS.
+
 ## Review of the SPLIT effects: fixes and efficiency (2026-11-15, branch `nc/split-fx-review` `bfe9294`, flashed, not pushed)
 
 - **Installed** (Remco: "commit en push naar fm1"): committed on local branch `nc/split-fx-review` (main untouched at

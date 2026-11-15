@@ -30,10 +30,10 @@ NCC strips the FM-1 down to one job: **be the Circuit Tracks' companion**.
   is hands-on from the Circuit, with smooth (zipper-free) moves. The FM-1's screen shows what each knob does.
 - **Sounds by role, not by engine.** SELECT picks the type (BASS, PAD, LEAD, KEYS, PLUCK, BEAT), ALGORITHM the engine (or
   ALL), PRESETS walks through what's left. A pad is a pad, wherever it comes from.
-- **Twelve engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
+- **Thirteen engines.** FM6 (6-operator, DX7-style FM), JUNO (analog-style with a Juno chorus and Juno sounds), PHASE
   (Casio CZ-style phase distortion), TRIO (SID-style chip synth), ACID (a 303 with accent and slide), PHYS (physical
-  models), GRAIN (granular), VOICE (formants), LOFI (chip), WHEEL (organ), NOISE and SAMPLE. **161 built-in sounds**,
-  including 46 new patches for the extra engines. All eight Circuit knobs are mapped on each engine. Coming soon:
+  models), GRAIN (granular), VOICE (formants), LOFI (chip), WHEEL (organ), NOISE, SAMPLE and WAVE (wavetables; not
+  in a release yet). **195 built-in sounds**. All eight Circuit knobs are mapped on each engine. Coming soon:
   LOOP, one-bar drum loops that always fit the bar.
 - **Built for jamming.** OCT- / OCT+ switch the FM-1's keys and knobs between your two sounds in one press. An arp
   locked to the Circuit's clock, with HOLD. A **Drone** button with STACK (build up notes) and REPLACE (hold only the

@@ -56,12 +56,14 @@ static const uint8_t LV_ENGS[] = {ENGI_FM6, ENGI_ANALOG, ENGI_PHASE, ENGI_TRIO, 
 #if NCC_LOOP
                                   ENGI_LOOP,           /* (core.h NCC_LOOP: coming soon) */
 #endif
+                                  ENGI_WAVE,           /* (0.8; last: the others keep their places) */
 };
 static const char *const LV_ENG_NAME[] = {"FM6", "JUNO", "PHASE", "TRIO", "ACID",
                                           "PHYS", "GRAIN", "VOICE", "LOFI", "WHEEL", "NOISE", "SAMPLE",
 #if NCC_LOOP
                                           "LOOP",
 #endif
+                                          "WAVE",
 };
 static int32_t lv_eng_pos(uint32_t e)                  /* e's place in LV_ENGS, -1 none */
 {

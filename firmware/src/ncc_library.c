@@ -29,9 +29,9 @@ static const struct {
     uint8_t cat;
 } NL_KW[] = {                           /* the first that starts a word of the name wins */
     {"BEAT", NC_BEAT}, {"BREAK", NC_BEAT}, {"LOOP", NC_BEAT}, {"DRUM", NC_BEAT}, {"GROOVE", NC_BEAT}, {"TOM", NC_BEAT},
-    {"VOX LEAD", NC_LEAD},
+    {"VOX LEAD", NC_LEAD}, {"SUPER SAW", NC_LEAD},
     {"BASS", NC_BASS}, {"SUB", NC_BASS}, {"FRETLESS", NC_BASS},
-    {"PAD", NC_PAD}, {"STR", NC_PAD}, {"CHOIR", NC_PAD}, {"SWEEP", NC_PAD}, {"WIND", NC_PAD}, {"ATMO", NC_PAD},
+    {"PAD", NC_PAD}, {"STR", NC_PAD}, {"SOLINA", NC_PAD}, {"CHOIR", NC_PAD}, {"SWEEP", NC_PAD}, {"WIND", NC_PAD}, {"ATMO", NC_PAD},
     {"VOX", NC_PAD}, {"VOICE", NC_PAD}, {"BOW", NC_PAD}, {"FROZEN", NC_PAD}, {"SHIMMER", NC_PAD}, {"WHISPER", NC_PAD},
     {"LEAD", NC_LEAD}, {"HOOVER", NC_LEAD}, {"SCREAM", NC_LEAD}, {"RAVE", NC_LEAD}, {"WIRE", NC_LEAD},
     {"SYNC", NC_LEAD}, {"SOLO", NC_LEAD}, {"BRASS", NC_LEAD}, {"BRS", NC_LEAD}, {"HORN", NC_LEAD}, {"RESO", NC_LEAD},
@@ -73,7 +73,8 @@ static uint32_t nl_cat(const char *s, uint32_t e)
                 return NL_KW[r].cat;
         }
     return e == ENGI_LOOP ? NC_BEAT : e == ENGI_ACID ? NC_BASS : e == 8u || e == 11u ? NC_PAD :
-           e == 7u || e == ENGI_SAMPLE ? NC_KEYS : e == 3u ? NC_LEAD : e == ENGI_PHYS ? NC_PLUCK : e == 5u ? NC_PAD : NC_OTHER;
+           e == 7u || e == ENGI_SAMPLE ? NC_KEYS : e == 3u ? NC_LEAD : e == ENGI_PHYS ? NC_PLUCK : e == 5u || e == ENGI_WAVE ? NC_PAD :
+           NC_OTHER;
 }
 
 /* the names of the bank's voices (once per bank: a flash read each) */
@@ -133,12 +134,15 @@ static void nl_build(void)
     for (i = 0; i < NELEM(LV_ENGS); i++) {
         uint32_t e = LV_ENGS[i];
         const engine_t *en = ENGINES[e];
-        for (k = 0; k < NCC_NSND; k++)                  /* NCC's own sounds of the engine first (ncc_presets.c) */
+        for (k = 0; k < NCC_NSND && e != ENGI_FM6; k++) /* NCC's own sounds of the engine first (ncc_presets.c) */
             if (NCC_SND[k].eng == e)
                 nl_add(NLK_NCC, e, k, NCC_SND[k].name);
         for (k = 0; k < en->npresets; k++)
             if (preset_orig(en, k) == k)
                 nl_add(NLK_PRESET, e, k, en->presets[k].name);
+        for (k = 0; k < NCC_NSND && e == ENGI_FM6; k++) /* (FM6: after its factory eight, where they always were) */
+            if (NCC_SND[k].eng == e)
+                nl_add(NLK_NCC, e, k, NCC_SND[k].name);
         if (e == ENGI_FM6)
             for (k = 0; k < FM6_NBANK; k++)
                 if ((fm6_bank_used >> k) & 1u)

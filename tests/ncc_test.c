@@ -1656,8 +1656,8 @@ static void engine_ui_test(void)
             factory += preset_orig(ENGINES[LV_ENGS[i]], k) == k;
     for (i = 0; i < nl.n; i++)
         loops += nl.s[i].eng == ENGI_LOOP;
-    ok("sounds: all twelve engines' factory/NCC sounds in the library, each in a category",
-       NELEM(LV_ENGS) == 12u + NCC_LOOP && nl.n - user == factory && n[NC_OTHER] == 0u);
+    ok("sounds: all thirteen engines' factory/NCC sounds in the library, each in a category",
+       NELEM(LV_ENGS) == 13u + NCC_LOOP && nl.n - user == factory && n[NC_OTHER] == 0u);
     ok("sounds: LOOP is coming soon: no LOOP engine or loop sounds when hidden (percussion remains)",
        NCC_LOOP || (lv_eng_pos(ENGI_LOOP) < 0 && !loops));
     ok("sounds: names of other sounds: E.PIANO 1 KEYS, Strings 2 PAD, DEEP BASS BASS, POLY SYNTH KEYS, WEIRD OTHER",
@@ -1742,7 +1742,7 @@ static void engine_ui_test(void)
     fm6_bank_used = 3u;
     lv.cat[0] = NC_KEYS;
     lv.ep[0] = 1u;
-    t_turn(EN_PRESET, 3);                               /* TINE EP, ORGAN, E.PIANO 1 */
+    t_turn(EN_PRESET, 6);                               /* TINE EP, ORGAN, NCC's STAGE EP, WURLY EP, PERC ORGAN, E.PIANO 1 */
     lv_frames(200);
     ok("sounds: a DX7 bank voice in the list by its name (E.PIANO 1: KEYS), loaded as FM6's slot B1",
        t->eng_req == ENGI_FM6 && t->p[P_E7] == (int16_t)(FM6_OWN + 1u) && !strcmp(nl.bname[0], "E.PIANO 1"));
@@ -2229,6 +2229,7 @@ static void editor_ncc_uloop_test(void)
 
 #include "ncc_performance.c"
 #include "ncc_extra_engines.c"
+#include "ncc_wave_test.c"
 
 int main(void)
 {
@@ -2281,6 +2282,8 @@ int main(void)
     bpm0_test();
     performance_test();
     extra_engines_test();
+    wave_test();
+    ncc_fm6_sounds_test();
     printf("ncc: %s\n", bad ? "FAILED" : "all ok");
     return bad ? 1 : 0;
 }

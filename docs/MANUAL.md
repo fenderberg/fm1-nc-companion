@@ -84,14 +84,14 @@ keep working. Switching Dual on or off fades out what is playing; strike the key
 
 ## Sounds and engines
 
-NCC puts the sounds of all twelve engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
+NCC puts the sounds of all thirteen engines in **one library**, sorted by what you use them for: **BASS, PAD, LEAD,
 KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. Three knobs, one job each, on every page (the
 **SOUND** page, press **HOME**, shows where you are going):
 
 | Control | What it does |
 |---|---|
 | **SELECT** (knob) | The **category**: ALL, BASS, PAD, LEAD, KEYS, PLUCK, BEAT (OTHER for names it can't place), and **USER**: all your own sounds. |
-| **ALGORITHM** (knob) | The **engine**: ALL, FM6, JUNO, PHASE, TRIO, ACID, PHYS, GRAIN, VOICE, LOFI, WHEEL, NOISE, SAMPLE. |
+| **ALGORITHM** (knob) | The **engine**: ALL, FM6, JUNO, PHASE, TRIO, ACID, PHYS, GRAIN, VOICE, LOFI, WHEEL, NOISE, SAMPLE, WAVE. |
 | **PRESETS** (knob) | The **sound**, among those of that category and engine. It loads once you stop turning, so you can scroll freely. |
 | KNOB 1–4 | LEVEL, OCTAVE, VOICE (poly / mono / legato ..), GLIDE |
 
@@ -105,7 +105,7 @@ KEYS, PLUCK, BEAT**. You choose a sound by its role; the engine follows. Three k
 - A newly chosen sound starts **dry**: its delay and reverb sends at zero, so it never arrives drenched in the effects of
   the sound before. Turn them up on **FX > SENDS** whenever you like.
 
-There are **161 built-in sounds**: 25 BASS, 40 PAD, 36 LEAD, 29 KEYS, 27 PLUCK and 4 BEAT.
+There are **195 built-in sounds**: 31 BASS, 50 PAD, 45 LEAD, 34 KEYS, 31 PLUCK and 4 BEAT.
 
 ### Save your own sound
 
@@ -124,12 +124,12 @@ Circuit knobs included: load it again and the knobs start from the middle, which
 the Circuit plays, but writing to the FM-1's memory stops the sound for a moment (about 50 ms) and the arp may skip a
 step. A full bank says `USER BANK FULL`. Rename, erase and back up your sounds in the [Manager](#ncc-manager-web-page).
 
-The twelve engines:
+The thirteen engines:
 
 | Engine | Character | Example sounds |
 |---|---|---|
-| **FM6** | 6-operator FM in the style of the DX7: e-pianos, bells, basses, brass. Plays DX7 banks. | TINE EP, BELL, FM BASS, BRASS, PAD, MARIMBA |
-| **JUNO** | Analog-style poly synth with a Juno-style chorus and drift. | JUNO STRINGS, JUNO PAD, JUNO EP, FUNK CLAV, HOUSE KEYS, HOOVER |
+| **FM6** | 6-operator FM in the style of the DX7: e-pianos, bells, basses, brass. Plays DX7 banks. | TINE EP, BELL, FM BASS, STAGE EP, LATELY BASS, KOTO PLUCK |
+| **JUNO** | Analog-style poly synth with a Juno-style chorus and drift. | JUNO STRINGS, JUNO PAD, JUNO EP, HOOVER, SOLINA, SUPER SAW, REESE BASS |
 | **PHASE** | Casio CZ-style phase distortion: bright, glassy, a bit raw. | PD EP, DIGI PIANO, GLASS BELL, MALLET, PD BASS, FOLD LEAD |
 | **TRIO** | Three oscillators and a multimode filter, in the spirit of the C64's SID chip. | CHIP BASS, WOBBLE BASS, CHIP KEYS, TOY PIANO, 8BIT PAD |
 | **ACID** | A 303-style bass: a squelchy filter, accents on loud notes (velocity 100+), slides on overlapping notes. | ACID 303, SQUELCH, DEEP BASS, ACID LEAD, ACID PLUCK |
@@ -140,6 +140,7 @@ The twelve engines:
 | **WHEEL** | Tonewheel organ with drawbars, percussion and a rotating speaker. | SOUL ORGAN, DUB ORGAN, GOSPEL KEYS, ROCK ORGAN |
 | **NOISE** | Wind, rain, radio static and metallic noise through a resonant filter. | WIND PAD, RAIN PAD, RADIO PAD, METAL PLUCK, BUZZ BASS |
 | **SAMPLE** | Built-in piano, flute and sax, or your own samples. | SOFT PIANO, DUST PIANO, FLUTE PAD, SAX LEAD |
+| **WAVE** | Wavetable synth: a knob moves through a row of waves (sine to saw, vowels, glassy FM, pulse widths, a sync sweep). | WAVE PAD, VOX WAVE, GLASS KEYS, SYNC LEAD, SCAN PAD, ICE PAD |
 
 PHYS, GRAIN and VOICE are heavier on the chip, so they play fewer notes at once (three or four per part).
 
@@ -194,6 +195,17 @@ so sweeps don't zipper, and the screen tells you what each knob does.
 | 6 RESONANCE | crush | body drawbars | resonance | drive |
 | 7 MODULATION | vibrato | rotor off / slow / fast | LFO on filter | vibrato |
 | 8 FX | drive + chorus | organ drive | drive + chorus | chorus |
+
+| Circuit knob | WAVE |
+|---|---|
+| 1 OSCILLATOR | position in the wavetable (the whole table) |
+| 2 OSC MOD | envelope onto the position |
+| 3 AMP ENV | release |
+| 4 FILTER ENV | envelope to filter |
+| 5 FILTER FREQ | cutoff |
+| 6 RESONANCE | resonance |
+| 7 MODULATION | LFO scans the table, and its rate |
+| 8 FX | drive + chorus |
 
 Some knobs work a little differently per model (LOFI's chips, PHYS's bodies): the popup always names what it does.
 Choose the model on **EDIT**. If you change a value on the FM-1 itself, your setting stays and the Circuit knob keeps

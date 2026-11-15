@@ -8,9 +8,13 @@
  *   PHASE          the keys, plucks, basses and pads of a phase distortion synth: DCW the brightness, ENV its sweep
  *   TRIO           chip sounds: three oscillators (WAVE the set), INT2 / INT3 their intervals, the multimode filter
  *   ACID           more 303: a lead, a pluck, a soft bass (one voice, LEGATO: they slide)
+ *   FM6            NCC's own patches (ncc_fm6_presets.c: the entry's last value is its patch there, put in as the
+ *                  part's own: SLOT OWN); the other values FM6's macros at rest
  * The names say what a sound is for (ncc_library.c nl_cat reads them: BASS PAD LEAD KEYS PLUCK; tests/ncc_test.c: none
  * of them OTHER). Loaded as one sound load: the engine's preset 0 for the defaults of everything, then these values,
  * inside one load_begin / load_end (one undo, the fades of a load). */
+
+#include "ncc_fm6_presets.c"                          /* NC: FM6's patches for NCC's FM6 sounds (NCC_FM6) */
 
 typedef struct {
     uint8_t eng;                        /* ENGINES[] index */
@@ -85,6 +89,7 @@ static const ncc_snd_t NCC_SND[] = {
     {AC, "ACID PLUCK", {1, 40, 60, 70, 30, 60, 10, 64}, {0, 50, 0, 30}, 0, 1, {0, 0, 40, 25}, 40, 0, 0, 0},
     {AC, "SOFT BASS", {1, 32, 40, 44, 70, 40, 12, 32}, {0, 64, 100, 20}, 0, 1, {0, 0, 0, 5}, 40, 0, 0, 0},
 #include "ncc_extra_presets.c"                         /* NC: extra engines, append-only sound IDs */
+#include "ncc_more_presets.c"                          /* NC: the synth sounds of 0.8 (FM6's own too), appended */
 };
 #undef J
 #undef PH
@@ -115,6 +120,15 @@ static void ncc_snd_load(track_t *t, uint32_t k)
     t->p[P_LD_SHP] = j->lshp;
     t->p[P_LD_FLT] = j->lflt;
     t->p[P_ED_FX] = j->jx;
+    if (j->eng == ENGI_FM6) {                           /* (FM6: its patch, the part's own: SLOT OWN, as a user */
+        uint8_t v[FP_SIZE + 1u];                        /* preset's, up_fm6.c; named as the sound) */
+        fm6_unpack(NCC_FM6[(uint32_t)j->e[7] % NCC_NFM6], v);
+        for (i = 0; i < 10u; i++)
+            v[FP_NAME + i] = (uint8_t)(i < str_len(j->name) ? j->name[i] : ' ');
+        fm6_set_patch(trk_index(t), v);
+        t->p[P_E7] = (int16_t)FM6_OWN;
+        fm6_adopt(trk_index(t));
+    }
     if (j->eng == ENGI_ACID) {                          /* (ACID: the slide, as live_ui.c gives a new ACID sound) */
         t->p[P_GLMODE] = 1;
         if (!t->p[P_GLIDE])

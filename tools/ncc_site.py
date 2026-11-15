@@ -140,8 +140,8 @@ def home(version, changelog):
         ("pink", "The Circuit's knobs just work", "Its eight macros do what their labels say on every engine, smoothly, "
          "and the screen shows what each one does.", "screen-sound.png"),
         ("amber", "Sounds by role", "SELECT picks the category (bass, pad, lead, keys, pluck), ALGORITHM the engine, "
-         "PRESETS the sound. 161 sounds, and your own: SAVE keeps what you shaped, under USER and its category.", ""),
-        ("cyan", "Twelve engines", "DX7-style FM, a Juno, Casio CZ, a SID-ish trio, a 303, plucked and bowed strings, "
+         "PRESETS the sound. 195 sounds, and your own: SAVE keeps what you shaped, under USER and its category.", ""),
+        ("cyan", "Thirteen engines", "DX7-style FM, a Juno, Casio CZ, a SID-ish trio, a 303, a wavetable synth, plucked and bowed strings, "
          "granular clouds, singing vowels, game-console chips, a tonewheel organ, noise and samples.", ""),
         ("purple", "Dual: one track, two sounds", "Tap SCL and one Circuit track plays both parts: an arp on one, a pad "
          "on the other, each with its own sound.", ""),

@@ -72,3 +72,13 @@
         {{P_LD_PIT, 2}, {P_LRATE, 32}},
         {{P_CHOR, 32}, {NCM_NONE, 0}},
     }, {"TUNE", "BITS", "RELEASE", "ENV AMT", "CUTOFF", "DRIVE", "VIBRATO", "CHORUS"}},
+    {ENGI_WAVE, {                                 /* (NCC's wavetable synth, eng_wave.c) */
+        {{P_E1, 64}, {NCM_NONE, 0}},              /* OSCILLATOR   POS, the place in the table: all of it */
+        {{P_E2, 32}, {NCM_NONE, 0}},              /* OSC MOD      ENV, the envelope onto the position */
+        {{P_REL, 32}, {NCM_NONE, 0}},             /* AMP ENV      the release only: the attack stays the sound's */
+        {{P_ED_FLT, 32}, {NCM_NONE, 0}},          /* FILTER ENV   ENV -> FLT */
+        {{P_E4, 32}, {NCM_NONE, 0}},              /* FILTER FREQ  CUT */
+        {{P_E5, 32}, {NCM_NONE, 0}},              /* RESONANCE    RES */
+        {{P_LD_SHP, 32}, {P_LRATE, 32}},          /* MODULATION   the LFO scans the table, its rate */
+        {{P_DIST, 32}, {P_CHOR, 32}},             /* FX           drive, chorus send */
+    }, {"POSITION", "POS ENV", "RELEASE", "ENV AMT", "CUTOFF", "RESO", "SCAN", "DRIVE"}},

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **A new engine: WAVE**, a wavetable synth. The Circuit's OSCILLATOR knob moves through a row of waves (five
+  tables: sine to saw, vowels, glassy FM, pulse widths, a sync sweep), MODULATION lets the LFO scan it. Ten sounds,
+  among them WAVE PAD, GLASS KEYS, SYNC LEAD, SCAN PAD and ICE PAD.
+- **24 more synth sounds** on the engines you know: FM6 (STAGE EP, WURLY EP, PERC ORGAN, TUBE BELLS, LATELY BASS,
+  SOLID BASS, KOTO PLUCK, SOFT BRASS), JUNO (SOLINA, SUPER SAW, WIDE PAD, BRASS STAB, REESE BASS, PWM BASS, SOFT
+  LEAD), PHASE (RESO SWEEP, RESO LEAD, CZ BASS, PD CLAV), PHYS (CELLO PAD, KALIMBA), VOICE (CHOIR PAD, VOX LEAD) and
+  GRAIN (GLASS CLOUD). 195 built-in sounds in all.
+
 - **SPLIT keeps the parts fully apart, effects included**: each side has its own chorus, delay and reverb (one set
   of settings for both), so L's echoes and tails never reach the right output and R's never the left. No limiter in
   SPLIT any more, so a loud part no longer makes the other quieter. In SPLIT a delay longer than 0.74 s plays at

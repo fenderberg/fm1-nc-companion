@@ -108,7 +108,8 @@ def generate():
             [tools / "gen_tables.py", GEN / "felucca_tables.h"],
             [tools / "gen_fm6_patches.py", GEN / "felucca_fm6.h"],
             [tools / "gen_samples.py", GEN / "felucca_samples.h"],
-            [tools / "gen_loops.py", GEN / "ncc_loops.h"]]   # NC: LOOP's drum loops (eng_loop.c)
+            [tools / "gen_loops.py", GEN / "ncc_loops.h"],   # NC: LOOP's drum loops (eng_loop.c)
+            [tools / "gen_ncc_waves.py", GEN / "ncc_waves.h"]]   # NC: WAVE's wavetables (eng_wave.c)
     procs = [subprocess.Popen([sys.executable, *map(str, c)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True) for c in cmds]
     failed = []

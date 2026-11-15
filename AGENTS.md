@@ -46,7 +46,7 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
   `volatile`, one writer per variable.
 - **Main loop** returns within a few ms (USB, updater, watchdog). **Screen**: draw only what changed.
 - **Flash**: an erase silences audio ~50 ms: only save when quiet.
-- **Memory is tight**: current dev image 430188 B of **581564 B** (the XIP region, `firmware/app.ld`: the linker
+- **Memory is tight**: current dev image 475436 B of **581564 B** (the XIP region, `firmware/app.ld`: the linker
   refuses more; LOOP's built-in loops, 154 KB, are left out while `NCC_LOOP 0`, and no longer fit beside the rest);
   RAM 62552 / 73728 B; pool 359812 / 368640 B. Check the size report of every build.
 - No register access outside `firmware/hal/`, no calls into chip ROM (the build refuses both).
@@ -62,6 +62,8 @@ Design docs (Dutch): `docs/NC-companion-ontwerp.md` (design), `docs/NC-companion
 | `firmware/src/ncc_formant_math.c`, `ncc_noise.c` | NCC-only safe arithmetic adapters; engine interface/submodule unchanged |
 | `firmware/src/ncc_sample_data.c` | Validated built-in/user XIP sample addressing |
 | `firmware/src/ncc_presets.c` | NCC's own sounds (`NCC_SND`: engine, values) |
+| `firmware/src/ncc_more_presets.c`, `ncc_fm6_presets.c` | 27 more synth sounds (appended to `NCC_SND`); NCC's own FM6 patches (packed voices, loaded as the part's own: SLOT OWN) |
+| `firmware/src/eng_wave.c`, `tools/gen_ncc_waves.py` | WAVE, NCC's wavetable synth (engine 16); its tables → `build/gen/ncc_waves.h` (41 KB) |
 | `firmware/src/ncc_drone_fade.c` | Smooth REPLACE fade-out/in shared by all engines; event core writes, render cores read |
 | `firmware/src/ncc_drone_overlap.c` | Per-voice REPLACE crossfade within the existing engine/shared voice budgets |
 | `firmware/src/ncc_seq.c` | Arp on the clock's grid, Drone, the bar in clock pulses (`ncc_bar`). Included by `seq.c`, audio ISR |
@@ -86,8 +88,8 @@ Hooks marked `/* NC: */` in `felucca.c`, `main.c`, `fx.c`, `seq.c`, `midi_clock.
 
 Stored without a format change: a part's Juno character in `P_ED_FX` (chorus | drift << 2); SPLIT in `G_ENGGO`
 (`NCC_SPLIT()`, `core.h`; 1 = STEREO); Dual/Drone modes in retired `G_SYNC` (marked bits, `ncc_settings.c`).
-Engines 14 (ACID) and 15 (LOOP) need `NENGINES 16`; favourites refuse 14+; LOOP
-is left out of Felucca's own engine list (`NENG_SHOWN`).
+Engines 14 (ACID), 15 (LOOP) and 16 (WAVE) need `NENGINES 17`; favourites refuse 14+; LOOP
+and WAVE are left out of Felucca's own engine list (`NENG_SHOWN`).
 
 ## Build, test, run: `tools/ncc_dev.sh`
 Everything goes through one script (VS Code: Terminal → Run Task). It knows the Mac's detours (Colima, the build mirror
