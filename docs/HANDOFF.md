@@ -2,15 +2,15 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
 
-## Branch `nc/split-fx`: SPLIT fully apart, effects included (2026-11-15, committed on the branch, flashed)
+## SPLIT fully apart, effects included (2026-11-15, on main `50804ba`, flashed, not pushed)
 
 - **Next: a review by another assistant** (Remco: code check, efficiency, ideas for new features). The brief is
   **`docs/review-split-fx.md`**: read it after AGENTS.md. Findings first, changes only with Remco's OK.
 - **Installed** (Remco: "push naar fm1"): fresh build from the branch (split FX + loops left out),
   `build/ncc.fwsc` SHA-256 `397e3303f18b672b7df879e2e90e6651fb5fdb79f0f82989a29d224db36bd031`, image 427100 B.
   Write 100%, restart, `info` reports FM-1_700 running. Log `build/ncc-flash-split-fx.log`. No console CPU reading
-  yet. **Remco's listening test: "klinkt goed"** (2026-11-15). Committed on `nc/split-fx`; not merged into main,
-  not pushed, no release.
+  yet. **Remco's listening test: "klinkt goed"** (2026-11-15). Committed on `nc/split-fx` and, Remco: "commit to
+  main", fast-forwarded into local main (`50804ba`). Not pushed, no release, site not published.
 
 - Remco: in SPLIT some effects reached both outputs; "in eerste instantie moet het altijd volledig gescheiden zijn",
   later STEREO may lift it. Choices: shared settings, separate signals; limiter off ("zit ook in de circuit");

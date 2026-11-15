@@ -1,6 +1,6 @@
-# Review brief: branch `nc/split-fx`
+# Review brief: SPLIT effects (`nc/split-fx`, merged into main)
 
-For the assistant reviewing this branch. Read **AGENTS.md** first (chip rules, layers, commands), then this. The
+For the assistant reviewing this work. Read **AGENTS.md** first (chip rules, layers, commands), then this. The
 owner is Remco: answer him in **Dutch**, plainly (he is a musician, new to firmware). Code, comments and docs stay
 English.
 
@@ -18,7 +18,8 @@ one. Never flash, push, merge into main or publish without his explicit OK each 
 
 ## What the branch does
 
-`git diff main..nc/split-fx` (main = 0.7, `798e690`). Two changes:
+`git diff 798e690 50804ba` (0.7 to the split-fx commit, now on main; the branch `nc/split-fx` points at the same
+commit). Two changes:
 
 1. **SPLIT keeps the parts fully apart, effects included.** SPLIT (NCC's default) sends part L to the left output
    and R to the right, for the Circuit Tracks' two audio inputs. Until now the chorus, delay and reverb were shared
