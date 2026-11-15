@@ -7,7 +7,8 @@ Read **AGENTS.md** first (chip rules, architecture, code map and commands). Upda
 - **Installed** (Remco: "commit en push naar fm1"): committed on local branch `nc/split-fx-review` (main untouched at
   `67985ed`), fresh build `build/ncc.fwsc` SHA-256 `988bbb0974a58d8e2ba2433ebea2c2ac9ada08e74cc2dbe72bb871561b85c463`,
   image 430188 B. Write 100%, restart, `info` reports FM-1_700 running. Log `build/ncc-flash-split-review.log`. No
-  notes/CCs sent, no console CPU reading; Remco's listening test pending. Not pushed to GitHub.
+  notes/CCs sent, no console CPU reading. **Remco's test on the device: "werkt prima"** (2026-11-15), then "zet op
+  main": fast-forwarded into local main. Not pushed to GitHub.
 
 - The review asked for in `docs/review-split-fx.md` (another assistant). Remco: "er hoeven geen nieuwe features bij.
   doe alle codecheck en efficientie voorstellen". No bounds or chip-rule fault was found by reading. Found and fixed:
