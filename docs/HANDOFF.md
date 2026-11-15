@@ -1,6 +1,22 @@
 # Handoff: where NCC stands
 
-Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-14.
+Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
+
+## Release 0.7 (2026-11-15)
+
+- Remco: "push de laatste versie naar github en de website en pas alle documentatie aan. maak een post voor reddit";
+  asked about a release, he chose "Release 0.7 + site". Commits `cc42ea4` (features) and `cfb735f` (CHANGELOG 0.7)
+  pushed to main. `sh tools/ncc_dev.sh release 0.7`: identity **FM-1_707**, image 580360 B, RAM 61912 B.
+  `ncc-0.7.fwsc` SHA-256 `d71b14e9dc066033b0646a2e8fff3722d98e1185cc40cf4a262183ffab04c3ca`. Source archive by hand
+  (git archive HEAD + engines c46e0086); its file list differs from 0.6's by exactly ncc_save.c and ncc_save_test.c.
+- GitHub release **v0.7** (latest, tag on cfb735f): fwsc, zip, source tar.gz, SHA256SUMS; uploaded digests match.
+  Note: `gh release create --target` needs the full commit hash (a short one gives HTTP 422).
+- `NCC_NO_SERVE=1 sh tools/ncc_dev.sh site 0.7`, `publish-site`: gh-pages **c1627de**, Pages built. Live home,
+  manual, cheat sheet, installer and firmware match the build byte for byte. Cheat sheet PDF still one page.
+- Docs brought to 0.7: manual intro (0.7, older versions' paging), SAVE section, cheat sheet, README, AGENTS (code
+  map, hooks, memory figures), site home card. A Reddit post was drafted for Remco (not posted by the assistant).
+- Device: Remco's FM-1 runs the same source as dev build FM-1_700 (installed below); no separate flash of the
+  FM-1_707 package. His own panel/listening results were not reported before publishing.
 
 ## Installed: everything of 2026-11-15 (pages, AMP ENV, SELECT, SAVE)
 
