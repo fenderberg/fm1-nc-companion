@@ -2,6 +2,38 @@
 
 Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
 
+## Review of the SPLIT effects: fixes and efficiency (2026-11-15, uncommitted, host-tested only, not flashed)
+
+- The review asked for in `docs/review-split-fx.md` (another assistant). Remco: "er hoeven geen nieuwe features bij.
+  doe alle codecheck en efficientie voorstellen". No bounds or chip-rule fault was found by reading. Found and fixed:
+  **`sh tools/ncc_dev.sh test` failed** on main (exit 1 at the NCC regression: the third CPU entry, `cpu/mix/idle`
+  369 vs 286, is not one `ncc_check.py` accepts), so the Felucca regression, extra CPU, editor, SysEx, UART and TIMER5
+  checks behind it no longer ran. It passes again (two Mac CPU entries, as before 0.7).
+- `ncc_split_fx.c` is now **SPLIT's code only**; **STEREO runs Felucca's own `fx_buses`** (and `rev_*`,
+  `rev_switch`, with their states in `fx` / `hl`), so it is Felucca's bit for bit and at its cost (idle mix back to
+  356 Mac instructions/sample; inlining the generic code per layout did not win it back, measured). This costs flash:
+  image **430188 B** (+3088 B; 151 KB free), RAM 62552 B, pool 359812 B. **LOOP's 154 KB of built-in loops no
+  longer fit beside it** (they had 114 B to spare before): bringing LOOP back needs fewer/shorter loops or the
+  generic code again. The review brief's "fx_buses ... not built" and target_budget's "not found" note are history.
+- SPLIT, same sound: its lengths are constants; the chorus sweep is worked out once a block for both sides; ROOM's
+  comb gain and low-pass (two square roots, two divisions) only when SIZE or DAMP change (`ncs.rky`); HALL's unused
+  stereo side is not made; the sides' returns are summed plainly unless a layout change fades them. A layout
+  change's clears (reverb, chorus, states) moved from the fading block into the first of the NCS_CLR silent blocks
+  (no block heavier than a normal one; same timing). Host: SPLIT idle 545 -> 516 Mac instructions/sample
+  (`ncc_extra_cpu`).
+- Evidence that SPLIT's sound is unchanged: a scratch harness hashed both outputs through ROOM/SPRING/HALL with
+  notes on both parts, SIZE/DAMP/TIME/chorus changes and a model change while ringing: **identical** to `50804ba`.
+  After a visit to STEREO the reverbs' slow drifts (SPRING's wobble, HALL's taps) are at another phase than before
+  (STEREO keeps its own now): not a sound change. STEREO: 113 goldens unchanged.
+- New checks in `split_fx_test`: a model change in SPLIT while ringing (no jump, other side exactly 0); a layout
+  change during the clear (starts over, no bus until done, then apart); ROOM's values follow SIZE and DAMP.
+  `ncc_dev.sh test` all ok (both variants), emu-test ok, build ok (`build/ncc.fwsc` SHA-256 `988bbb09…c463`).
+- Looked at, not changed: SPLIT's HALL at SIZE 116..127 has its shortest lines at the 0.99 gain cap (STEREO never):
+  the longest tails a little shorter than STEREO's; lifting the cap changes sound and stability margin (Remco's
+  ears). Tracks 3 / 4 are muted with no channel in NCC (`setup_test`), so they cannot leak across SPLIT. R's sends
+  over the second core are still only read, not run (no host second core). **Still to do on the device**: console
+  `status` `cpu_pct` / `audio_max_us`, SPLIT vs STEREO, heavy sounds and HALL; and a listen after flashing this.
+
 ## SPLIT fully apart, effects included (2026-11-15, on main `50804ba`, flashed, not pushed)
 
 - **Next: a review by another assistant** (Remco: code check, efficiency, ideas for new features). The brief is

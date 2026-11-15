@@ -986,6 +986,113 @@ static void split_fx_test(void)
         song.g[G_ENGGO] = 1;
         ok("split <-> stereo: the buses fade out, stay silent while the delay clears, no jump", !bad && big < 4000);
     }
+    {   /* a model change in SPLIT while L's return rings: the old model fades over a block (no jump on the left), the
+         * right side exactly 0 throughout; through all three and round */
+        uint32_t b, i, k, apart2 = 1;
+        int32_t last, big = 0;
+        power();
+        fx_quiet();
+        song.g[G_ENGGO] = 0;
+        song.g[G_RTYPE] = 0;
+        trk[0].p[P_REV] = trk[0].p[P_DLY] = trk[0].p[P_CHOR] = 120;
+        for (b = 0; b < 40u; b++)
+            blk();
+        for (k = 1; k <= 3u; k++) {
+            midi(0x92, 60, 110);
+            for (b = 0; b < 100u; b++)
+                blk();
+            midi(0x82, 60, 0);
+            midi_silence_track(0);
+            for (b = 0; b < 30u; b++)
+                blk();                                  /* (the returns ringing alone) */
+            last = blk_out[2u * (CTL - 1u)];
+            song.g[G_RTYPE] = (int16_t)(k % 3u);        /* ROOM -> SPRING -> HALL -> ROOM */
+            for (b = 0; b < 60u; b++) {
+                blk();
+                for (i = 0; i < CTL; i++) {
+                    int32_t d = blk_out[2u * i] - last;
+                    d = d < 0 ? -d : d;
+                    if (b < 2u && d > big)
+                        big = d;
+                    last = blk_out[2u * i];
+                    apart2 &= mix_r[i] == 0 && wet[i] == 0 && blk_out[2u * i + 1u] == 0;
+                }
+            }
+        }
+        song.g[G_ENGGO] = 1;
+        ok("split fx: a model change while ringing: no jump on its side, the other side exactly 0", apart2 &&
+           big < 4000 && fx.rtype == 0u);
+    }
+    {   /* the layout changed again while the buffers clear: the clear starts over (no bus meanwhile), then SPLIT's
+         * buses play from silence, the sides apart */
+        uint32_t b, i, bad = 0, tail2 = 0;
+        power();
+        fx_quiet();
+        song.g[G_ENGGO] = 0;
+        trk[0].p[P_REV] = trk[0].p[P_DLY] = trk[0].p[P_CHOR] = 120;
+        for (b = 0; b < 40u; b++)
+            blk();
+        midi(0x92, 60, 110);
+        for (b = 0; b < 100u; b++)
+            blk();
+        midi(0x82, 60, 0);
+        midi_silence_track(0);
+        for (b = 0; b < 30u; b++)
+            blk();
+        song.g[G_ENGGO] = 1;                            /* STEREO: its block fades, the clear begins */
+        for (b = 0; b < 6u; b++)
+            blk();
+        ok("split <-> stereo: clearing for STEREO", ncs.run == 0u && ncs.clr && ncs.clr < NCS_CLR);
+        song.g[G_ENGGO] = 0;                            /* SPLIT again, mid clear */
+        blk();
+        ok("split <-> stereo: a change during the clear: the clear starts over for the new layout", ncs.run == 1u &&
+           ncs.clr == NCS_CLR);
+        for (b = 0; b < NCS_CLR; b++) {
+            blk();
+            for (i = 0; i < CTL; i++)
+                bad += mix_l[i] != 0 || mix_r[i] != 0 || wet[i] != 0;
+        }
+        ok("split <-> stereo: .. no bus until it is done", !bad && !ncs.clr);
+        midi(0x92, 60, 110);
+        for (b = 0; b < 100u; b++)
+            blk();
+        midi(0x82, 60, 0);
+        midi_silence_track(0);
+        for (b = 0; b < 200u; b++) {
+            blk();
+            for (i = 0; i < CTL; i++) {
+                bad += mix_r[i] != 0 || wet[i] != 0;
+                tail2 += mix_l[i] != 0;
+            }
+        }
+        song.g[G_ENGGO] = 1;
+        ok("split <-> stereo: .. then SPLIT's buses play, a side each", !bad && tail2 > 3000u);
+    }
+    {   /* SPLIT's ROOM: its comb gain and low-pass follow SIZE and DAMP (worked out when they change, not a block) */
+        int32_t g0, k0, g1, k1;
+        uint32_t b;
+        power();
+        fx_quiet();
+        song.g[G_ENGGO] = 0;
+        song.g[G_RTYPE] = 0;
+        song.g[G_RSIZE] = 20;
+        song.g[G_RDAMP] = 20;
+        for (b = 0; b < 40u; b++)
+            blk();
+        g0 = ncs.rsz, k0 = ncs.rkp;
+        song.g[G_RSIZE] = 110;
+        blk();
+        g1 = ncs.rsz, k1 = ncs.rkp;
+        ok("split fx: ROOM's decay follows SIZE (the damping as it was)", g1 > g0 && k1 == k0 && g1 < 32768);
+        song.g[G_RDAMP] = 100;
+        blk();
+        ok("split fx: .. and its low-pass DAMP (the decay as it was)", ncs.rkp > k1 && ncs.rsz == g1);
+        song.g[G_RSIZE] = 20;
+        song.g[G_RDAMP] = 20;
+        blk();
+        ok("split fx: .. back at the first values: the same as before", ncs.rsz == g0 && ncs.rkp == k0);
+        song.g[G_ENGGO] = 1;
+    }
 }
 
 static void split_dac_test(void)
