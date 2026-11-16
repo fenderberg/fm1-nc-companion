@@ -1,6 +1,21 @@
 # Handoff: where NCC stands
 
-Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-15.
+Read **AGENTS.md** first (chip rules, architecture, code map and commands). Updated: 2026-11-16.
+
+## The Firmware Hub listing (2026-11-16, fmhub.json committed, not pushed)
+
+- Remco is submitting NCC to https://thefirmwarehub.com (a handover he brought: fmhub.json, identity, device tests,
+  the form). Added **`fmhub.json`** in the repo root (the hub reads it from `main` within 3 hours of a push): his
+  text, `what` 296 of 300 chars; the `sounds` line points at CREDITS.md too (the Hügelton Sample Pack is credited
+  there, not in ATTRIBUTION.txt). Its links (try, manager, cheat sheet) answer 200. No DX7 bank or other third-party
+  patches ship (NCC's own FM6 patches are written as macros). `what` describes the released 0.7 (twelve engines,
+  161 sounds): **update it with the next release** (WAVE, 195 sounds are on main).
+- Checked: both flash chips are accepted (`project.c`: 0x856014, 0xB36014, since 0.6). Identity: the hub says
+  FM-1_707 and FM-1_708 are free, FM-1_710 (1.0) collides with other firmwares; switching to an own 8-digit range
+  (`FM-1_53MMmmpp`) touches `tools/build.py` (PRODUCT, `--release`), `web/make_site.py` (its `FM-1_[79]\d\d`
+  check) and the `ncc_dev.sh` comment, then a release and a device test: **Remco's call, not done**.
+- Remco's own: the device tests (install from V15 and from another firmware, back to V15, identity over USB) and
+  ticking/sending the form after the push.
 
 ## 24 synth sounds and the WAVE engine (2026-11-15, on main, pushed, flashed, not listened to yet)
 

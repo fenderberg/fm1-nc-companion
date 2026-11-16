@@ -1,0 +1,10 @@
+{
+  "what": "Turns the FM-1 into a two-part synth for the Novation Circuit Tracks: parts L and R follow MIDI 1 and 2 on split outputs, played from the Circuit's knobs. Twelve engines from DX7-style FM to Juno, CZ, acid and granular, 161 sounds, synced arp, drone and effects. Works with any MIDI keyboard too.",
+  "author": "Fenderberg",
+  "kinds": "synth",
+  "play": "https://fenderberg.github.io/fm1-nc-companion/webapp/try/",
+  "editor": "https://fenderberg.github.io/fm1-nc-companion/webapp/manager/",
+  "cheat": "https://fenderberg.github.io/fm1-nc-companion/cheatsheet/",
+  "sounds": "CC0: Versilian Studios VSCO-2 Community Edition and VCSL, Hügelton Sample Pack (see CREDITS.md and assets/samples-cc0/ATTRIBUTION.txt)",
+  "color": "#B98CFF"
+}
