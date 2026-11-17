@@ -5,6 +5,7 @@
   "play": "https://fenderberg.github.io/fm1-nc-companion/webapp/try/",
   "editor": "https://fenderberg.github.io/fm1-nc-companion/webapp/manager/",
   "cheat": "https://fenderberg.github.io/fm1-nc-companion/cheatsheet/",
+  "image": "web/site/img/ncc-card.jpg",
   "sounds": "CC0: Versilian Studios VSCO-2 Community Edition and VCSL, Hügelton Sample Pack (see CREDITS.md and assets/samples-cc0/ATTRIBUTION.txt)",
   "color": "#B98CFF"
 }
